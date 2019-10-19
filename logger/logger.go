@@ -29,6 +29,7 @@ func ReadFile(path string) {
 	log.Println(chalk.Green.Color("Read file:"), chalk.Green.Color(chalk.Bold.TextStyle(path)))
 }
 
+
 func MakeDirSuccess(path string) {
 	wd, _ := os.Getwd()
 	path = strings.TrimPrefix(path, wd+"/")

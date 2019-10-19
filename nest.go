@@ -28,6 +28,11 @@ func main() {
 			Usage:  "Show project status",
 			Action: command.StatusCommand,
 		},
+		{
+			Name:   "build",
+			Usage:  "build project tasks",
+			Action: command.BuildCommand,
+		},
 	}
 	err := app.Run(os.Args)
 	if err != nil {

@@ -41,7 +41,8 @@ type Task struct {
 }
 
 type Build struct {
-	Command []string `yaml:"command,omitempty"`
+	Directory string   `yaml:"directory,omitempty"`
+	Command   []string `yaml:"command,omitempty"`
 }
 
 type Deploy struct {

@@ -16,10 +16,11 @@ type TaskRecord struct {
 	BuildAt int64
 }
 
-func NewFileRecord(ident, md5 string, modAt int64) *FileRecord {
+func NewFileRecord(ident, path, md5 string, modAt int64) *FileRecord {
 	fileRecord := new(FileRecord)
 	fileRecord.Ident = ident
 	fileRecord.Md5 = md5
+	fileRecord.Path = path
 	fileRecord.ModAt = modAt
 	return fileRecord
 }
@@ -31,6 +32,7 @@ func GetFileIdent(path string) string {
 type FileRecord struct {
 	Ident   string `xorm:"varchar(32) pk"`
 	Md5     string `xorm:"varchar(32) not null"`
+	Path    string `xorm:"text not null"`
 	ModAt   int64
 	BuildAt int64
 }
@@ -69,6 +71,23 @@ func GetTaskRecord(id string) (taskRecord *TaskRecord, err error) {
 	return
 }
 
+func GetTaskRecords() (taskRecord []*TaskRecord, err error) {
+	taskRecord = make([]*TaskRecord, 0)
+	err = engine.Find(&taskRecord)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func DeleteTaskRecord(id string) (err error) {
+
+	taskRecord := new(TaskRecord)
+	_, err = engine.Where("id=?", id).Delete(taskRecord)
+
+	return
+}
+
 func CreateFileRecord(fileRecord *FileRecord) (err error) {
 	_, err = engine.Insert(fileRecord)
 	return
@@ -91,6 +110,14 @@ func GetFileRecord(ident string) (fileRecord *FileRecord, err error) {
 	return
 }
 
+func DeleteFileRecord(ident string) (err error) {
+
+	fileRecord := new(FileRecord)
+	_, err = engine.Where("ident=?", ident).Delete(fileRecord)
+
+	return
+}
+
 func CreateFileTaskRecord(fileTaskRecord *FileTaskRecord) (err error) {
 	_, err = engine.Insert(fileTaskRecord)
 	return
@@ -105,5 +132,31 @@ func GetFileTaskRecord(fileIdent, taskId string) (fileTaskRecord *FileTaskRecord
 	if !has {
 		fileTaskRecord = nil
 	}
+	return
+}
+
+func GetTaskFileRecords(taskId string) (fileTaskRecords []*FileTaskRecord, err error) {
+
+	fileTaskRecords = make([]*FileTaskRecord, 0)
+	err = engine.Where("taskId=?", taskId).Find(&fileTaskRecords)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func DeleteTaskFileRecords(taskId string) (err error) {
+
+	fileTaskRecord := new(FileTaskRecord)
+	_, err = engine.Where("taskId=?", taskId).Delete(fileTaskRecord)
+
+	return
+}
+
+func DeleteFileTaskRecords(fileIdent string) (err error) {
+
+	fileTaskRecord := new(FileTaskRecord)
+	_, err = engine.Where("fileIdent=?", fileIdent).Delete(fileTaskRecord)
+
 	return
 }

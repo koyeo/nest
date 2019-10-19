@@ -10,7 +10,14 @@ import (
 	"path/filepath"
 )
 
-func Prepare() (context *Context, err error) {
+var context *Context
+
+func Prepare() (ctx *Context, err error) {
+
+	if context != nil {
+		ctx = context
+		return
+	}
 
 	file := filepath.Join(enums.ConfigFileName)
 	if !storage.Exist(file) {
@@ -32,12 +39,13 @@ func Prepare() (context *Context, err error) {
 		return
 	}
 
-	context, err = MakeContext(conf)
-
+	ctx, err = MakeContext(conf)
 	if err != nil {
 		logger.Error("Prepare error: ", err)
 		return
 	}
+
+	context = ctx
 
 	return
 }

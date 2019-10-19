@@ -17,6 +17,7 @@ env:
 script:
   - name: 测试环境部署脚本
     id: env-test-deploy
+    file: build.sh
     command:
       - echo "Hello world"
 
@@ -26,7 +27,8 @@ task:
     watch:
       - test/generator/*.go
     build:
-      comand:
+      directory: test/generator
+      command:
         - go build main.go
   - name: 主程序
     id: main
@@ -35,8 +37,10 @@ task:
       - test/second/**/*.go
     run: go run main.go
     build:
-      comand:
-        - go build main.go
+      directory: test
+      command:
+        - go build test.go
+        - echo "Hello world"
     deploy:
       - env: env-test
         log:

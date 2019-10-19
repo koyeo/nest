@@ -16,5 +16,6 @@ require (
 	golang.org/x/sys v0.0.0-20191018095205-727590c5006e // indirect
 	gopkg.in/toast.v1 v1.0.0-20180812000517-0a84660828b2 // indirect
 	gopkg.in/yaml.v2 v2.2.4
+	xorm.io/core v0.7.2
 	xorm.io/xorm v0.8.0
 )

@@ -88,8 +88,8 @@ func ToEnv(o *config.Env) (n *Env, err error) {
 	n.Name = o.Name
 	for _, v := range o.Server {
 
-		if n.serverMap == nil{
-			n.serverMap = make( map[string]*Server)
+		if n.serverMap == nil {
+			n.serverMap = make(map[string]*Server)
 		}
 
 		if _, ok := n.serverMap[v.Id]; ok {
@@ -163,11 +163,13 @@ func ToTask(o *config.Task) *Task {
 }
 
 type Build struct {
-	Command []string
+	Directory string
+	Command   []string
 }
 
 func ToBuild(o *config.Build) *Build {
 	n := new(Build)
+	n.Directory = o.Directory
 	n.Command = o.Command
 	return n
 }

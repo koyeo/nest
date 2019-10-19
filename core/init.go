@@ -3,6 +3,7 @@ package core
 import (
 	_ "github.com/mattn/go-sqlite3"
 	"nest/logger"
+	"xorm.io/core"
 	"xorm.io/xorm"
 )
 
@@ -15,6 +16,8 @@ func init() {
 		logger.Error("Open sqlite error", err)
 		return
 	}
+	engine.SetTableMapper(core.SameMapper{})
+	engine.SetColumnMapper(core.SameMapper{})
 	err = engine.Sync2(new(TaskRecord), new(FileRecord), new(FileTaskRecord))
 	if err != nil {
 		logger.Error("Sync sqlite table error", err)
