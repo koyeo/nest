@@ -27,32 +27,43 @@ func BuildCommand(c *cli.Context) (err error) {
 		return
 	}
 
-	for _, v1 := range change.TaskList {
+	count := 0
+	for _, task := range change.TaskList {
 
-		if v1.Type == enums.ChangeTypeDelete {
+		if task.Type == enums.ChangeTypeDelete {
 			continue
 		}
 
+		if !task.Modify {
+			continue
+		}
+
+		count++
 		var dir string
-		dir, err = filepath.Abs(v1.Task.Build.Directory)
+		dir, err = filepath.Abs(task.Task.Build.Directory)
 		if err != nil {
 			logger.Error("Modify get directory error: ", err)
 			return
 		}
 
-		log.Println(chalk.Green.Color("Modify:"), v1.Task.Name)
+		log.Println(chalk.Green.Color("Modify:"), task.Task.Name)
 		log.Println(chalk.Green.Color("Modify task start"))
 		log.Println(chalk.Green.Color("Exec directory:"), dir)
 
-		for _, v2 := range v1.Task.Build.Command {
-			log.Println(chalk.Green.Color("Exec command:"), v2)
-			err = Exec(v1.Task.Build.Directory, v2)
+		for _, command := range task.Task.Build.Command {
+			log.Println(chalk.Green.Color("Exec command:"), command)
+			err = Exec(task.Task.Build.Directory, command)
 			if err != nil {
 				return
 			}
 		}
 
 		log.Println(chalk.Green.Color("Modify task end"))
+	}
+
+	if count == 0 {
+		fmt.Println(chalk.Green.Color("no change"))
+		return
 	}
 
 	err = core.Commit(change)
