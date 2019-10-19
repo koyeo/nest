@@ -1,0 +1,51 @@
+name: nest
+
+workspace: .nest
+
+env:
+  - name: 测试环境
+    id: env-test
+    server:
+      - name: 测试服务器
+        id: test-node-1
+        ip: 47.100.184.133
+        port: 2222
+        user: root
+        password: Helloshic
+        identity: ~/.ssh/id_rsa
+
+script:
+  - name: 测试环境部署脚本
+    id: env-test-deploy
+    command:
+      - echo "Hello world"
+
+task:
+  - name: 生成器
+    id: generator
+    watch:
+      - test/generator/*.go
+    build:
+      comand:
+        - go build main.go
+  - name: 主程序
+    id: main
+    watch:
+      - test/test.go
+      - test/second/**/*.go
+    run: go run main.go
+    build:
+      comand:
+        - go build main.go
+    deploy:
+      - env: env-test
+        log:
+          dir: /path/to/log
+        pid: /path/to/pid
+        script:
+          - env-test-deploy
+        command:
+          - git pull
+
+
+

@@ -1,0 +1,29 @@
+# github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d
+github.com/cpuguy83/go-md2man/v2/md2man
+# github.com/gen2brain/beeep v0.0.0-20190719094215-ece0cb67ca77
+github.com/gen2brain/beeep
+# github.com/godbus/dbus v4.1.0+incompatible
+github.com/godbus/dbus
+# github.com/gopherjs/gopherjs v0.0.0-20190915194858-d3ddacdb130f
+github.com/gopherjs/gopherjs/js
+# github.com/gopherjs/gopherwasm v1.1.0
+github.com/gopherjs/gopherwasm/js
+# github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
+github.com/nu7hatch/gouuid
+# github.com/russross/blackfriday/v2 v2.0.1
+github.com/russross/blackfriday/v2
+# github.com/shurcooL/sanitized_anchor_name v1.0.0
+github.com/shurcooL/sanitized_anchor_name
+# github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af
+github.com/tadvi/systray
+# github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31
+github.com/ttacon/chalk
+# github.com/urfave/cli v1.22.1
+github.com/urfave/cli
+# golang.org/x/sys v0.0.0-20191018095205-727590c5006e
+golang.org/x/sys/windows
+golang.org/x/sys/windows/registry
+# gopkg.in/toast.v1 v1.0.0-20180812000517-0a84660828b2
+gopkg.in/toast.v1
+# gopkg.in/yaml.v2 v2.2.4
+gopkg.in/yaml.v2
