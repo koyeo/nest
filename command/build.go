@@ -1,7 +1,6 @@
 package command
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/ttacon/chalk"
 	"github.com/urfave/cli"
@@ -9,8 +8,8 @@ import (
 	"nest/core"
 	"nest/enums"
 	"nest/logger"
+	"nest/notify"
 	"os"
-	"os/exec"
 	"path/filepath"
 )
 
@@ -27,6 +26,11 @@ func BuildCommand(c *cli.Context) (err error) {
 		return
 	}
 
+	env := mustGetEnv(c, 0)
+	if env == nil {
+		return
+	}
+
 	count := 0
 	for _, task := range change.TaskList {
 
@@ -37,28 +41,30 @@ func BuildCommand(c *cli.Context) (err error) {
 		if !task.Modify {
 			continue
 		}
-
 		count++
 		var dir string
-		dir, err = filepath.Abs(task.Task.Build.Directory)
+		dir, err = filepath.Abs(task.Task.Directory)
 		if err != nil {
 			logger.Error("Modify get directory error: ", err)
 			return
 		}
 
-		log.Println(chalk.Green.Color("Modify:"), task.Task.Name)
-		log.Println(chalk.Green.Color("Modify task start"))
+		log.Println(chalk.Green.Color("Task:"), task.Task.Name)
+		log.Println(chalk.Green.Color("Build start"))
 		log.Println(chalk.Green.Color("Exec directory:"), dir)
 
-		for _, command := range task.Task.Build.Command {
-			log.Println(chalk.Green.Color("Exec command:"), command)
-			err = Exec(task.Task.Build.Directory, command)
-			if err != nil {
-				return
-			}
+		build := task.Task.GetBuild(env.Id)
+		if build == nil {
+			err = fmt.Errorf("task \"%s\"env \"%s\" not exist", task.Task.Id, env.Id)
+			logger.Error("Build error: ", err)
+			return
+		}
+		err = execBuildCommand(task.Task, build)
+		if err != nil {
+			return
 		}
 
-		log.Println(chalk.Green.Color("Modify task end"))
+		log.Println(chalk.Green.Color("Build end"))
 	}
 
 	if count == 0 {
@@ -70,59 +76,20 @@ func BuildCommand(c *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
+	log.Println(chalk.Green.Color("Commit success"))
+
+	notify.BuildDone(count)
 
 	return
 }
 
-func Exec(dir, command string) (err error) {
-
-	c := exec.Command("bash", "-c", command)
-	c.Dir = dir
-
-	stderr, err := c.StderrPipe()
-	if err != nil {
-		logger.Error("Exec command get stderr error: ", err)
-	}
-
-	stdout, err := c.StdoutPipe()
-	if err != nil {
-		logger.Error("Exec command get stdout error: ", err)
-	}
-
-	out := make(chan string)
-
-	go func() {
-		scanner := bufio.NewScanner(stdout)
-		scanner.Split(bufio.ScanLines)
-		for scanner.Scan() {
-			out <- scanner.Text()
+func execBuildCommand(task *core.Task, build *core.Build) (err error) {
+	for _, command := range build.Command {
+		log.Println(chalk.Green.Color("Exec command:"), command)
+		err = Exec(task.Directory, command)
+		if err != nil {
+			return
 		}
-	}()
-
-	go func() {
-		scanner := bufio.NewScanner(stderr)
-		scanner.Split(bufio.ScanLines)
-		for scanner.Scan() {
-			out <- scanner.Text()
-		}
-	}()
-
-	go func() {
-		select {
-		case m := <-out:
-			fmt.Println(m)
-		}
-	}()
-
-	err = c.Start()
-	if err != nil {
-		logger.Error("Exec command start error: ", err)
 	}
-
-	err = c.Wait()
-	if err != nil {
-		logger.Error("Exec command wait error: ", err)
-	}
-
 	return
 }

@@ -3,6 +3,8 @@ package core
 import (
 	"fmt"
 	"nest/config"
+	"nest/enums"
+	"nest/storage"
 )
 
 type Context struct {
@@ -15,6 +17,27 @@ type Context struct {
 	scriptMap map[string]*Script
 	Task      []*Task
 	taskMap   map[string]*Task
+}
+
+func (p *Context) GetEnv(envId string) *Env {
+	if v, ok := p.envMap[envId]; ok {
+		return v
+	}
+	return nil
+}
+
+func (p *Context) GetTask(taskId string) *Task {
+	if v, ok := p.taskMap[taskId]; ok {
+		return v
+	}
+	return nil
+}
+
+func (p *Context) GetScript(scriptId string) *Script {
+	if v, ok := p.scriptMap[scriptId]; ok {
+		return v
+	}
+	return nil
 }
 
 func (p *Context) AddEnv(env *config.Env) (err error) {
@@ -68,7 +91,10 @@ func (p *Context) AddTask(task *config.Task) (err error) {
 		return
 	}
 
-	n := ToTask(task)
+	n, err := ToTask(task)
+	if err != nil {
+		return
+	}
 	p.taskMap[task.Id] = n
 	p.Task = append(p.Task, n)
 
@@ -91,7 +117,6 @@ func ToEnv(o *config.Env) (n *Env, err error) {
 		if n.serverMap == nil {
 			n.serverMap = make(map[string]*Server)
 		}
-
 		if _, ok := n.serverMap[v.Id]; ok {
 			err = fmt.Errorf("server \"%s\" duplicated", v.Id)
 			return
@@ -129,6 +154,7 @@ func ToServer(o *config.Server) *Server {
 type Script struct {
 	Id      string
 	Name    string
+	File    string
 	Command []string
 }
 
@@ -140,56 +166,166 @@ func ToScript(o *config.Script) *Script {
 	return n
 }
 
-type Task struct {
-	Id     string
-	Name   string
-	Watch  []string
-	Run    string
-	Build  *Build
-	Deploy []*Deploy
-}
-
-func ToTask(o *config.Task) *Task {
-	n := new(Task)
-	n.Id = o.Id
-	n.Name = o.Name
-	n.Watch = o.Watch
-	n.Run = o.Run
-	n.Build = ToBuild(o.Build)
-	for _, v := range o.Deploy {
-		n.Deploy = append(n.Deploy, ToDeploy(v))
-	}
-	return n
-}
-
-type Build struct {
-	Directory string
-	Command   []string
-}
-
-func ToBuild(o *config.Build) *Build {
-	n := new(Build)
-	n.Directory = o.Directory
-	n.Command = o.Command
-	return n
-}
-
-type Deploy struct {
-	Env     string
-	Log     *Log
-	Pid     string
-	Script  []string
+type ExtendScript struct {
+	Type    string
+	File    string
 	Command []string
 }
 
-func ToDeploy(o *config.Deploy) *Deploy {
-	n := new(Deploy)
+func NewExtendScript(name string) (extendScript *ExtendScript, err error) {
+	extendScript = new(ExtendScript)
+	extendScript.File, extendScript.Type, err = config.ParseExtendScript(name)
+	return
+}
+
+func (p *ExtendScript) Content() (content []byte, err error) {
+
+	if !storage.Exist(p.File) {
+		err = fmt.Errorf("sciprt file \"%s\" not exist", p.File)
+		return
+	}
+	content, err = storage.Read(p.File)
+	return
+}
+
+type Task struct {
+	Id        string
+	Name      string
+	Watch     []string
+	Directory string
+	Run       string
+	Build     []*Build
+	buildMap  map[string]*Build
+	Deploy    []*Deploy
+	deployMap map[string]*Deploy
+}
+
+func (p *Task) AddBuild(build *config.Build) (err error) {
+	if p.buildMap == nil {
+		p.buildMap = make(map[string]*Build)
+	}
+	if _, ok := p.buildMap[build.Env]; ok {
+		return
+	}
+
+	p.buildMap[build.Env], err = ToBuild(build)
+	if err != nil {
+		return
+	}
+	p.Build = append(p.Build, p.buildMap[build.Env])
+
+	return
+}
+
+func (p *Task) GetBuild(env string) *Build {
+	if v, ok := p.buildMap[env]; ok {
+		return v
+	}
+	return nil
+}
+
+func (p *Task) AddDeploy(deploy *config.Deploy) (err error) {
+	if p.deployMap == nil {
+		p.deployMap = make(map[string]*Deploy)
+	}
+	if _, ok := p.deployMap[deploy.Env]; ok {
+		return
+	}
+
+	p.deployMap[deploy.Env], err = ToDeploy(deploy)
+	if err != nil {
+		return
+	}
+	p.Deploy = append(p.Deploy, p.deployMap[deploy.Env])
+
+	return
+}
+
+func (p *Task) GetDeploy(env string) *Deploy {
+	if v, ok := p.deployMap[env]; ok {
+		return v
+	}
+	return nil
+}
+
+func ToTask(o *config.Task) (n *Task, err error) {
+	n = new(Task)
+	n.Id = o.Id
+	n.Name = o.Name
+	n.Watch = o.Watch
+	n.Directory = o.Directory
+	n.Run = o.Run
+	for _, v := range o.Build {
+		err = n.AddBuild(v)
+		if err != nil {
+			return
+		}
+	}
+	for _, v := range o.Deploy {
+		err = n.AddDeploy(v)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+type Build struct {
+	Env          string
+	BeforeScript []*ExtendScript
+	AfterScript  []*ExtendScript
+	Command      []string
+}
+
+func ToBuild(o *config.Build) (n *Build, err error) {
+	n = new(Build)
+	n.Env = o.Env
+	for _, v := range o.Script {
+		var extendScript *ExtendScript
+		extendScript, err = NewExtendScript(v)
+		if err != nil {
+			return
+		}
+		if extendScript.Type == enums.ScriptTypeBefore {
+			n.BeforeScript = append(n.BeforeScript, extendScript)
+		} else if extendScript.Type == enums.ScriptTypeAfter {
+			n.AfterScript = append(n.AfterScript, extendScript)
+		}
+
+	}
+	n.Command = o.Command
+	return
+}
+
+type Deploy struct {
+	Env          string
+	Log          *Log
+	Pid          string
+	BeforeScript []*ExtendScript
+	AfterScript  []*ExtendScript
+	Command      []string
+}
+
+func ToDeploy(o *config.Deploy) (n *Deploy, err error) {
+	n = new(Deploy)
 	n.Env = o.Env
 	n.Log = ToLog(o.Log)
 	n.Pid = o.Pid
-	n.Script = o.Script
+	for _, v := range o.Script {
+		var extendScript *ExtendScript
+		extendScript, err = NewExtendScript(v)
+		if err != nil {
+			return
+		}
+		if extendScript.Type == enums.ScriptTypeBefore {
+			n.BeforeScript = append(n.BeforeScript, extendScript)
+		} else if extendScript.Type == enums.ScriptTypeAfter {
+			n.AfterScript = append(n.AfterScript, extendScript)
+		}
+
+	}
 	n.Command = o.Command
-	return n
+	return
 }
 
 type Log struct {

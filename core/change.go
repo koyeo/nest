@@ -60,18 +60,19 @@ type ChangeTask struct {
 	Delete   []*ChangeFile
 	FileList []*ChangeFile
 	fileMap  map[string]*ChangeFile
+	Md5      string
 	Modify   bool
 }
 
-func (p *ChangeTask) Md5() string {
+func (p *ChangeTask) SetMd5() {
 	items := make([]string, 0)
 	for _, v := range p.FileList {
 		if v.Type == enums.ChangeTypeDelete {
 			continue
 		}
-		items = append(items, v.Ident)
+		items = append(items, v.Md5)
 	}
-	return secret.Md5([]byte(strings.Join(items, "")))
+	p.Md5 = secret.Md5([]byte(strings.Join(items, "")))
 }
 
 func (p *ChangeTask) Get(ident string) *ChangeFile {
@@ -230,7 +231,8 @@ func MakeChange() (change *Change, err error) {
 	for _, v := range taskRecords {
 		changeTask := change.Get(v.Id)
 		if changeTask != nil {
-			if changeTask.Md5() != v.Md5 {
+			changeTask.SetMd5()
+			if changeTask.Md5 != v.Md5 {
 				changeTask.Modify = true
 			}
 			continue

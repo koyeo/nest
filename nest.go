@@ -30,8 +30,13 @@ func main() {
 		},
 		{
 			Name:   "build",
-			Usage:  "build project tasks",
+			Usage:  "build task",
 			Action: command.BuildCommand,
+		},
+		{
+			Name:   "run",
+			Usage:  "run task",
+			Action: command.RunCommand,
 		},
 	}
 	err := app.Run(os.Args)

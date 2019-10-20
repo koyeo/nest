@@ -32,12 +32,12 @@ func Commit(change *Change) (err error) {
 
 		switch task.Type {
 		case enums.ChangeTypeNew:
-			_, err = AddTaskRecord(task.Task.Id, task.Md5())
+			_, err = AddTaskRecord(task.Task.Id, task.Md5)
 			if err != nil {
 				return
 			}
 		case enums.ChangeTypeUpdate:
-			err = RefreshTaskRecord(task.Task.Id, task.Md5())
+			err = RefreshTaskRecord(task.Task.Id, task.Md5)
 			if err != nil {
 				return
 			}

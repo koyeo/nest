@@ -2,9 +2,18 @@ name: nest
 
 workspace: .nest
 
+script:
+  - name: 测试环境部署脚本
+    id: env-test-deploy
+    file: build.sh
+    command:
+      - echo "Hello world"
+
 env:
   - name: 测试环境
     id: env-test
+    script:
+      - env-test-deploy.sh@before
     server:
       - name: 测试服务器
         id: test-node-1
@@ -14,33 +23,31 @@ env:
         password: Helloshic
         identity: ~/.ssh/id_rsa
 
-script:
-  - name: 测试环境部署脚本
-    id: env-test-deploy
-    file: build.sh
-    command:
-      - echo "Hello world"
-
 task:
   - name: 生成器
     id: generator
     watch:
       - test/generator/*.go
+    directory: test/generator
     build:
-      directory: test/generator
-      command:
-        - go build main.go
+      - env: localhost
+        command:
+          - go build main.go
   - name: 主程序
     id: main
     watch:
       - test/test.go
       - test/second/**/*.go
-    run: go run main.go
+    directory: test
+    run: go run test.go
     build:
-      directory: test
-      command:
-        - go build test.go
-        - echo "Hello world"
+      - env: env-test
+        script:
+          - env-test@before
+          - env-test@after
+        command:
+          - go build test.go
+          - echo "Hello world"
     deploy:
       - env: env-test
         log:

@@ -1,5 +1,11 @@
 package config
 
+import (
+	"fmt"
+	"nest/enums"
+	"strings"
+)
+
 type Config struct {
 	Name      string    `yaml:"name,omitempty"`
 	Id        string    `yaml:"id,omitempty"`
@@ -32,17 +38,19 @@ type Script struct {
 }
 
 type Task struct {
-	Id     string    `yaml:"id,omitempty"`
-	Name   string    `yaml:"name,omitempty"`
-	Watch  []string  `yaml:"watch,omitempty"`
-	Run    string    `yaml:"run,omitempty"`
-	Build  *Build    `yaml:"build,omitempty"`
-	Deploy []*Deploy `yaml:"deploy,omitempty"`
+	Id        string    `yaml:"id,omitempty"`
+	Name      string    `yaml:"name,omitempty"`
+	Watch     []string  `yaml:"watch,omitempty"`
+	Directory string    `yaml:"directory,omitempty"`
+	Run       string    `yaml:"run,omitempty"`
+	Build     []*Build  `yaml:"build,omitempty"`
+	Deploy    []*Deploy `yaml:"deploy,omitempty"`
 }
 
 type Build struct {
-	Directory string   `yaml:"directory,omitempty"`
-	Command   []string `yaml:"command,omitempty"`
+	Env     string   `yaml:"env,omitempty"`
+	Script  []string `yaml:"script,omitempty"`
+	Command []string `yaml:"command,omitempty"`
 }
 
 type Deploy struct {
@@ -55,4 +63,16 @@ type Deploy struct {
 
 type Log struct {
 	Dir string `yaml:"dir,omitempty"`
+}
+
+func ParseExtendScript(name string) (script, position string, err error) {
+	if strings.Contains(name, enums.ScriptExtendIdent) {
+		items := strings.Split(name, enums.ScriptExtendIdent)
+		script, position = items[0], items[1]
+		if position != enums.ScriptTypeBefore && position != enums.ScriptTypeAfter {
+			err = fmt.Errorf("invaild script position \"%s\"", position)
+			return
+		}
+	}
+	return
 }
