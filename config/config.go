@@ -22,9 +22,12 @@ type Env struct {
 }
 
 type Server struct {
-	Id       string `yaml:"id,omitempty"`
-	Name     string `yaml:"name,omitempty"`
-	Ip       string `yaml:"ip,omitempty"`
+	Id   string `yaml:"id,omitempty"`
+	Name string `yaml:"name,omitempty"`
+	Ip   string `yaml:"ip,omitempty"`
+	SSH  *SSH   `yaml:"ssh"`
+}
+type SSH struct {
 	Port     uint64 `yaml:"port,omitempty"`
 	User     string `yaml:"user,omitempty"`
 	Password string `yaml:"password,omitempty"`

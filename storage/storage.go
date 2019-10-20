@@ -3,12 +3,29 @@ package storage
 import (
 	"fmt"
 	"io/ioutil"
+	"nest/enums"
 	"nest/logger"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 )
+
+func WorkspaceDir(path ...string) string {
+	return filepath.Join(enums.WorkspaceDir, filepath.Join(path...))
+}
+
+func DataFile() string {
+	return WorkspaceDir(enums.DataDir, enums.DataFile)
+}
+
+func BinDir() string {
+	return WorkspaceDir(enums.BinDir)
+}
+
+func BinFile(file string) string {
+	return WorkspaceDir(enums.BinDir, file)
+}
 
 func Read(path string) (data []byte, err error) {
 

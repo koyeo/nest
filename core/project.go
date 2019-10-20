@@ -19,9 +19,9 @@ func Prepare() (ctx *Context, err error) {
 		return
 	}
 
-	file := filepath.Join(enums.ConfigFileName)
+	file := filepath.Join(enums.ConfigFile)
 	if !storage.Exist(file) {
-		err = fmt.Errorf("%s not exist", enums.ConfigFileName)
+		err = fmt.Errorf("%s not exist", enums.ConfigFile)
 		logger.Error("Load config error: ", err)
 		return
 	}

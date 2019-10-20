@@ -3,11 +3,15 @@ package command
 import (
 	"bufio"
 	"fmt"
+	"github.com/ttacon/chalk"
+	"log"
 	"nest/logger"
 	"os/exec"
 )
 
 func Exec(dir, command string) (err error) {
+
+	log.Println(chalk.Green.Color("Exec command:"), command)
 
 	c := exec.Command("bash", "-c", command)
 	c.Dir = dir

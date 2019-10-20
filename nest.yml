@@ -1,11 +1,9 @@
 name: nest
 
-workspace: .nest
-
 script:
   - name: 测试环境部署脚本
-    id: env-test-deploy
-    file: build.sh
+    id: test.sh
+    file: test/shell/test.sh
     command:
       - echo "Hello world"
 
@@ -18,10 +16,11 @@ env:
       - name: 测试服务器
         id: test-node-1
         ip: 47.100.184.133
-        port: 2222
-        user: root
-        password: Helloshic
-        identity: ~/.ssh/id_rsa
+        ssh:
+          port: 2222
+          user: root
+          password: Helloshic
+          identity: ~/.ssh/id_rsa
 
 task:
   - name: 生成器
@@ -46,13 +45,18 @@ task:
           - env-test@before
           - env-test@after
         command:
-          - go build test.go
+          - go build -o test test.go
           - echo "Hello world"
     deploy:
       - env: env-test
-        log:
-          dir: /path/to/log
-        pid: /path/to/pid
+        bin: /path/to/bin
+        daemon:
+          pid: /path/to/pid
+          start: ./path/to/bin -s
+          logDir: /path/to/log
+          logFile: /path/to
+        server:
+          - test-node-1
         script:
           - env-test-deploy
         command:

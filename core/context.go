@@ -108,12 +108,37 @@ type Env struct {
 	serverMap map[string]*Server
 }
 
+func (p *Env) GetServer(serverId string) *Server {
+	if v, ok := p.serverMap[serverId]; ok {
+		return v
+	}
+	return nil
+}
+
+func (p *Env) AddServer(server *config.Server) (err error) {
+
+	if p.serverMap == nil {
+		p.serverMap = make(map[string]*Server)
+	}
+
+	if _, ok := p.serverMap[server.Id]; ok {
+		err = fmt.Errorf("server \"%s\" duplicated", server.Id)
+		return
+	}
+
+	n := ToServer(server)
+
+	p.serverMap[server.Id] = n
+	p.Server = append(p.Server, n)
+
+	return
+}
+
 func ToEnv(o *config.Env) (n *Env, err error) {
 	n = new(Env)
 	n.Id = o.Id
 	n.Name = o.Name
 	for _, v := range o.Server {
-
 		if n.serverMap == nil {
 			n.serverMap = make(map[string]*Server)
 		}
@@ -121,22 +146,36 @@ func ToEnv(o *config.Env) (n *Env, err error) {
 			err = fmt.Errorf("server \"%s\" duplicated", v.Id)
 			return
 		}
-		s := ToServer(v)
-		n.serverMap[v.Id] = s
-		n.Server = append(n.Server, s)
+		err = n.AddServer(v)
+		if err != nil {
+			return
+		}
 	}
 
 	return
 }
 
 type Server struct {
-	Id       string
-	Name     string
-	Ip       string
+	Id   string
+	Name string
+	Ip   string
+	SSH  *SSH
+}
+
+type SSH struct {
 	Port     uint64
 	User     string
 	Password string
 	Identity string
+}
+
+func ToSSH(o *config.SSH) *SSH {
+	n := new(SSH)
+	n.Port = o.Port
+	n.User = o.User
+	n.Password = o.Password
+	n.Identity = o.Identity
+	return n
 }
 
 func ToServer(o *config.Server) *Server {
@@ -144,10 +183,7 @@ func ToServer(o *config.Server) *Server {
 	n.Id = o.Id
 	n.Name = o.Name
 	n.Ip = o.Ip
-	n.Port = o.Port
-	n.User = o.User
-	n.Password = o.Password
-	n.Identity = o.Identity
+	n.SSH = ToSSH(o.SSH)
 	return n
 }
 

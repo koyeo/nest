@@ -59,7 +59,7 @@ func DeployCommand(c *cli.Context) (err error) {
 			logger.Error("Build error: ", err)
 			return
 		}
-		err = execBuildCommand(task.Task, build)
+		err = execCommand(task.Task, build)
 		if err != nil {
 			return
 		}

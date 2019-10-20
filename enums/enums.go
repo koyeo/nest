@@ -1,7 +1,11 @@
 package enums
 
 const (
-	ConfigFileName    = "nest.yml"
+	ConfigFile        = "nest.yml"
+	WorkspaceDir      = ".nest"
+	DataDir           = "data"
+	DataFile          = "nest.db"
+	BinDir            = "bin"
 	FirstLevel        = 0
 	SecondLevel       = 2
 	ThirdLevel        = 4
@@ -17,4 +21,5 @@ const (
 	Quiet             = "quiet"
 	D                 = "d"
 	Daemon            = "daemon"
+	BuildBinConst     = "__BIN__"
 )
