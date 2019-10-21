@@ -21,7 +21,7 @@ env:
         ssh:
           port: 2222
           user: root
-          password: Helloshic
+          password: Helloshic7
           identity: ~/.ssh/id_rsa
 
 task:
@@ -45,26 +45,30 @@ task:
         script:
           - env-test@before
           - env-test@after
-        bin: test
+        dist: test
         command:
           - go build -o test test.go
           - echo "Hello world"
     deploy:
       - id: deloy-test
         env: env-test
-        build: build-test
+        bin:
+          source: build
+          param: build-test
+          path: /opt/bin/deploy-test
         daemon:
-          pid: /path/to/pid
+          pid: /opt/pid/deploy-test.pid
           start: ./path/to/bin -s
+          success: ===start success===
           log:
-            path: /path/to/log  # 日志文件路径
-            name: /path/to/log  # 日志文件名称
-            level: info         # 日志输出等级
-            size: 1             # 单个文件最大限制，单位 M
-            backup: 1           # 最多保留备份数
-            age: 1              # 最多保留天数
-            compress: true      # 是否压缩日志
-            daily: true         # 是否按日切割
+            path: /path/to/log            # 日志文件路径
+            file: /path/to/log            # 日志文件名称
+            level: info                   # 日志输出等级
+            size: 1                       # 单个文件最大限制，单位 M
+            backup: 1                     # 最多保留备份数
+            age: 1                        # 最多保留天数
+            compress: true                # 是否压缩日志
+            daily: true                   # 是否按日切割
         server:
           - test-node-1
         script:

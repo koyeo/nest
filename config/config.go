@@ -53,7 +53,7 @@ type Task struct {
 type Build struct {
 	Id      string   `yaml:"id,omitempty"`
 	Env     string   `yaml:"env,omitempty"`
-	Bin     string   `yaml:"bin,omitempty"`
+	Dist    string   `yaml:"dist,omitempty"`
 	Script  []string `yaml:"script,omitempty"`
 	Command []string `yaml:"command,omitempty"`
 }
@@ -61,11 +61,17 @@ type Build struct {
 type Deploy struct {
 	Id      string   `yaml:"id,omitempty"`
 	Env     string   `yaml:"env,omitempty"`
-	Build   string   `yaml:"build,omitempty"`
+	Bin     *Bin     `yaml:"bin,omitempty"`
 	Daemon  *Daemon  `yaml:"daemon,omitempty"`
 	Server  []string `yaml:"server,omitempty"`
 	Script  []string `yaml:"script,omitempty"`
 	Command []string `yaml:"command,omitempty"`
+}
+
+type Bin struct {
+	Source string `yaml:"source,omitempty"`
+	Param  string `yaml:"param,omitempty"`
+	Path   string `yaml:"path,omitempty"`
 }
 
 type Daemon struct {
@@ -76,7 +82,7 @@ type Daemon struct {
 
 type Log struct {
 	Path     string `yaml:"path,omitempty"`
-	Name     string `yaml:"name,omitempty"`
+	File     string `yaml:"file,omitempty"`
 	Level    string `yaml:"level,omitempty"`
 	Size     uint64 `yaml:"size,omitempty"`
 	Backup   uint64 `yaml:"backup,omitempty"`

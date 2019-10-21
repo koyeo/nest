@@ -7,6 +7,7 @@ import (
 	"nest/storage"
 	"nest/utils/secret"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -93,8 +94,16 @@ type ChangeTaskDeploy struct {
 	EnvId  string
 	Branch string
 	Type   int
-	Path   string
+	Dist   string
 	ModAt  int64
+}
+
+func (p *ChangeTaskDeploy) IsZip() bool {
+	return strings.HasSuffix(p.Dist, enums.ZipSuffix)
+}
+
+func (p *ChangeTaskDeploy) DistName() string  {
+	return path.Base(p.Dist)
 }
 
 func (p *ChangeTaskBuild) SetMd5() {
@@ -307,7 +316,7 @@ func MakeChange() (change *Change, err error) {
 						changeTaskDeploy.Type = enums.ChangeTypeDelete
 
 					} else {
-
+						changeTaskDeploy.Dist = taskBinFile
 						changeTaskDeploy.ModAt, err = FileModAt(taskBinFile)
 						if err != nil {
 							return

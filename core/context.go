@@ -321,7 +321,7 @@ func ToBuild(o *config.Build) (n *Build, err error) {
 	n = new(Build)
 	n.Id = o.Id
 	n.Env = o.Env
-	n.Bin = o.Bin
+	n.Bin = o.Dist
 	for _, v := range o.Script {
 		var extendScript *ExtendScript
 		extendScript, err = NewExtendScript(v)
@@ -339,10 +339,24 @@ func ToBuild(o *config.Build) (n *Build, err error) {
 	return
 }
 
+type Bin struct {
+	Source string
+	Param  string
+	Path   string
+}
+
+func ToBin(o *config.Bin) *Bin {
+	n := new(Bin)
+	n.Source = o.Source
+	n.Param = o.Param
+	n.Path = o.Path
+	return n
+}
+
 type Deploy struct {
 	Id           string
 	Env          string
-	Build        string
+	Bin          *Bin
 	Daemon       *Daemon
 	Server       []string
 	BeforeScript []*ExtendScript
@@ -354,7 +368,9 @@ func ToDeploy(o *config.Deploy) (n *Deploy, err error) {
 	n = new(Deploy)
 	n.Id = o.Id
 	n.Env = o.Env
-	n.Build = o.Build
+	if o.Bin != nil {
+		n.Bin = ToBin(o.Bin)
+	}
 	if o.Daemon != nil {
 		n.Daemon = ToDaemon(o.Daemon)
 	}
@@ -406,7 +422,7 @@ type Log struct {
 func ToLog(o *config.Log) *Log {
 	n := new(Log)
 	n.Path = o.Path
-	n.Name = o.Name
+	n.Name = o.File
 	n.Level = o.Level
 	n.Size = o.Size
 	n.Backup = o.Backup

@@ -114,7 +114,7 @@ func MakeDir(path string) {
 }
 
 func Abs(path ...string) string {
-	return filepath.Join(strings.TrimPrefix(filepath.Join(path[:]...), Root()))
+	return filepath.Join(Root(), filepath.Join(path[:]...))
 }
 
 func Write(path string, content []byte) (err error) {

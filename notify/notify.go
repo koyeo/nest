@@ -29,5 +29,18 @@ func BuildDone(count int) {
 		message = fmt.Sprintf("exec %d task", count)
 	}
 
-	Alert("Build done", message, "assets/success.png")
+	Alert("Bin done", message, "assets/success.png")
+}
+
+func DeployDone(count int) {
+
+	var message string
+
+	if count > 1 {
+		message = fmt.Sprintf("exec %d tasks", count)
+	} else {
+		message = fmt.Sprintf("exec %d task", count)
+	}
+
+	Alert("Deploy done", message, "assets/success.png")
 }

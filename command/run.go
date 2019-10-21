@@ -2,6 +2,7 @@ package command
 
 import (
 	"github.com/urfave/cli"
+	"nest/core"
 	"os"
 )
 
@@ -18,7 +19,7 @@ func RunCommand(c *cli.Context) (err error) {
 		return
 	}
 
-	err = PipeExec(task.Directory, task.Run)
+	err = core.PipeExec(task.Directory, task.Run)
 	if err != nil {
 		return
 	}

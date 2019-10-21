@@ -38,6 +38,11 @@ func main() {
 			Usage:  "run task",
 			Action: command.RunCommand,
 		},
+		{
+			Name:   "deploy",
+			Usage:  "deploy task",
+			Action: command.DeployCommand,
+		},
 	}
 	err := app.Run(os.Args)
 	if err != nil {

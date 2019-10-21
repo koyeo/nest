@@ -57,7 +57,7 @@ func BuildCommand(c *cli.Context) (err error) {
 		} else {
 			log.Println(chalk.Green.Color(fmt.Sprintf("Task: %s", task.Task.Id)))
 		}
-		log.Println(chalk.Green.Color("Build start"))
+		log.Println(chalk.Green.Color("Bin start"))
 		log.Println(chalk.Green.Color("PipeExec directory:"), dir)
 
 		build := task.Task.GetBuild(env.Id)
@@ -72,17 +72,12 @@ func BuildCommand(c *cli.Context) (err error) {
 
 		branch := core.Branch(ctx.Directory)
 
-		err = cleanBinDir(ctx.Directory, task.Task.Id, branch)
-		if err != nil {
-			return
-		}
-
 		err = moveBin(ctx.Directory, task.Task.Directory, task.Task.Id, branch, env.Id, build.Bin)
 		if err != nil {
 			return
 		}
 
-		log.Println(chalk.Green.Color("Build end"))
+		log.Println(chalk.Green.Color("Bin end"))
 	}
 
 	if count == 0 {
@@ -104,7 +99,7 @@ func BuildCommand(c *cli.Context) (err error) {
 
 func execCommand(projectDir string, task *core.Task, build *core.Build) (err error) {
 	for _, command := range build.Command {
-		err = PipeExec(filepath.Join(projectDir, task.Directory), command)
+		err = core.PipeExec(filepath.Join(projectDir, task.Directory), command)
 		if err != nil {
 			return
 		}
@@ -112,36 +107,40 @@ func execCommand(projectDir string, task *core.Task, build *core.Build) (err err
 	return
 }
 
-func cleanBinDir(projectDir, taskId, branch string) (err error) {
+func moveBin(projectDir, taskDir, taskId, branch, envId, dist string) (err error) {
 
-	binDir := filepath.Join(projectDir, storage.BinDir(), taskId, branch)
+	buildFile := filepath.Join(projectDir, taskDir, dist)
+	if !storage.Exist(buildFile) {
+		return
+	}
 
+	binName := fmt.Sprintf("%s_%s_%s", taskId, branch, core.BuildTimestamp())
+
+	binDir := filepath.Join(projectDir, storage.BinDir(), taskId, envId, branch)
 	if storage.Exist(binDir) {
-		command := fmt.Sprintf("rm *")
-		err = PipeExec(binDir, command)
+		command := fmt.Sprintf("rm -rf %s/*", binDir)
+		err = core.PipeExec("", command)
 		if err != nil {
 			logger.Error("Clean bin error: ", err)
 			return
 		}
-	}
-
-	return
-}
-
-func moveBin(projectDir, taskDir, taskId, branch, envId, bin string) (err error) {
-
-	buildFile := filepath.Join(projectDir, taskDir, bin)
-	if !storage.Exist(buildFile) {
-		return
-	}
-	filename := fmt.Sprintf("%s_%s_%s", taskId, branch, core.BuildTimestamp())
-	binDir := filepath.Join(projectDir, storage.BinDir(), taskId, envId, branch)
-	if !storage.Exist(binDir) {
+	} else {
 		storage.MakeDir(binDir)
 	}
 
-	command := fmt.Sprintf("mv %s %s", buildFile, filepath.Join(binDir, filename))
-	err = PipeExec("", command)
+	buildBinFile := filepath.Join(binDir, dist)
+
+	err = core.PipeExec("", fmt.Sprintf("mv %s %s", buildFile, buildBinFile))
+	if err != nil {
+		return
+	}
+
+	err = core.PipeExec(binDir, fmt.Sprintf("zip -q  %s.zip %s", binName, dist))
+	if err != nil {
+		return
+	}
+
+	err = core.PipeExec("", fmt.Sprintf("rm %s", buildBinFile))
 	if err != nil {
 		return
 	}

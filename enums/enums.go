@@ -22,4 +22,7 @@ const (
 	D                 = "d"
 	Daemon            = "daemon"
 	BuildBinConst     = "__BIN__"
+	BinSourceBuild    = "build"
+	BinSourceUrl      = "url"
+	ZipSuffix         = ".zip"
 )
