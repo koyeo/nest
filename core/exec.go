@@ -90,16 +90,16 @@ func SSHPipeExec(sshClient *ssh.Client, command string) (err error) {
 		_ = session.Close()
 	}()
 
-	log.Println(chalk.Green.Color("Exec command:"), command)
+	log.Println(chalk.Green.Color("Exec ssh command:"), command)
 
 	stderr, err := session.StderrPipe()
 	if err != nil {
-		logger.Error("Exec command get stderr error: ", err)
+		logger.Error("Exec ssh command get stderr error: ", err)
 	}
 
 	stdout, err := session.StdoutPipe()
 	if err != nil {
-		logger.Error("Exec command get stdout error: ", err)
+		logger.Error("Exec ssh command get stdout error: ", err)
 	}
 
 	out := make(chan string)
@@ -112,7 +112,6 @@ func SSHPipeExec(sshClient *ssh.Client, command string) (err error) {
 		scanner := bufio.NewScanner(stdout)
 		scanner.Split(bufio.ScanLines)
 		for scanner.Scan() {
-			fmt.Println("output: ", scanner.Text())
 			out <- scanner.Text()
 		}
 	}()
@@ -136,7 +135,7 @@ func SSHPipeExec(sshClient *ssh.Client, command string) (err error) {
 
 	err = session.Run(command)
 	if err != nil {
-		logger.Error("Exec command run error: ", err)
+		logger.Error("Exec ssh command run error: ", err)
 	}
 
 	return
