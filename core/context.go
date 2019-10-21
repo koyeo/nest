@@ -345,7 +345,9 @@ type Deploy struct {
 func ToDeploy(o *config.Deploy) (n *Deploy, err error) {
 	n = new(Deploy)
 	n.Env = o.Env
-	n.Log = ToLog(o.Log)
+	if o.Log != nil {
+		n.Log = ToLog(o.Log)
+	}
 	n.Pid = o.Pid
 	for _, v := range o.Script {
 		var extendScript *ExtendScript

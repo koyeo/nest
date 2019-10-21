@@ -58,14 +58,26 @@ type Build struct {
 
 type Deploy struct {
 	Env     string   `yaml:"env,omitempty"`
-	Log     *Log     `yaml:"log,omitempty"`
-	Pid     string   `yaml:"pid,omitempty"`
+	Daemon  *Daemon  `yaml:"daemon,omitempty"`
 	Script  []string `yaml:"script,omitempty"`
 	Command []string `yaml:"command,omitempty"`
 }
 
+type Daemon struct {
+	Start string `yaml:"start,omitempty"`
+	Pid   string `yaml:"pid,omitempty"`
+	Log   *Log   `yaml:"log,omitempty"`
+}
+
 type Log struct {
-	Dir string `yaml:"dir,omitempty"`
+	Path     string `yaml:"path,omitempty"`
+	Name     string `yaml:"name,omitempty"`
+	Level    string `yaml:"level,omitempty"`
+	Size     uint64 `yaml:"size,omitempty"`
+	Backup   uint64 `yaml:"backup,omitempty"`
+	Age      uint64 `yaml:"age,omitempty"`
+	Compress bool   `yaml:"compress,omitempty"`
+	Daily    bool   `yaml:"daily,omitempty"`
 }
 
 func ParseExtendScript(name string) (script, position string, err error) {
