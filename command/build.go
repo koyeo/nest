@@ -22,6 +22,11 @@ func BuildCommand(c *cli.Context) (err error) {
 		}
 	}()
 
+	ctx, err := core.Prepare()
+	if err != nil {
+		return
+	}
+
 	change, err := core.MakeChange()
 	if err != nil {
 		return
@@ -35,13 +40,10 @@ func BuildCommand(c *cli.Context) (err error) {
 	count := 0
 	for _, task := range change.TaskList {
 
-		if task.Type == enums.ChangeTypeDelete {
+		if task.Build.Type == enums.ChangeTypeDelete || !task.Build.Modify {
 			continue
 		}
 
-		if !task.Modify {
-			continue
-		}
 		count++
 		var dir string
 		dir, err = filepath.Abs(task.Task.Directory)
@@ -50,17 +52,32 @@ func BuildCommand(c *cli.Context) (err error) {
 			return
 		}
 
-		log.Println(chalk.Green.Color("Task:"), task.Task.Name)
+		if task.Task.Name != "" {
+			log.Println(chalk.Green.Color(fmt.Sprintf("Task: %s(%s)", task.Task.Id, task.Task.Name)))
+		} else {
+			log.Println(chalk.Green.Color(fmt.Sprintf("Task: %s", task.Task.Id)))
+		}
 		log.Println(chalk.Green.Color("Build start"))
-		log.Println(chalk.Green.Color("Exec directory:"), dir)
+		log.Println(chalk.Green.Color("PipeExec directory:"), dir)
 
 		build := task.Task.GetBuild(env.Id)
 		if build == nil {
-			err = fmt.Errorf("task \"%s\"env \"%s\" not exist", task.Task.Id, env.Id)
-			logger.Error("Build error: ", err)
+			continue
+		}
+
+		err = execCommand(ctx.Directory, task.Task, build)
+		if err != nil {
 			return
 		}
-		err = execCommand(task.Task, build)
+
+		branch := core.Branch(ctx.Directory)
+
+		err = cleanBinDir(ctx.Directory, task.Task.Id, branch)
+		if err != nil {
+			return
+		}
+
+		err = moveBin(ctx.Directory, task.Task.Directory, task.Task.Id, branch, env.Id, build.Bin)
 		if err != nil {
 			return
 		}
@@ -71,25 +88,6 @@ func BuildCommand(c *cli.Context) (err error) {
 	if count == 0 {
 		fmt.Println(chalk.Green.Color("no change"))
 		return
-	}
-
-	err = cleanBinDir()
-	if err != nil {
-		return
-	}
-
-	for _, task := range change.TaskList {
-		if task.Type == enums.ChangeTypeDelete {
-			continue
-		}
-
-		if !task.Modify {
-			continue
-		}
-		err = moveBin(task.Task.Directory, task.Task.Id)
-		if err != nil {
-			return
-		}
 	}
 
 	err = core.Commit(change)
@@ -104,9 +102,9 @@ func BuildCommand(c *cli.Context) (err error) {
 	return
 }
 
-func execCommand(task *core.Task, build *core.Build) (err error) {
+func execCommand(projectDir string, task *core.Task, build *core.Build) (err error) {
 	for _, command := range build.Command {
-		err = Exec(task.Directory, command)
+		err = PipeExec(filepath.Join(projectDir, task.Directory), command)
 		if err != nil {
 			return
 		}
@@ -114,13 +112,13 @@ func execCommand(task *core.Task, build *core.Build) (err error) {
 	return
 }
 
-func cleanBinDir() (err error) {
+func cleanBinDir(projectDir, taskId, branch string) (err error) {
 
-	binDir := storage.BinDir()
+	binDir := filepath.Join(projectDir, storage.BinDir(), taskId, branch)
 
 	if storage.Exist(binDir) {
 		command := fmt.Sprintf("rm *")
-		err = Exec(binDir, command)
+		err = PipeExec(binDir, command)
 		if err != nil {
 			logger.Error("Clean bin error: ", err)
 			return
@@ -130,19 +128,20 @@ func cleanBinDir() (err error) {
 	return
 }
 
-func moveBin(directory, taskId string) (err error) {
+func moveBin(projectDir, taskDir, taskId, branch, envId, bin string) (err error) {
 
-	binFile := filepath.Join(directory, enums.BuildBinConst)
-	if !storage.Exist(binFile) {
+	buildFile := filepath.Join(projectDir, taskDir, bin)
+	if !storage.Exist(buildFile) {
 		return
 	}
-
-	if !storage.Exist(storage.BinDir()) {
-		storage.MakeDir(storage.BinDir())
+	filename := fmt.Sprintf("%s_%s_%s", taskId, branch, core.BuildTimestamp())
+	binDir := filepath.Join(projectDir, storage.BinDir(), taskId, envId, branch)
+	if !storage.Exist(binDir) {
+		storage.MakeDir(binDir)
 	}
 
-	command := fmt.Sprintf("mv __BIN__ %s", storage.BinFile(taskId))
-	err = Exec(directory, command)
+	command := fmt.Sprintf("mv %s %s", buildFile, filepath.Join(binDir, filename))
+	err = PipeExec("", command)
 	if err != nil {
 		return
 	}

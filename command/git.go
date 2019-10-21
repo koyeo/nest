@@ -1,5 +1,3 @@
 package command
 
-func getBranch() {
 
-}

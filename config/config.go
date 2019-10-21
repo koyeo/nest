@@ -7,9 +7,9 @@ import (
 )
 
 type Config struct {
-	Name      string    `yaml:"name,omitempty"`
 	Id        string    `yaml:"id,omitempty"`
-	Workspace string    `yaml:"workspace,omitempty"`
+	Name      string    `yaml:"name,omitempty"`
+	Directory string    `yaml:"directory,omitempty"`
 	Env       []*Env    `yaml:"env,omitempty"`
 	Script    []*Script `yaml:"script,omitempty"`
 	Task      []*Task   `yaml:"task,omitempty"`
@@ -51,14 +51,19 @@ type Task struct {
 }
 
 type Build struct {
+	Id      string   `yaml:"id,omitempty"`
 	Env     string   `yaml:"env,omitempty"`
+	Bin     string   `yaml:"bin,omitempty"`
 	Script  []string `yaml:"script,omitempty"`
 	Command []string `yaml:"command,omitempty"`
 }
 
 type Deploy struct {
+	Id      string   `yaml:"id,omitempty"`
 	Env     string   `yaml:"env,omitempty"`
+	Build   string   `yaml:"build,omitempty"`
 	Daemon  *Daemon  `yaml:"daemon,omitempty"`
+	Server  []string `yaml:"server,omitempty"`
 	Script  []string `yaml:"script,omitempty"`
 	Command []string `yaml:"command,omitempty"`
 }

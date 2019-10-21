@@ -6,10 +6,10 @@ const (
 	DataDir           = "data"
 	DataFile          = "nest.db"
 	BinDir            = "bin"
-	FirstLevel        = 0
+	FirstLevel        = 1
 	SecondLevel       = 2
 	ThirdLevel        = 4
-	StatusMarginLeft  = 8
+	StatusMarginLeft  = 6
 	ChangeTypeNone    = 0
 	ChangeTypeNew     = 1
 	ChangeTypeUpdate  = 2

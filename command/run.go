@@ -18,7 +18,7 @@ func RunCommand(c *cli.Context) (err error) {
 		return
 	}
 
-	err = Exec(task.Directory, task.Run)
+	err = PipeExec(task.Directory, task.Run)
 	if err != nil {
 		return
 	}

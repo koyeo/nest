@@ -9,21 +9,23 @@ import (
 	"os/exec"
 )
 
-func Exec(dir, command string) (err error) {
 
-	log.Println(chalk.Green.Color("Exec command:"), command)
+
+func PipeExec(dir, command string) (err error) {
+
+	log.Println(chalk.Green.Color("PipeExec command:"), command)
 
 	c := exec.Command("bash", "-c", command)
 	c.Dir = dir
 
 	stderr, err := c.StderrPipe()
 	if err != nil {
-		logger.Error("Exec command get stderr error: ", err)
+		logger.Error("PipeExec command get stderr error: ", err)
 	}
 
 	stdout, err := c.StdoutPipe()
 	if err != nil {
-		logger.Error("Exec command get stdout error: ", err)
+		logger.Error("PipeExec command get stdout error: ", err)
 	}
 
 	out := make(chan string)
@@ -56,12 +58,12 @@ func Exec(dir, command string) (err error) {
 
 	err = c.Start()
 	if err != nil {
-		logger.Error("Exec command start error: ", err)
+		logger.Error("PipeExec command start error: ", err)
 	}
 
 	err = c.Wait()
 	if err != nil {
-		logger.Error("Exec command wait error: ", err)
+		logger.Error("PipeExec command wait error: ", err)
 	}
 
 	return

@@ -1,5 +1,5 @@
+id: nest
 name: nest
-
 directory: test
 
 script:
@@ -25,32 +25,34 @@ env:
           identity: ~/.ssh/id_rsa
 
 task:
-  - name: 生成器
-    id: generator
+  - id: generator
+    name: 生成器
     watch:
-      - test/generator/*.go
-    directory: test/generator
+      - generator/*.go
     build:
       - env: localhost
         command:
           - go build main.go
-  - name: 主程序
-    id: main
+  - id: main
+    name: 主程序
     watch:
-      - test/test.go
-      - test/second/**/*.go
+      - test.go
+      - second/**/*.go
     run: go run test.go
     build:
-      - env: env-test
+      - id: build-test
+        env: env-test
         script:
           - env-test@before
           - env-test@after
+        bin: test
         command:
           - go build -o test test.go
           - echo "Hello world"
     deploy:
-      - env: env-test
-        bin: /path/to/bin
+      - id: deloy-test
+        env: env-test
+        build: build-test
         daemon:
           pid: /path/to/pid
           start: ./path/to/bin -s

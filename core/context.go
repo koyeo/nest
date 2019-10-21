@@ -10,7 +10,7 @@ import (
 type Context struct {
 	Id        string
 	Name      string
-	Workspace string
+	Directory string
 	Env       []*Env
 	envMap    map[string]*Env
 	Script    []*Script
@@ -183,7 +183,9 @@ func ToServer(o *config.Server) *Server {
 	n.Id = o.Id
 	n.Name = o.Name
 	n.Ip = o.Ip
-	n.SSH = ToSSH(o.SSH)
+	if o.SSH != nil {
+		n.SSH = ToSSH(o.SSH)
+	}
 	return n
 }
 
@@ -307,7 +309,9 @@ func ToTask(o *config.Task) (n *Task, err error) {
 }
 
 type Build struct {
+	Id           string
 	Env          string
+	Bin          string
 	BeforeScript []*ExtendScript
 	AfterScript  []*ExtendScript
 	Command      []string
@@ -315,7 +319,9 @@ type Build struct {
 
 func ToBuild(o *config.Build) (n *Build, err error) {
 	n = new(Build)
+	n.Id = o.Id
 	n.Env = o.Env
+	n.Bin = o.Bin
 	for _, v := range o.Script {
 		var extendScript *ExtendScript
 		extendScript, err = NewExtendScript(v)
@@ -334,9 +340,11 @@ func ToBuild(o *config.Build) (n *Build, err error) {
 }
 
 type Deploy struct {
+	Id           string
 	Env          string
-	Log          *Log
-	Pid          string
+	Build        string
+	Daemon       *Daemon
+	Server       []string
 	BeforeScript []*ExtendScript
 	AfterScript  []*ExtendScript
 	Command      []string
@@ -344,11 +352,13 @@ type Deploy struct {
 
 func ToDeploy(o *config.Deploy) (n *Deploy, err error) {
 	n = new(Deploy)
+	n.Id = o.Id
 	n.Env = o.Env
-	if o.Log != nil {
-		n.Log = ToLog(o.Log)
+	n.Build = o.Build
+	if o.Daemon != nil {
+		n.Daemon = ToDaemon(o.Daemon)
 	}
-	n.Pid = o.Pid
+	n.Server = o.Server
 	for _, v := range o.Script {
 		var extendScript *ExtendScript
 		extendScript, err = NewExtendScript(v)
@@ -366,20 +376,50 @@ func ToDeploy(o *config.Deploy) (n *Deploy, err error) {
 	return
 }
 
+type Daemon struct {
+	Start string
+	Pid   string
+	Log   *Log
+}
+
+func ToDaemon(o *config.Daemon) *Daemon {
+	n := new(Daemon)
+	n.Start = o.Start
+	n.Pid = o.Pid
+	if o.Log != nil {
+		n.Log = ToLog(o.Log)
+	}
+	return n
+}
+
 type Log struct {
-	Dir string
+	Path     string
+	Name     string
+	Level    string
+	Size     uint64
+	Backup   uint64
+	Age      uint64
+	Compress bool
+	Daily    bool
 }
 
 func ToLog(o *config.Log) *Log {
 	n := new(Log)
-	n.Dir = o.Dir
+	n.Path = o.Path
+	n.Name = o.Name
+	n.Level = o.Level
+	n.Size = o.Size
+	n.Backup = o.Backup
+	n.Age = o.Age
+	n.Compress = o.Compress
+	n.Daily = o.Daily
 	return n
 }
 
 func MakeContext(config *config.Config) (ctx *Context, err error) {
 	ctx = new(Context)
 	ctx.Name = config.Name
-	ctx.Workspace = config.Workspace
+	ctx.Directory = config.Directory
 	for _, v := range config.Env {
 		err = ctx.AddEnv(v)
 		if err != nil {

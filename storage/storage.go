@@ -19,6 +19,10 @@ func DataFile() string {
 	return WorkspaceDir(enums.DataDir, enums.DataFile)
 }
 
+func DataDir() string {
+	return WorkspaceDir(enums.DataDir)
+}
+
 func BinDir() string {
 	return WorkspaceDir(enums.BinDir)
 }

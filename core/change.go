@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"nest/enums"
 	"nest/logger"
+	"nest/storage"
 	"nest/utils/secret"
 	"os"
 	"path/filepath"
@@ -52,7 +53,30 @@ func NewChangeFile(path string) *ChangeFile {
 }
 
 type ChangeTask struct {
-	Task     *Task
+	Task      *Task
+	Build     *ChangeTaskBuild
+	Deploy    []*ChangeTaskDeploy
+	deployMap map[string]*ChangeTaskDeploy
+}
+
+func (p *ChangeTask) AddDeploy(bin *ChangeTaskDeploy) {
+
+	index := fmt.Sprintf("%s-%s", bin.TaskId, bin.EnvId)
+	if p.deployMap == nil {
+		p.deployMap = make(map[string]*ChangeTaskDeploy)
+	}
+
+	if _, ok := (p.deployMap)[index]; ok {
+		return
+	}
+
+	p.deployMap[index] = bin
+	p.Deploy = append(p.Deploy, bin)
+}
+
+type ChangeTaskBuild struct {
+	Modify   bool
+	Md5      string
 	Type     int
 	None     []*ChangeFile
 	New      []*ChangeFile
@@ -60,11 +84,20 @@ type ChangeTask struct {
 	Delete   []*ChangeFile
 	FileList []*ChangeFile
 	fileMap  map[string]*ChangeFile
-	Md5      string
-	Modify   bool
 }
 
-func (p *ChangeTask) SetMd5() {
+type ChangeTaskDeploy struct {
+	Modify bool
+	Md5    string
+	TaskId string
+	EnvId  string
+	Branch string
+	Type   int
+	Path   string
+	ModAt  int64
+}
+
+func (p *ChangeTaskBuild) SetMd5() {
 	items := make([]string, 0)
 	for _, v := range p.FileList {
 		if v.Type == enums.ChangeTypeDelete {
@@ -75,7 +108,7 @@ func (p *ChangeTask) SetMd5() {
 	p.Md5 = secret.Md5([]byte(strings.Join(items, "")))
 }
 
-func (p *ChangeTask) Get(ident string) *ChangeFile {
+func (p *ChangeTaskBuild) Get(ident string) *ChangeFile {
 	if v, ok := (p.fileMap)[ident]; ok {
 		return v
 	}
@@ -86,12 +119,13 @@ func NewChangeTask(task *Task) *ChangeTask {
 
 	changeTask := new(ChangeTask)
 	changeTask.Task = task
-	changeTask.fileMap = make(map[string]*ChangeFile)
+	changeTask.Build = new(ChangeTaskBuild)
+	changeTask.Build.fileMap = make(map[string]*ChangeFile)
 
 	return changeTask
 }
 
-func (p *ChangeTask) Add(list *[]*ChangeFile, changeFile *ChangeFile) {
+func (p *ChangeTaskBuild) Add(list *[]*ChangeFile, changeFile *ChangeFile) {
 
 	if p.fileMap == nil {
 		p.fileMap = make(map[string]*ChangeFile)
@@ -124,10 +158,12 @@ func MakeChange() (change *Change, err error) {
 
 	change = new(Change)
 
+	branch := Branch(ctx.Directory)
+
 	for _, task := range ctx.Task {
 
 		var taskRecord *TaskRecord
-		taskRecord, err = FindTaskRecord(task.Id)
+		taskRecord, err = FindTaskRecord(branch, task.Id)
 		if err != nil {
 			return
 		}
@@ -135,15 +171,17 @@ func MakeChange() (change *Change, err error) {
 		changeTask := NewChangeTask(task)
 
 		if taskRecord == nil {
-			taskRecord = NewTaskRecord(task.Id)
-			changeTask.Type = enums.ChangeTypeNew
+			taskRecord = NewTaskRecord(branch, task.Id)
+			changeTask.Build.Type = enums.ChangeTypeNew
 			change.Add(task.Id, changeTask)
 		} else {
-			changeTask.Type = enums.ChangeTypeUpdate
+			changeTask.Build.Type = enums.ChangeTypeUpdate
 			change.Add(task.Id, changeTask)
 		}
 
 		for _, glob := range task.Watch {
+
+			glob = filepath.Join(ctx.Directory, task.Directory, glob)
 
 			var files []string
 			files, err = filepath.Glob(glob)
@@ -153,20 +191,17 @@ func MakeChange() (change *Change, err error) {
 			}
 
 			for _, filePath := range files {
-
 				var fileRecord *FileRecord
-				fileRecord, err = FindFileRecord(GetFileIdent(filePath))
+				fileRecord, err = FindFileRecord(branch, GetFileIdent(filePath))
 				if err != nil {
 					return
 				}
 
-				var file os.FileInfo
-				file, err = os.Stat(filePath)
+				var modAt int64
+				modAt, err = FileModAt(filePath)
 				if err != nil {
-					logger.Error(fmt.Sprintf("Get file \"%s\" status error: ", filePath), err)
 					return
 				}
-				modAt := file.ModTime().Unix()
 
 				changeFile := NewChangeFile(filePath)
 				changeFile.ModAt = modAt
@@ -177,39 +212,42 @@ func MakeChange() (change *Change, err error) {
 					if err != nil {
 						return
 					}
-					changeTask.Add(&changeTask.New, changeFile)
-					continue
-				}
+					changeTask.Build.Add(&changeTask.Build.New, changeFile)
+				} else {
+					changeFile.Md5, err = FileMd5(filePath)
+					if err != nil {
+						return
+					}
 
-				changeFile.Md5, err = FileMd5(filePath)
-				if err != nil {
-					return
-				}
+					if modAt <= fileRecord.ModAt || changeFile.Md5 == fileRecord.Md5 {
+						changeFile.Type = enums.ChangeTypeNone
+						changeTask.Build.Add(&changeTask.Build.None, changeFile)
 
-				if modAt <= fileRecord.ModAt || changeFile.Md5 == fileRecord.Md5 {
-					changeFile.Type = enums.ChangeTypeNone
-					changeTask.Add(&changeTask.None, changeFile)
-					continue
-				}
+					} else {
 
-				changeFile.Type = enums.ChangeTypeUpdate
-				changeTask.Add(&changeTask.Update, changeFile)
+						changeFile.Type = enums.ChangeTypeUpdate
+						changeTask.Build.Add(&changeTask.Build.Update, changeFile)
+					}
+				}
 			}
 		}
 
+		changeTask.Build.Modify = true
+		changeTask.Build.SetMd5()
+
 		var taskFileRecords []*FileTaskRecord
-		taskFileRecords, err = FindTaskFileRecords(task.Id)
+		taskFileRecords, err = FindTaskFileRecords(branch, task.Id)
 		if err != nil {
 			return
 		}
 
 		for _, v := range taskFileRecords {
-			changeFile := changeTask.Get(v.FileIdent)
+			changeFile := changeTask.Build.Get(v.FileIdent)
 			if changeFile != nil {
 				continue
 			}
 			var fileRecord *FileRecord
-			fileRecord, err = FindFileRecord(v.FileIdent)
+			fileRecord, err = FindFileRecord(branch, v.FileIdent)
 			if err != nil {
 				return
 			}
@@ -219,11 +257,85 @@ func MakeChange() (change *Change, err error) {
 			}
 			changeFile = NewChangeFile(fileRecord.Path)
 			changeFile.Type = enums.ChangeTypeDelete
-			changeTask.Add(&changeTask.Delete, changeFile)
+			changeTask.Build.Add(&changeTask.Build.Delete, changeFile)
+		}
+
+		for _, build := range task.Build {
+
+			if build.Bin != "" {
+
+				taskBinDir := filepath.Join(ctx.Directory, storage.BinDir(), task.Id, build.Env, branch)
+
+				if storage.Exist(taskBinDir) {
+
+					var files []string
+					files, err = storage.Files(taskBinDir, "")
+					if err != nil {
+						logger.Error("Get bin file error: ", err)
+						return
+					}
+
+					var binRecord *BinRecord
+					binRecord, err = FindBinRecord(task.Id, build.Env, branch)
+					if err != nil {
+						return
+					}
+
+					if len(files) > 1 {
+						err = fmt.Errorf("multiple bin exist at \"%s\"", taskBinDir)
+						logger.Error("Make change error: ", err)
+						return
+					}
+
+					var taskBinFile string
+
+					if len(files) == 1 {
+						taskBinFile = files[0]
+					}
+
+					changeTaskDeploy := new(ChangeTaskDeploy)
+					changeTaskDeploy.TaskId = task.Id
+					changeTaskDeploy.EnvId = build.Env
+					changeTaskDeploy.Branch = branch
+
+					if taskBinFile == "" {
+
+						if binRecord == nil {
+							continue
+						}
+
+						changeTaskDeploy.Type = enums.ChangeTypeDelete
+
+					} else {
+
+						changeTaskDeploy.ModAt, err = FileModAt(taskBinFile)
+						if err != nil {
+							return
+						}
+						changeTaskDeploy.Md5, err = FileMd5(taskBinFile)
+						if err != nil {
+							return
+						}
+						changeTaskDeploy.Modify = true
+
+						if binRecord == nil {
+							changeTaskDeploy.Type = enums.ChangeTypeNew
+						} else {
+							changeTaskDeploy.Type = enums.ChangeTypeUpdate
+							if binRecord.ModAt <= changeTaskDeploy.ModAt || binRecord.Md5 != changeTaskDeploy.Md5 {
+								changeTaskDeploy.Modify = false
+							}
+						}
+					}
+
+					changeTask.AddDeploy(changeTaskDeploy)
+				}
+
+			}
 		}
 	}
 
-	taskRecords, err := FindTaskRecords()
+	taskRecords, err := FindTaskRecords(branch)
 	if err != nil {
 		return
 	}
@@ -231,18 +343,28 @@ func MakeChange() (change *Change, err error) {
 	for _, v := range taskRecords {
 		changeTask := change.Get(v.Id)
 		if changeTask != nil {
-			changeTask.SetMd5()
-			if changeTask.Md5 != v.Md5 {
-				changeTask.Modify = true
+			if changeTask.Build.Md5 == v.Md5 {
+				changeTask.Build.Modify = false
 			}
 			continue
 		}
 		changeTask = NewChangeTask(&Task{
 			Id: v.Id,
 		})
-		changeTask.Type = enums.ChangeTypeDelete
+		changeTask.Build.Type = enums.ChangeTypeDelete
 		change.Add(v.Id, changeTask)
 	}
 
+	return
+}
+
+func FileModAt(filePath string) (modAt int64, err error) {
+	var file os.FileInfo
+	file, err = os.Stat(filePath)
+	if err != nil {
+		logger.Error(fmt.Sprintf("Get file \"%s\" status error: ", filePath), err)
+		return
+	}
+	modAt = file.ModTime().Unix()
 	return
 }

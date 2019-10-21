@@ -28,46 +28,55 @@ func Commit(change *Change) (err error) {
 		return
 	}
 
+	ctx, err := Prepare()
+	if err != nil {
+		return
+	}
+
+	branch := Branch(ctx.Directory)
+
 	for _, task := range change.TaskList {
 
-		switch task.Type {
+		build := task.Build
+
+		switch build.Type {
 		case enums.ChangeTypeNew:
-			_, err = AddTaskRecord(task.Task.Id, task.Md5)
+			_, err = AddTaskRecord(branch, task.Task.Id, build.Md5)
 			if err != nil {
 				return
 			}
 		case enums.ChangeTypeUpdate:
-			err = RefreshTaskRecord(task.Task.Id, task.Md5)
+			err = RefreshTaskRecord(branch, task.Task.Id, build.Md5)
 			if err != nil {
 				return
 			}
 		case enums.ChangeTypeDelete:
-			err = CleanTaskRecord(task.Task.Id)
+			err = CleanTaskRecord(branch, task.Task.Id)
 			if err != nil {
 				return
 			}
-			err = CleanTaskFileRecords(task.Task.Id)
+			err = CleanTaskFileRecords(branch, task.Task.Id)
 			if err != nil {
 				return
 			}
 		}
 
-		for _, file := range task.FileList {
+		for _, file := range build.FileList {
 
 			switch file.Type {
 			case enums.ChangeTypeNew:
-				_, err = AddFileRecord(file.Ident, file.Path, file.Md5, file.ModAt)
+				_, err = AddFileRecord(branch, file.Ident, file.Path, file.Md5, file.ModAt)
 				if err != nil {
 					return
 				}
-				err = AddFileTaskRecord(file.Ident, task.Task.Id)
+				err = AddFileTaskRecord(branch, file.Ident, task.Task.Id)
 				if err != nil {
 					return
 				}
 			case enums.ChangeTypeUpdate:
 
 				var fileRecord *FileRecord
-				fileRecord, err = FindFileRecord(file.Ident)
+				fileRecord, err = FindFileRecord(branch, file.Ident)
 				if err != nil {
 					return
 				}
@@ -86,11 +95,11 @@ func Commit(change *Change) (err error) {
 				}
 
 			case enums.ChangeTypeDelete:
-				err = CleanFileRecord(file.Ident)
+				err = CleanFileRecord(branch, file.Ident)
 				if err != nil {
 					return
 				}
-				err = CleanFileTaskRecords(file.Ident)
+				err = CleanFileTaskRecords(branch, file.Ident)
 				if err != nil {
 					return
 				}
