@@ -10,6 +10,7 @@ import (
 	"nest/logger"
 	"nest/notify"
 	"os"
+	"strings"
 )
 
 func DeployCommand(c *cli.Context) (err error) {
@@ -36,6 +37,7 @@ func DeployCommand(c *cli.Context) (err error) {
 	}
 
 	count := 0
+	success := true
 
 	for _, changeTask := range change.TaskList {
 
@@ -45,8 +47,12 @@ func DeployCommand(c *cli.Context) (err error) {
 				continue
 			}
 
-			count++
+			if !success {
+				break
+			}
 
+			count++
+			log.Println(chalk.Green.Color("Deploy start"))
 			task := ctx.GetTask(changeDeploy.TaskId)
 			if task == nil {
 				err = fmt.Errorf("task \"%s\" is nil", changeDeploy.TaskId)
@@ -90,7 +96,9 @@ func DeployCommand(c *cli.Context) (err error) {
 				deployResult[server.Id] = err
 			}
 
-			logger.DebugPrint(deployResult)
+			if len(servers) > 0 {
+				success = printDeployResult(servers, deployResult)
+			}
 		}
 
 	}
@@ -100,13 +108,54 @@ func DeployCommand(c *cli.Context) (err error) {
 		return
 	}
 
-	//err = core.Commit(change)
-	//if err != nil {
-	//	return
-	//}
-	log.Println(chalk.Green.Color("Commit success"))
-
-	notify.DeployDone(count)
+	if success {
+		err = core.CommitDeploy(change)
+		if err != nil {
+			return
+		}
+		log.Println(chalk.Green.Color("Commit deploy success"))
+		notify.DeployDone(count)
+	}
 
 	return
+}
+
+func printDeployResult(servers []*core.Server, deployResult map[string]error) bool {
+
+	total := len(deployResult)
+	success := make([]*core.Server, 0)
+	failed := make([]*core.Server, 0)
+	for _, v := range servers {
+		if deployResult[v.Id] == nil {
+			success = append(success, v)
+		} else {
+			failed = append(failed, v)
+		}
+	}
+
+	log.Println(chalk.Green.Color("Deploy result"), fmt.Sprintf("total: %d, success: %d, failed: %d", total, len(success), len(failed)))
+
+	if len(success) > 0 {
+		if len(success) > 1 {
+			log.Println(chalk.Green.Color("Deploy success servers:"))
+		} else {
+			log.Println(chalk.Green.Color("Deploy success server:"))
+		}
+		for _, v := range success {
+			fmt.Println(v.Id, strings.Repeat(" ", enums.StatusMarginLeft), v.Name, strings.Repeat(" ", enums.StatusMarginLeft), v.Ip)
+		}
+	}
+
+	if len(failed) > 0 {
+		if len(failed) > 1 {
+			log.Println(chalk.Red.Color("Deploy failed servers:"))
+		} else {
+			log.Println(chalk.Red.Color("Deploy failed server:"))
+		}
+		for _, v := range failed {
+			fmt.Println(v.Id, strings.Repeat(" ", enums.StatusMarginLeft), v.Name, strings.Repeat(" ", enums.StatusMarginLeft), v.Ip)
+		}
+	}
+
+	return total == len(success)
 }

@@ -6,7 +6,7 @@ import (
 	"nest/logger"
 )
 
-func Commit(change *Change) (err error) {
+func CommitBuild(change *Change) (err error) {
 
 	session := engine.NewSession()
 	defer func() {
@@ -14,9 +14,9 @@ func Commit(change *Change) (err error) {
 		if err != nil {
 			err = session.Rollback()
 			if err != nil {
-				logger.Error("Commit rollback session error: ", err)
+				logger.Error("Commit build rollback session error: ", err)
 			}
-			logger.Error("Commit rollback", nil)
+			logger.Error("Commit build rollback", nil)
 		}
 
 		session.Close()
@@ -24,7 +24,7 @@ func Commit(change *Change) (err error) {
 
 	err = session.Begin()
 	if err != nil {
-		logger.Error("Commit start session error: ", err)
+		logger.Error("Commit build start session error: ", err)
 		return
 	}
 
@@ -111,7 +111,69 @@ func Commit(change *Change) (err error) {
 
 	err = session.Commit()
 	if err != nil {
-		logger.Error("Commit end session error: ", err)
+		logger.Error("CommitBuild end session error: ", err)
+		return
+	}
+
+	return
+}
+
+func CommitDeploy(change *Change) (err error) {
+
+	session := engine.NewSession()
+	defer func() {
+
+		if err != nil {
+			err = session.Rollback()
+			if err != nil {
+				logger.Error("Commit build rollback session error: ", err)
+			}
+			logger.Error("Commit build rollback", nil)
+		}
+
+		session.Close()
+	}()
+
+	err = session.Begin()
+	if err != nil {
+		logger.Error("Commit build start session error: ", err)
+		return
+	}
+
+	ctx, err := Prepare()
+	if err != nil {
+		return
+	}
+
+	branch := Branch(ctx.Directory)
+
+	for _, task := range change.TaskList {
+		for _, deploy := range task.Deploy {
+			if deploy.Modify {
+				switch deploy.Type {
+				case enums.ChangeTypeNew:
+					_, err = AddBinRecord(deploy.TaskId, deploy.EnvId, branch, deploy.Dist, deploy.Md5, deploy.ModAt)
+					if err != nil {
+						return
+					}
+				case enums.ChangeTypeUpdate:
+					err = RefreshBinRecord(deploy.TaskId, deploy.EnvId, deploy.Branch, deploy.Md5, deploy.ModAt)
+					if err != nil {
+						return
+					}
+				case enums.ChangeTypeDelete:
+					err = CleanBinRecord(deploy.TaskId, deploy.EnvId, branch)
+					if err != nil {
+						return
+					}
+				}
+			}
+		}
+	}
+
+	err = session.Commit()
+	if err != nil {
+		logger.Error("Commit deploy end session error: ", err)
 		return
 	}
 

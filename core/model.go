@@ -41,9 +41,10 @@ type FileRecord struct {
 	BuildAt int64
 }
 
-func NewBinRecord(taskId, branch, path, md5 string, modAt int64) *BinRecord {
+func NewBinRecord(taskId, envId, branch, path, md5 string, modAt int64) *BinRecord {
 	binRecord := new(BinRecord)
 	binRecord.TaskId = taskId
+	binRecord.EnvId = envId
 	binRecord.Branch = branch
 	binRecord.Md5 = md5
 	binRecord.Path = path

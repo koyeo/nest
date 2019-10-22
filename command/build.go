@@ -57,8 +57,8 @@ func BuildCommand(c *cli.Context) (err error) {
 		} else {
 			log.Println(chalk.Green.Color(fmt.Sprintf("Task: %s", task.Task.Id)))
 		}
-		log.Println(chalk.Green.Color("Bin start"))
-		log.Println(chalk.Green.Color("PipeExec directory:"), dir)
+		log.Println(chalk.Green.Color("Build start"))
+		log.Println(chalk.Green.Color("Exec directory:"), dir)
 
 		build := task.Task.GetBuild(env.Id)
 		if build == nil {
@@ -77,7 +77,7 @@ func BuildCommand(c *cli.Context) (err error) {
 			return
 		}
 
-		log.Println(chalk.Green.Color("Bin end"))
+		log.Println(chalk.Green.Color("Build end"))
 	}
 
 	if count == 0 {
@@ -85,12 +85,12 @@ func BuildCommand(c *cli.Context) (err error) {
 		return
 	}
 
-	err = core.Commit(change)
+	err = core.CommitBuild(change)
 	if err != nil {
 		return
 	}
 
-	log.Println(chalk.Green.Color("Commit success"))
+	log.Println(chalk.Green.Color("Commit build success"))
 
 	notify.BuildDone(count)
 

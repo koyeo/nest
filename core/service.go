@@ -173,14 +173,14 @@ func CleanFileTaskRecords(branch, fileIdent string) (err error) {
 	return
 }
 
-func AddBinRecord(branch, taskId, envId, path, md5 string, modAt int64) (binRecord *BinRecord, err error) {
+func AddBinRecord(taskId, envId, branch, path, md5 string, modAt int64) (binRecord *BinRecord, err error) {
 
 	binRecord, err = FindBinRecord(taskId, envId, branch)
 	if binRecord != nil {
 		return
 	}
 
-	binRecord = NewBinRecord(branch, taskId, path, md5, modAt)
+	binRecord = NewBinRecord(taskId, envId, branch, path, md5, modAt)
 	err = CreateBinRecord(binRecord)
 	if err != nil {
 		logger.Error("Create bin record error: ", err)
@@ -212,7 +212,16 @@ func CleanBinRecord(taskId, envId, branch string) (err error) {
 	return
 }
 
-func RefreshBinRecord(binRecord *BinRecord) (err error) {
+func RefreshBinRecord(taskId, envId, branch, md5 string, modAt int64) (err error) {
+
+	var binRecord *BinRecord
+	binRecord, err = FindBinRecord(taskId, envId, branch)
+	if err != nil {
+		return
+	}
+
+	binRecord.Md5 = md5
+	binRecord.ModAt = modAt
 
 	err = UpdateBinRecord(binRecord)
 	if err != nil {

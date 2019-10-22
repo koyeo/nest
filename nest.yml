@@ -58,8 +58,12 @@ task:
           path: /opt/bin/deploy-test
         daemon:
           pid: /opt/pid/deploy-test.pid
-          start: ./path/to/bin -s
-          success: ===start success===
+          command:
+            start: ./path/to/bin -s
+            stop: kill $pid -9
+          flag:
+            start: ===start success===
+            stop: ===stop success===
           log:
             path: /path/to/log            # 日志文件路径
             file: /path/to/log            # 日志文件名称

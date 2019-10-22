@@ -12,14 +12,6 @@ import (
 	"time"
 )
 
-// 1. ssh 连接
-// 2. sftp 连接
-// 3. 更新 Bin
-// 4. 更新 supervisor 配置文件
-// 5. 检查 supervisor 状态
-// 6. 执行前置脚本
-// 7.
-// 6. 启动或重启程序
 func ExecDeploy(ctx *Context, task *Task, server *Server, deploy *Deploy, changeDeploy *ChangeTaskDeploy) (err error) {
 
 	if deploy.Bin == nil {
