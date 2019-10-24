@@ -4,6 +4,7 @@ import (
 	"github.com/urfave/cli"
 	"nest/core"
 	"os"
+	"path/filepath"
 )
 
 func RunCommand(c *cli.Context) (err error) {
@@ -14,12 +15,17 @@ func RunCommand(c *cli.Context) (err error) {
 		}
 	}()
 
+	ctx, err := core.Prepare()
+	if err != nil {
+		return
+	}
+
 	task := mustGetTask(c, 0)
 	if task == nil {
 		return
 	}
 
-	err = core.PipeExec(task.Directory, task.Run)
+	err = core.PipeExec(filepath.Join(ctx.Directory, task.Directory), task.Run)
 	if err != nil {
 		return
 	}
