@@ -6,6 +6,7 @@ const (
 	DataDir           = "data"
 	DataFile          = "nest.db"
 	BinDir            = "bin"
+	GoSuffix          = ".go"
 	FirstLevel        = 1
 	SecondLevel       = 2
 	ThirdLevel        = 4

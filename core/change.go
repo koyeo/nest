@@ -102,7 +102,7 @@ func (p *ChangeTaskDeploy) IsZip() bool {
 	return strings.HasSuffix(p.Dist, enums.ZipSuffix)
 }
 
-func (p *ChangeTaskDeploy) DistName() string  {
+func (p *ChangeTaskDeploy) DistName() string {
 	return path.Base(p.Dist)
 }
 
@@ -158,6 +158,31 @@ func FileMd5(path string) (hash string, err error) {
 	return
 }
 
+type WatchFiles struct {
+	List   []string
+	filter map[string]bool
+}
+
+func (p *WatchFiles) Has(path string) bool {
+	if _, ok := p.filter[path]; ok {
+		return true
+	}
+	return false
+}
+
+func (p *WatchFiles) Add(path string) {
+	if p.filter == nil {
+		p.filter = make(map[string]bool)
+	}
+
+	if _, ok := p.filter[path]; ok {
+		return
+	}
+
+	p.filter[path] = true
+	p.List = append(p.List, path)
+}
+
 func MakeChange() (change *Change, err error) {
 
 	ctx, err := Prepare()
@@ -188,55 +213,50 @@ func MakeChange() (change *Change, err error) {
 			change.Add(task.Id, changeTask)
 		}
 
-		for _, glob := range task.Watch {
+		var files []string
+		files, err = TaskGlobFiles(ctx, task)
+		if err != nil {
+			logger.Error("Match files error: ", err)
+			return
+		}
 
-			glob = filepath.Join(ctx.Directory, task.Directory, glob)
-
-			var files []string
-			files, err = filepath.Glob(glob)
+		for _, filePath := range files {
+			var fileRecord *FileRecord
+			fileRecord, err = FindFileRecord(branch, GetFileIdent(filePath))
 			if err != nil {
-				logger.Error("Match file error: ", err)
 				return
 			}
 
-			for _, filePath := range files {
-				var fileRecord *FileRecord
-				fileRecord, err = FindFileRecord(branch, GetFileIdent(filePath))
+			var modAt int64
+			modAt, err = FileModAt(filePath)
+			if err != nil {
+				return
+			}
+
+			changeFile := NewChangeFile(filePath)
+			changeFile.ModAt = modAt
+
+			if fileRecord == nil {
+				changeFile.Type = enums.ChangeTypeNew
+				changeFile.Md5, err = FileMd5(filePath)
+				if err != nil {
+					return
+				}
+				changeTask.Build.Add(&changeTask.Build.New, changeFile)
+			} else {
+				changeFile.Md5, err = FileMd5(filePath)
 				if err != nil {
 					return
 				}
 
-				var modAt int64
-				modAt, err = FileModAt(filePath)
-				if err != nil {
-					return
-				}
+				if modAt <= fileRecord.ModAt || changeFile.Md5 == fileRecord.Md5 {
+					changeFile.Type = enums.ChangeTypeNone
+					changeTask.Build.Add(&changeTask.Build.None, changeFile)
 
-				changeFile := NewChangeFile(filePath)
-				changeFile.ModAt = modAt
-
-				if fileRecord == nil {
-					changeFile.Type = enums.ChangeTypeNew
-					changeFile.Md5, err = FileMd5(filePath)
-					if err != nil {
-						return
-					}
-					changeTask.Build.Add(&changeTask.Build.New, changeFile)
 				} else {
-					changeFile.Md5, err = FileMd5(filePath)
-					if err != nil {
-						return
-					}
 
-					if modAt <= fileRecord.ModAt || changeFile.Md5 == fileRecord.Md5 {
-						changeFile.Type = enums.ChangeTypeNone
-						changeTask.Build.Add(&changeTask.Build.None, changeFile)
-
-					} else {
-
-						changeFile.Type = enums.ChangeTypeUpdate
-						changeTask.Build.Add(&changeTask.Build.Update, changeFile)
-					}
+					changeFile.Type = enums.ChangeTypeUpdate
+					changeTask.Build.Add(&changeTask.Build.Update, changeFile)
 				}
 			}
 		}
@@ -375,5 +395,37 @@ func FileModAt(filePath string) (modAt int64, err error) {
 		return
 	}
 	modAt = file.ModTime().Unix()
+	return
+}
+
+func TaskGlobFiles(ctx *Context, task *Task) (files []string, err error) {
+
+	watchFiles := new(WatchFiles)
+
+	for _, glob := range task.Watch {
+
+		glob = filepath.Join(ctx.Directory, task.Directory, glob)
+
+		var globFiles []string
+		globFiles, err = filepath.Glob(glob)
+		if err != nil {
+			logger.Error("Match file error: ", err)
+			return
+		}
+
+		for _, v := range globFiles {
+			if strings.HasSuffix(v, enums.GoSuffix) {
+				err = GoPackageFiles(watchFiles, v)
+				if err != nil {
+					return
+				}
+			} else {
+				watchFiles.Add(v)
+			}
+		}
+	}
+
+	files = watchFiles.List
+
 	return
 }

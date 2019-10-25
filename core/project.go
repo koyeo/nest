@@ -7,7 +7,6 @@ import (
 	"nest/enums"
 	"nest/logger"
 	"nest/storage"
-	"os"
 	"path/filepath"
 )
 
@@ -24,7 +23,7 @@ func Prepare() (ctx *Context, err error) {
 	if !storage.Exist(file) {
 		err = fmt.Errorf("%s not exist", enums.ConfigFile)
 		logger.Error("Load config error: ", err)
-		os.Exit(1)
+		//os.Exit(1)
 		return
 	}
 

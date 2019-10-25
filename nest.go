@@ -24,6 +24,11 @@ func main() {
 			Action: command.Init,
 		},
 		{
+			Name:   "dep",
+			Usage:  "Get task dep files",
+			Action: command.DepCommand,
+		},
+		{
 			Name:   "status",
 			Usage:  "Show project status",
 			Action: command.StatusCommand,

@@ -31,7 +31,7 @@ func RunCommand(c *cli.Context) (err error) {
 	}
 
 	env := mustGetEnv(c, 1)
-	if task == nil {
+	if env == nil {
 		return
 	}
 
