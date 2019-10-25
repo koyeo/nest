@@ -226,16 +226,50 @@ func (p *ExtendScript) Content() (content []byte, err error) {
 	return
 }
 
+type Run struct {
+	Env   string
+	Start string
+}
+
+func ToRun(o *config.Run) *Run {
+	n := new(Run)
+	n.Env = o.Env
+	n.Start = o.Start
+	return n
+}
+
 type Task struct {
 	Id        string
 	Name      string
 	Watch     []string
 	Directory string
-	Run       string
+	Run       []*Run
+	runMap    map[string]*Run
 	Build     []*Build
 	buildMap  map[string]*Build
 	Deploy    []*Deploy
 	deployMap map[string]*Deploy
+}
+
+func (p *Task) AddRun(run *config.Run) {
+
+	if p.runMap == nil {
+		p.runMap = make(map[string]*Run)
+	}
+	if _, ok := p.runMap[run.Env]; ok {
+		return
+	}
+	p.runMap[run.Env] = ToRun(run)
+	p.Run = append(p.Run, p.runMap[run.Env])
+
+	return
+}
+
+func (p *Task) GetRun(env string) *Run {
+	if v, ok := p.runMap[env]; ok {
+		return v
+	}
+	return nil
 }
 
 func (p *Task) AddBuild(build *config.Build) (err error) {
@@ -292,7 +326,11 @@ func ToTask(o *config.Task) (n *Task, err error) {
 	n.Name = o.Name
 	n.Watch = o.Watch
 	n.Directory = o.Directory
-	n.Run = o.Run
+
+	for _, v := range o.Run {
+		n.AddRun(v)
+	}
+
 	for _, v := range o.Build {
 		err = n.AddBuild(v)
 		if err != nil {
