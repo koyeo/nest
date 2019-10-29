@@ -4,6 +4,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"nest/logger"
 	"nest/storage"
+	"os"
 	"path/filepath"
 	"xorm.io/core"
 	"xorm.io/xorm"
@@ -14,7 +15,7 @@ var engine *xorm.Engine
 func init() {
 	_, err := Prepare()
 	if err != nil {
-		return
+		os.Exit(1)
 	}
 	dbPath := filepath.Join(storage.DataDir())
 	if !storage.Exist(dbPath) {

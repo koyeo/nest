@@ -38,7 +38,9 @@ task:
     watch:
       - test.go
       - second/**/*.go
-    run: go run test.go
+    run:
+      - env: test
+        start: go run test.go
     build:
       - id: build-test
         env: env-test

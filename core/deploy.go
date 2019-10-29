@@ -8,6 +8,7 @@ import (
 	"nest/logger"
 	"nest/storage"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -51,11 +52,60 @@ func ExecDeploy(ctx *Context, task *Task, server *Server, deploy *Deploy, change
 		}
 	}
 
+	if len(deploy.BeforeCommand) != 0 {
+		fmt.Println("Exec before command:")
+	}
+	for _, v := range deploy.BeforeCommand {
+		if strings.TrimSpace(v) == "" {
+			continue
+		}
+		err = SSHPipeExec(sshClient, v)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(deploy.BeforeScript) != 0 {
+		fmt.Println("Exec before script:")
+	}
+	for _, v := range deploy.BeforeScript {
+		err = uploadScript(sshClient, sftpClient, ctx, v)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(deploy.Command) != 0 {
+		fmt.Println("Exec command:")
+	}
 	for _, v := range deploy.Command {
 		if strings.TrimSpace(v) == "" {
 			continue
 		}
 		err = SSHPipeExec(sshClient, v)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(deploy.AfterCommand) != 0 {
+		fmt.Println("Exec after command:")
+	}
+	for _, v := range deploy.AfterCommand {
+		if strings.TrimSpace(v) == "" {
+			continue
+		}
+		err = SSHPipeExec(sshClient, v)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(deploy.AfterScript) != 0 {
+		fmt.Println("Exec after script:")
+	}
+	for _, v := range deploy.AfterScript {
+		err = uploadScript(sshClient, sftpClient, ctx, v)
 		if err != nil {
 			return
 		}
@@ -171,6 +221,96 @@ func uploadBin(sshClient *ssh.Client, sftpClient *sftp.Client, deploy *Deploy, c
 
 	err = SSHPipeExec(sshClient, fmt.Sprintf("rm %s", binFile))
 	if err != nil {
+		return
+	}
+
+	return
+}
+
+func makeRemoteScriptDir(sshClient *ssh.Client, projectId string) (path string, err error) {
+
+	session, err := sshClient.NewSession()
+	if err != nil {
+		logger.Error("New ssh session error: ", err)
+		return
+	}
+
+	defer func() {
+		_ = session.Close()
+	}()
+
+	path = filepath.Join(enums.RemoteOptScriptDir, projectId)
+	_, err = session.CombinedOutput("make -p " + path)
+	if err == nil {
+		return
+	}
+
+	path = filepath.Join(fmt.Sprintf("~/%s/%s", enums.WorkspaceDir, enums.RemoteScriptDir), projectId)
+	out, err := session.CombinedOutput("make -p " + path)
+	if err != nil {
+		err = fmt.Errorf(strings.TrimSpace(string(out)))
+		return
+	}
+	return
+}
+
+func uploadScript(sshClient *ssh.Client, sftpClient *sftp.Client, ctx *Context, script *Script) (err error) {
+
+	if script.File == "" {
+		return
+	}
+
+	originScriptFile := storage.ParsePath(ctx.Directory, script.File)
+
+	if !storage.Exist(originScriptFile) {
+		err = fmt.Errorf("shell \"%s\" not exist", originScriptFile)
+		logger.Error("Upload shell error:", err)
+		return
+	}
+
+	remoteScriptDir, err := makeRemoteScriptDir(sshClient, ctx.Id)
+	if err != nil {
+		logger.Error("Make remote script dir error: ", err)
+		return
+	}
+
+	remoteShellFile := filepath.Join(remoteScriptDir, path.Base(script.File))
+	info, err := sftpClient.Stat(remoteShellFile)
+
+	if err == nil {
+		if info.IsDir() {
+			err = fmt.Errorf("script path \"%s\" is a dir", remoteShellFile)
+			logger.Error("Make remote script file error: ", err)
+			return
+		} else {
+			err = SSHPipeExec(sshClient, fmt.Sprintf("rm %s", remoteShellFile))
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	file, err := sftpClient.Create(remoteShellFile)
+	if err != nil {
+		logger.Error("Create remote script file error: ", err)
+		return
+	}
+
+	data, err := storage.Read(originScriptFile)
+	if err != nil {
+		logger.Error("Read script file error: ", err)
+		return
+	}
+
+	n, err := file.Write(data)
+	if err != nil {
+		logger.Error("Write remote script file error: ", err)
+		return
+	}
+
+	if n == 0 {
+		err = fmt.Errorf("script file \"%s\" is empty", originScriptFile)
+		logger.Error("Create scirpt file error: ", err)
 		return
 	}
 

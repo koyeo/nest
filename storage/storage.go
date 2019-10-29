@@ -11,6 +11,15 @@ import (
 	"strings"
 )
 
+func ParsePath(root string, path ...string) string {
+	for k, v := range path {
+		if strings.HasPrefix(v, enums.RelativePathPrefix) {
+			filepath.Join(append([]string{v}, path[k:]...)...)
+		}
+	}
+	return filepath.Join(append([]string{root}, path...)...)
+}
+
 func WorkspaceDir(path ...string) string {
 	return filepath.Join("./", enums.WorkspaceDir, filepath.Join(path...))
 }

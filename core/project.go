@@ -40,13 +40,15 @@ func Prepare() (ctx *Context, err error) {
 		return
 	}
 
-	ctx, err = MakeContext(conf)
+	context, err = MakeContext(conf)
 	if err != nil {
-		logger.Error("Prepare error: ", err)
+		if err != IncludeScriptErr {
+			logger.Error("Prepare error: ", err)
+		}
 		return
 	}
 
-	context = ctx
+	ctx = context
 
 	return
 }

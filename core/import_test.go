@@ -36,7 +36,7 @@ func (p *Transaction) login(ctx *Context, in *transaction.LoginInput, out *trans
 }
 `))
 	for _, v := range res {
-		is, _ := IsProjectPackage(v)
+		_, is, _ := IsProjectPackage(v)
 		fmt.Println(v, is)
 	}
 }

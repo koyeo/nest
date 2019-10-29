@@ -82,9 +82,23 @@ type Bin struct {
 }
 
 type Daemon struct {
-	Start string `yaml:"start,omitempty"`
-	Pid   string `yaml:"pid,omitempty"`
-	Log   *Log   `yaml:"log,omitempty"`
+	Pid   string       `yaml:"pid,omitempty"`
+	Start *DaemonStart `yaml:"start,omitempty"`
+	Stop  *DaemonStop `yaml:"stop,omitempty"`
+	Log   *Log         `yaml:"log,omitempty"`
+}
+
+type DaemonStart struct {
+	Flag    string   `yaml:"flag,omitempty"`
+	Command string   `yaml:"command,omitempty"`
+	Script  []string `yaml:"script,omitempty"`
+}
+
+type DaemonStop struct {
+	Signal  string   `yaml:"signal,omitempty"`
+	Flag    string   `yaml:"flag,omitempty"`
+	Command string   `yaml:"command,omitempty"`
+	Script  []string `yaml:"script,omitempty"`
 }
 
 type Log struct {

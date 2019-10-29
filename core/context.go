@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"nest/config"
 	"nest/enums"
+	"nest/logger"
 	"nest/storage"
+	"regexp"
+	"strings"
 )
 
 type Context struct {
@@ -194,6 +197,7 @@ type Script struct {
 	Name    string
 	File    string
 	Command []string
+	Vars    map[string]string
 }
 
 func ToScript(o *config.Script) *Script {
@@ -347,13 +351,15 @@ func ToTask(o *config.Task) (n *Task, err error) {
 }
 
 type Build struct {
-	Id           string
-	Force        bool
-	Env          string
-	Bin          string
-	BeforeScript []*ExtendScript
-	AfterScript  []*ExtendScript
-	Command      []string
+	Id            string
+	Force         bool
+	Env           string
+	Bin           string
+	BeforeScript  []*Script
+	AfterScript   []*Script
+	Command       []string
+	BeforeCommand []string
+	AfterCommand  []string
 }
 
 func ToBuild(o *config.Build) (n *Build, err error) {
@@ -362,19 +368,6 @@ func ToBuild(o *config.Build) (n *Build, err error) {
 	n.Force = o.Force
 	n.Env = o.Env
 	n.Bin = o.Dist
-	for _, v := range o.Script {
-		var extendScript *ExtendScript
-		extendScript, err = NewExtendScript(v)
-		if err != nil {
-			return
-		}
-		if extendScript.Type == enums.ScriptTypeBefore {
-			n.BeforeScript = append(n.BeforeScript, extendScript)
-		} else if extendScript.Type == enums.ScriptTypeAfter {
-			n.AfterScript = append(n.AfterScript, extendScript)
-		}
-
-	}
 	n.Command = o.Command
 	return
 }
@@ -394,15 +387,17 @@ func ToBin(o *config.Bin) *Bin {
 }
 
 type Deploy struct {
-	Id           string
-	Force        bool
-	Env          string
-	Bin          *Bin
-	Daemon       *Daemon
-	Server       []string
-	BeforeScript []*ExtendScript
-	AfterScript  []*ExtendScript
-	Command      []string
+	Id            string
+	Force         bool
+	Env           string
+	Bin           *Bin
+	Daemon        *Daemon
+	Server        []string
+	BeforeScript  []*Script
+	AfterScript   []*Script
+	Command       []string
+	BeforeCommand []string
+	AfterCommand  []string
 }
 
 func ToDeploy(o *config.Deploy) (n *Deploy, err error) {
@@ -417,35 +412,64 @@ func ToDeploy(o *config.Deploy) (n *Deploy, err error) {
 		n.Daemon = ToDaemon(o.Daemon)
 	}
 	n.Server = o.Server
-	for _, v := range o.Script {
-		var extendScript *ExtendScript
-		extendScript, err = NewExtendScript(v)
-		if err != nil {
-			return
-		}
-		if extendScript.Type == enums.ScriptTypeBefore {
-			n.BeforeScript = append(n.BeforeScript, extendScript)
-		} else if extendScript.Type == enums.ScriptTypeAfter {
-			n.AfterScript = append(n.AfterScript, extendScript)
-		}
-
-	}
 	n.Command = o.Command
 	return
 }
 
 type Daemon struct {
-	Start string
 	Pid   string
+	Start *DaemonStart
+	Stop  *DaemonStop
 	Log   *Log
 }
 
 func ToDaemon(o *config.Daemon) *Daemon {
 	n := new(Daemon)
-	n.Start = o.Start
+	if o.Start != nil {
+		n.Start = ToDaemonStart(o.Start)
+	}
+	if o.Stop != nil {
+		n.Stop = ToDaemonStop(o.Stop)
+	}
 	n.Pid = o.Pid
 	if o.Log != nil {
 		n.Log = ToLog(o.Log)
+	}
+	return n
+}
+
+type DaemonStart struct {
+	Flag          string
+	Command       string
+	BeforeCommand []string
+	AfterCommand  []string
+	BeforeScript  []*Script
+	AfterScript   []*Script
+}
+
+func ToDaemonStart(o *config.DaemonStart) *DaemonStart {
+	n := new(DaemonStart)
+	n.Command = o.Command
+	n.Flag = o.Flag
+	return n
+}
+
+type DaemonStop struct {
+	Signal        string
+	Flag          string
+	Command       string
+	BeforeCommand []string
+	AfterCommand  []string
+	BeforeScript  []*Script
+	AfterScript   []*Script
+}
+
+func ToDaemonStop(o *config.DaemonStop) *DaemonStop {
+	n := new(DaemonStop)
+	n.Command = o.Command
+	n.Flag = o.Flag
+	for _, v := range o.Script {
+		o.Script = append(o.Script, v)
 	}
 	return n
 }
@@ -474,7 +498,116 @@ func ToLog(o *config.Log) *Log {
 	return n
 }
 
+func (p *Context) CheckScript(scriptId string) (script *Script, position string, err error) {
+
+	rule := "(.+)" +
+		enums.ScriptExtendIdent +
+		`(` + enums.ScriptPositionBefore + `|` + enums.ScriptPositionAfter + `)(\` +
+		enums.ScriptVarWrapFlagLeft +
+		`.*\` + enums.ScriptVarWrapFlagRight + `)?`
+
+	reg := regexp.MustCompile(rule)
+
+	if !reg.MatchString(scriptId) {
+		err = InvalidIncludeScriptRuleErr
+		return
+	}
+
+	all := reg.FindAllStringSubmatch(scriptId, -1)
+	if len(all) != 1 {
+		err = InvalidIncludeScriptRuleErr
+		return
+	}
+
+	ident := all[0]
+	l := len(ident)
+	if l != 4 {
+		err = InvalidIncludeScriptRuleErr
+		return
+	}
+
+	var vars map[string]string
+
+	if l == 4 {
+		vs := ident[3]
+		if vs != "" {
+			reg = regexp.MustCompile(`\(.*\)`)
+			if !reg.MatchString(vs) {
+				err = InvalidIncludeScriptRuleErr
+				return
+			}
+
+			vs = strings.Trim(vs, enums.ScriptVarWrapFlagLeft+enums.ScriptVarWrapFlagRight)
+			items := strings.Split(vs, enums.ScriptVarSplitFlag)
+
+			for _, v := range items {
+
+				v = strings.TrimSpace(v)
+				if !strings.HasPrefix(v, enums.ScriptVarNameFlag) {
+					err = InvalidIncludeScriptVarErr
+					return
+				}
+				kv := strings.Split(v, enums.ScriptVarAssignFlag)
+				if len(kv) != 2 {
+					err = InvalidIncludeScriptVarErr
+					return
+				}
+
+				if vars == nil {
+					vars = make(map[string]string)
+				}
+
+				vars[kv[0]] = kv[1]
+			}
+		}
+	}
+
+	position = ident[2]
+
+	id := ident[1]
+	if script = p.GetScript(id); script == nil {
+		err = ScriptNotExistErr
+		return
+	}
+
+	script.Vars = vars
+
+	return
+}
+
+func (p *Context) ParseScript(scriptId string, beforeCommand, afterCommand *[]string, beforeScript, afterScript *[]*Script) (err error) {
+
+	script, position, err := p.CheckScript(scriptId)
+	if err != nil {
+		return
+	}
+
+	switch position {
+	case enums.ScriptPositionBefore:
+		for _, v := range script.Command {
+			*beforeCommand = append(*beforeCommand, v)
+		}
+		*beforeScript = append(*beforeScript, script)
+	case enums.ScriptPositionAfter:
+		for _, v := range script.Command {
+			*afterCommand = append(*afterCommand, v)
+		}
+		*afterScript = append(*afterScript, script)
+	}
+
+	return
+}
+
 func MakeContext(config *config.Config) (ctx *Context, err error) {
+
+	defer func() {
+		if err == InvalidIncludeScriptRuleErr ||
+			err == InvalidIncludeScriptVarErr ||
+			err == ScriptNotExistErr {
+			err = IncludeScriptErr
+		}
+	}()
+
 	ctx = new(Context)
 	ctx.Name = config.Name
 	ctx.Directory = config.Directory
@@ -494,6 +627,57 @@ func MakeContext(config *config.Config) (ctx *Context, err error) {
 		err = ctx.AddTask(v)
 		if err != nil {
 			return
+		}
+	}
+
+	for _, v := range config.Task {
+
+		task := ctx.GetTask(v.Id)
+
+		for _, vv := range v.Build {
+			build := task.GetBuild(vv.Env)
+			for _, vvv := range vv.Script {
+				err = ctx.ParseScript(vvv, &build.BeforeCommand, &build.AfterCommand, &build.BeforeScript, &build.AfterScript)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Parse task \"%s\" build sciprt \"%s\" error: ", task.Id, vvv), err)
+					if err == nil {
+						err = IncludeScriptErr
+					}
+				}
+			}
+		}
+
+		for _, vv := range v.Deploy {
+
+			deploy := task.GetDeploy(vv.Env)
+			for _, vvv := range vv.Script {
+				err = ctx.ParseScript(vvv, &deploy.BeforeCommand, &deploy.AfterCommand, &deploy.BeforeScript, &deploy.AfterScript)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Parse task \"%s\" deploy sciprt \"%s\" error: ", task.Id, vvv), err)
+				}
+			}
+			if vv.Daemon == nil {
+				continue
+			}
+
+			if vv.Daemon.Start != nil {
+				for _, vvv := range vv.Daemon.Start.Script {
+					err = ctx.ParseScript(vvv, &deploy.Daemon.Start.BeforeCommand, &deploy.Daemon.Start.AfterCommand, &deploy.Daemon.Start.BeforeScript, &deploy.Daemon.Start.AfterScript)
+					if err != nil {
+						logger.Error(fmt.Sprintf("Parse task \"%s\" deploy stop sciprt \"%s\" error: ", task.Id, vvv), err)
+					}
+				}
+			}
+
+			if vv.Daemon.Stop != nil {
+				for _, vvv := range vv.Daemon.Stop.Script {
+					err = ctx.ParseScript(vvv, &deploy.Daemon.Stop.BeforeCommand, &deploy.Daemon.Stop.AfterCommand, &deploy.Daemon.Stop.BeforeScript, &deploy.Daemon.Stop.AfterScript)
+					if err != nil {
+						logger.Error(fmt.Sprintf("Parse task \"%s\" deploy stop sciprt \"%s\" error: ", task.Id, vvv), err)
+					}
+				}
+			}
+
 		}
 	}
 	return
