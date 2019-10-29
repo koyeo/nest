@@ -204,6 +204,12 @@ func MakeChange() (change *Change, err error) {
 
 		changeTask := NewChangeTask(task)
 
+		if len(task.Watch) == 0 {
+			changeTask.Build.Type = enums.ChangeTypeForce
+			change.Add(task.Id, changeTask)
+			continue
+		}
+
 		if taskRecord == nil {
 			taskRecord = NewTaskRecord(branch, task.Id)
 			changeTask.Build.Type = enums.ChangeTypeNew

@@ -15,6 +15,7 @@ const (
 	ChangeTypeNew     = 1
 	ChangeTypeUpdate  = 2
 	ChangeTypeDelete  = 3
+	ChangeTypeForce   = 4
 	ScriptTypeBefore  = "before"
 	ScriptTypeAfter   = "after"
 	ScriptExtendIdent = "@"

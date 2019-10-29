@@ -70,6 +70,10 @@ func BuildCommand(c *cli.Context) (err error) {
 			return
 		}
 
+		if task.Build.Type == enums.ChangeTypeForce {
+			continue
+		}
+
 		branch := core.Branch(ctx.Directory)
 
 		err = moveBin(ctx.Directory, task.Task.Directory, task.Task.Id, branch, env.Id, build.Bin)
