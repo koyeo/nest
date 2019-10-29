@@ -425,9 +425,8 @@ func TaskGlobFiles(ctx *Context, task *Task) (files []string, err error) {
 				if err != nil {
 					return
 				}
-			} else {
-				watchFiles.Add(v)
 			}
+			watchFiles.Add(v)
 		}
 	}
 
