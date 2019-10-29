@@ -12,16 +12,16 @@ import (
 var engine *xorm.Engine
 
 func init() {
-	ctx, err := Prepare()
-	if err != nil {
-		return
-	}
-	dbPath := filepath.Join(ctx.Directory, storage.DataDir())
+	//ctx, err := Prepare()
+	//if err != nil {
+	//	return
+	//}
+	dbPath := filepath.Join(storage.DataDir())
 	if !storage.Exist(dbPath) {
 		storage.MakeDir(dbPath)
 	}
-	dbFile := filepath.Join(ctx.Directory, storage.DataFile())
-	engine, err = xorm.NewEngine("sqlite3", dbFile)
+	dbFile := filepath.Join(storage.DataDir(), storage.DataFile())
+	engine, err := xorm.NewEngine("sqlite3", dbFile)
 	if err != nil {
 		logger.Error("Open sqlite error", err)
 		return
