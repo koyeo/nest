@@ -54,7 +54,7 @@ func BuildCommand(c *cli.Context) (err error) {
 
 		count++
 		var dir string
-		dir, err = filepath.Abs(task.Directory)
+		dir, err = filepath.Abs(filepath.Join(ctx.Directory, task.Directory))
 		if err != nil {
 			logger.Error("Modify get directory error: ", err)
 			return
@@ -68,7 +68,7 @@ func BuildCommand(c *cli.Context) (err error) {
 		log.Println(chalk.Green.Color("Build start"))
 		log.Println(chalk.Green.Color("Exec directory:"), dir)
 
-		err = execCommand(ctx.Directory, task, build)
+		err = execCommand(dir, task, build)
 		if err != nil {
 			return
 		}
@@ -104,9 +104,9 @@ func BuildCommand(c *cli.Context) (err error) {
 	return
 }
 
-func execCommand(projectDir string, task *core.Task, build *core.Build) (err error) {
+func execCommand(dir string, task *core.Task, build *core.Build) (err error) {
 	for _, command := range build.Command {
-		err = core.PipeExec(filepath.Join(projectDir, task.Directory), command)
+		err = core.PipeExec(dir, command)
 		if err != nil {
 			return
 		}
