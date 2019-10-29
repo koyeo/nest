@@ -45,7 +45,7 @@ func FindTaskRecord(branch, id string) (taskRecord *TaskRecord, err error) {
 
 	taskRecord, err = GetTaskRecord(branch, id)
 	if err != nil {
-		logger.Error("Get task record error: ", err)
+		logger.Error("GetTask task record error: ", err)
 		return
 	}
 
@@ -56,7 +56,7 @@ func FindTaskRecords(branch string) (taskRecords []*TaskRecord, err error) {
 
 	taskRecords, err = GetTaskRecords(branch)
 	if err != nil {
-		logger.Error("Get task records error: ", err)
+		logger.Error("GetTask task records error: ", err)
 		return
 	}
 
@@ -95,7 +95,7 @@ func FindFileRecord(branch, ident string) (fileRecord *FileRecord, err error) {
 
 	fileRecord, err = GetFileRecord(branch, ident)
 	if err != nil {
-		logger.Error("Get file record error: ", err)
+		logger.Error("GetTask file record error: ", err)
 		return
 	}
 
@@ -128,7 +128,7 @@ func AddFileTaskRecord(branch, fileIdent, taskId string) (err error) {
 
 	fileTaskRecord, err := GetFileTaskRecord(branch, fileIdent, taskId)
 	if err != nil {
-		logger.Error("Get file task record error: ", err)
+		logger.Error("GetTask file task record error: ", err)
 		return
 	}
 
@@ -149,7 +149,7 @@ func AddFileTaskRecord(branch, fileIdent, taskId string) (err error) {
 func FindTaskFileRecords(branch, taskId string) (fileTaskRecords []*FileTaskRecord, err error) {
 	fileTaskRecords, err = GetTaskFileRecords(branch, taskId)
 	if err != nil {
-		logger.Error("Get file task records error: ", err)
+		logger.Error("GetTask file task records error: ", err)
 		return
 	}
 	return
@@ -194,7 +194,7 @@ func FindBinRecord(taskId, envId, branch string) (binRecord *BinRecord, err erro
 
 	binRecord, err = GetBinRecord(taskId, envId, branch)
 	if err != nil {
-		logger.Error("Get bin record error: ", err)
+		logger.Error("GetTask bin record error: ", err)
 		return
 	}
 

@@ -45,7 +45,7 @@ func BuildCommand(c *cli.Context) (err error) {
 			continue
 		}
 
-		changeTask := change.Get(task.Id)
+		changeTask := change.GetTask(task.Id)
 		if !build.Force {
 			if changeTask == nil || changeTask.Build.Type == enums.ChangeTypeDelete || !changeTask.Build.Modify {
 				continue

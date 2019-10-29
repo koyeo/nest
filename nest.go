@@ -24,7 +24,7 @@ func main() {
 		},
 		{
 			Name:   "dep",
-			Usage:  "Get task dep files",
+			Usage:  "GetTask task dep files",
 			Action: command.DepCommand,
 		},
 		{

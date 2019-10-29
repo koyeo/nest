@@ -27,4 +27,5 @@ const (
 	BinSourceBuild    = "build"
 	BinSourceUrl      = "url"
 	ZipSuffix         = ".zip"
+	DeploySourceBuild = "build"
 )

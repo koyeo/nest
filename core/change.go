@@ -17,14 +17,14 @@ type Change struct {
 	taskMap  map[string]*ChangeTask
 }
 
-func (p *Change) Get(taskId string) *ChangeTask {
+func (p *Change) GetTask(taskId string) *ChangeTask {
 	if v, ok := (p.taskMap)[taskId]; ok {
 		return v
 	}
 	return nil
 }
 
-func (p *Change) Add(taskId string, task *ChangeTask) {
+func (p *Change) AddTask(taskId string, task *ChangeTask) {
 
 	if p.taskMap == nil {
 		p.taskMap = make(map[string]*ChangeTask)
@@ -153,7 +153,7 @@ func (p *ChangeTaskBuild) Add(list *[]*ChangeFile, changeFile *ChangeFile) {
 func FileMd5(path string) (hash string, err error) {
 	hash, err = secret.FileMd5(path)
 	if err != nil {
-		logger.Error("Get file \"%s\" md5 error", err)
+		logger.Error("GetTask file \"%s\" md5 error", err)
 		return
 	}
 	return
@@ -208,10 +208,10 @@ func MakeChange() (change *Change, err error) {
 		if taskRecord == nil {
 			taskRecord = NewTaskRecord(branch, task.Id)
 			changeTask.Build.Type = enums.ChangeTypeNew
-			change.Add(task.Id, changeTask)
+			change.AddTask(task.Id, changeTask)
 		} else {
 			changeTask.Build.Type = enums.ChangeTypeUpdate
-			change.Add(task.Id, changeTask)
+			change.AddTask(task.Id, changeTask)
 		}
 
 		var files []string
@@ -238,13 +238,16 @@ func MakeChange() (change *Change, err error) {
 			changeFile.ModAt = modAt
 
 			if fileRecord == nil {
+
 				changeFile.Type = enums.ChangeTypeNew
 				changeFile.Md5, err = FileMd5(filePath)
 				if err != nil {
 					return
 				}
 				changeTask.Build.Add(&changeTask.Build.New, changeFile)
+
 			} else {
+
 				changeFile.Md5, err = FileMd5(filePath)
 				if err != nil {
 					return
@@ -290,23 +293,27 @@ func MakeChange() (change *Change, err error) {
 			changeTask.Build.Add(&changeTask.Build.Delete, changeFile)
 		}
 
-		for _, build := range task.Build {
+		for _, deploy := range task.Deploy {
 
-			if build.Bin != "" {
+			if deploy.Bin != nil && deploy.Bin.Source == enums.DeploySourceBuild {
 
-				taskBinDir := filepath.Join(storage.BinDir(), task.Id, build.Env, branch)
+				build := task.GetBuild(deploy.Env)
+				if build == nil || build.Bin == "" {
+					continue
+				}
 
+				taskBinDir := filepath.Join(storage.BinDir(), task.Id, deploy.Env, branch)
 				if storage.Exist(taskBinDir) {
 
 					var files []string
 					files, err = storage.Files(taskBinDir, "")
 					if err != nil {
-						logger.Error("Get bin file error: ", err)
+						logger.Error("GetTask bin file error: ", err)
 						return
 					}
 
 					var binRecord *BinRecord
-					binRecord, err = FindBinRecord(task.Id, build.Env, branch)
+					binRecord, err = FindBinRecord(task.Id, deploy.Env, branch)
 					if err != nil {
 						return
 					}
@@ -325,18 +332,16 @@ func MakeChange() (change *Change, err error) {
 
 					changeTaskDeploy := new(ChangeTaskDeploy)
 					changeTaskDeploy.TaskId = task.Id
-					changeTaskDeploy.EnvId = build.Env
+					changeTaskDeploy.EnvId = deploy.Env
 					changeTaskDeploy.Branch = branch
 
 					if taskBinFile == "" {
-
 						if binRecord == nil {
 							continue
 						}
-
 						changeTaskDeploy.Type = enums.ChangeTypeDelete
-
 					} else {
+
 						changeTaskDeploy.Dist = taskBinFile
 						changeTaskDeploy.ModAt, err = FileModAt(taskBinFile)
 						if err != nil {
@@ -347,12 +352,11 @@ func MakeChange() (change *Change, err error) {
 							return
 						}
 						changeTaskDeploy.Modify = true
-
 						if binRecord == nil {
 							changeTaskDeploy.Type = enums.ChangeTypeNew
 						} else {
 							changeTaskDeploy.Type = enums.ChangeTypeUpdate
-							if binRecord.ModAt <= changeTaskDeploy.ModAt || binRecord.Md5 != changeTaskDeploy.Md5 {
+							if changeTaskDeploy.ModAt <= binRecord.ModAt || changeTaskDeploy.Md5 == binRecord.Md5 {
 								changeTaskDeploy.Modify = false
 							}
 						}
@@ -371,7 +375,7 @@ func MakeChange() (change *Change, err error) {
 	}
 
 	for _, v := range taskRecords {
-		changeTask := change.Get(v.Id)
+		changeTask := change.GetTask(v.Id)
 		if changeTask != nil {
 			if changeTask.Build.Md5 == v.Md5 {
 				changeTask.Build.Modify = false
@@ -382,7 +386,7 @@ func MakeChange() (change *Change, err error) {
 			Id: v.Id,
 		})
 		changeTask.Build.Type = enums.ChangeTypeDelete
-		change.Add(v.Id, changeTask)
+		change.AddTask(v.Id, changeTask)
 	}
 
 	return
@@ -392,7 +396,7 @@ func FileModAt(filePath string) (modAt int64, err error) {
 	var file os.FileInfo
 	file, err = os.Stat(filePath)
 	if err != nil {
-		logger.Error(fmt.Sprintf("Get file \"%s\" status error: ", filePath), err)
+		logger.Error(fmt.Sprintf("GetTask file \"%s\" status error: ", filePath), err)
 		return
 	}
 	modAt = file.ModTime().Unix()

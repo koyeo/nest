@@ -128,7 +128,7 @@ func uploadBin(sshClient *ssh.Client, sftpClient *sftp.Client, deploy *Deploy, c
 				return
 			}
 		} else {
-			logger.Error("Get path info error: ", err)
+			logger.Error("GetTask path info error: ", err)
 			return
 		}
 	}
