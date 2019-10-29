@@ -293,7 +293,7 @@ func MakeChange() (change *Change, err error) {
 
 			if build.Bin != "" {
 
-				taskBinDir := filepath.Join(ctx.Directory, storage.BinDir(), task.Id, build.Env, branch)
+				taskBinDir := filepath.Join(storage.BinDir(), task.Id, build.Env, branch)
 
 				if storage.Exist(taskBinDir) {
 

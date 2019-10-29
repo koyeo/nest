@@ -12,7 +12,7 @@ import (
 )
 
 func WorkspaceDir(path ...string) string {
-	return filepath.Join(enums.WorkspaceDir, filepath.Join(path...))
+	return filepath.Join("./", enums.WorkspaceDir, filepath.Join(path...))
 }
 
 func DataFile() string {

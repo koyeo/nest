@@ -9,6 +9,7 @@ import (
 	"nest/storage"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -45,6 +46,16 @@ func ExecDeploy(ctx *Context, task *Task, server *Server, deploy *Deploy, change
 	switch deploy.Bin.Source {
 	case enums.BinSourceBuild:
 		err = deploySourceBuild(sshClient, sftpClient, ctx, task, server, deploy, changeDeploy)
+		if err != nil {
+			return
+		}
+	}
+
+	for _, v := range deploy.Command {
+		if strings.TrimSpace(v) == "" {
+			continue
+		}
+		err = SSHPipeExec(sshClient, v)
 		if err != nil {
 			return
 		}

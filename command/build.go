@@ -109,6 +109,10 @@ func execCommand(projectDir string, task *core.Task, build *core.Build) (err err
 
 func moveBin(projectDir, taskDir, taskId, branch, envId, dist string) (err error) {
 
+	if dist == "" {
+		return
+	}
+
 	buildFile := filepath.Join(projectDir, taskDir, dist)
 	if !storage.Exist(buildFile) {
 		return
@@ -116,7 +120,7 @@ func moveBin(projectDir, taskDir, taskId, branch, envId, dist string) (err error
 
 	binName := fmt.Sprintf("%s_%s_%s", taskId, branch, core.BuildTimestamp())
 
-	binDir := filepath.Join(projectDir, storage.BinDir(), taskId, envId, branch)
+	binDir := filepath.Join(storage.BinDir(), taskId, envId, branch)
 	if storage.Exist(binDir) {
 		command := fmt.Sprintf("rm -rf %s/*", binDir)
 		err = core.PipeExec("", command)

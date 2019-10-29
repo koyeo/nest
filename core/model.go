@@ -87,6 +87,7 @@ func UpdateTaskRecord(taskRecord *TaskRecord) (err error) {
 }
 
 func GetTaskRecord(branch, id string) (taskRecord *TaskRecord, err error) {
+
 	taskRecord = new(TaskRecord)
 	has, err := engine.Where("branch=? and id=?", branch, id).Get(taskRecord)
 	if err != nil {
