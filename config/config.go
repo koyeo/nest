@@ -41,11 +41,11 @@ type Script struct {
 }
 
 type Task struct {
-	Id        string   `yaml:"id,omitempty"`
-	Name      string   `yaml:"name,omitempty"`
-	Watch     []string `yaml:"watch,omitempty"`
-	Directory string   `yaml:"directory,omitempty"`
-	Run       []*Run   `yaml:"run,omitempty"`
+	Id        string    `yaml:"id,omitempty"`
+	Name      string    `yaml:"name,omitempty"`
+	Watch     []string  `yaml:"watch,omitempty"`
+	Directory string    `yaml:"directory,omitempty"`
+	Run       []*Run    `yaml:"run,omitempty"`
 	Build     []*Build  `yaml:"build,omitempty"`
 	Deploy    []*Deploy `yaml:"deploy,omitempty"`
 }
@@ -57,6 +57,7 @@ type Run struct {
 
 type Build struct {
 	Id      string   `yaml:"id,omitempty"`
+	Force   bool     `yaml:"force,omitempty"`
 	Env     string   `yaml:"env,omitempty"`
 	Dist    string   `yaml:"dist,omitempty"`
 	Script  []string `yaml:"script,omitempty"`
@@ -65,6 +66,7 @@ type Build struct {
 
 type Deploy struct {
 	Id      string   `yaml:"id,omitempty"`
+	Force   bool     `yaml:"force,omitempty"`
 	Env     string   `yaml:"env,omitempty"`
 	Bin     *Bin     `yaml:"bin,omitempty"`
 	Daemon  *Daemon  `yaml:"daemon,omitempty"`

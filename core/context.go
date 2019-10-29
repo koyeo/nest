@@ -348,6 +348,7 @@ func ToTask(o *config.Task) (n *Task, err error) {
 
 type Build struct {
 	Id           string
+	Force        bool
 	Env          string
 	Bin          string
 	BeforeScript []*ExtendScript
@@ -358,6 +359,7 @@ type Build struct {
 func ToBuild(o *config.Build) (n *Build, err error) {
 	n = new(Build)
 	n.Id = o.Id
+	n.Force = o.Force
 	n.Env = o.Env
 	n.Bin = o.Dist
 	for _, v := range o.Script {
@@ -393,6 +395,7 @@ func ToBin(o *config.Bin) *Bin {
 
 type Deploy struct {
 	Id           string
+	Force        bool
 	Env          string
 	Bin          *Bin
 	Daemon       *Daemon
@@ -405,6 +408,7 @@ type Deploy struct {
 func ToDeploy(o *config.Deploy) (n *Deploy, err error) {
 	n = new(Deploy)
 	n.Id = o.Id
+	n.Force = o.Force
 	n.Env = o.Env
 	if o.Bin != nil {
 		n.Bin = ToBin(o.Bin)

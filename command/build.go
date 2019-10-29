@@ -38,45 +38,48 @@ func BuildCommand(c *cli.Context) (err error) {
 	}
 
 	count := 0
-	for _, task := range change.TaskList {
+	for _, task := range ctx.Task {
 
-		if task.Build.Type == enums.ChangeTypeDelete || !task.Build.Modify {
+		build := task.GetBuild(env.Id)
+		if build == nil {
 			continue
+		}
+
+		changeTask := change.Get(task.Id)
+		if !build.Force {
+			if changeTask == nil || changeTask.Build.Type == enums.ChangeTypeDelete || !changeTask.Build.Modify {
+				continue
+			}
 		}
 
 		count++
 		var dir string
-		dir, err = filepath.Abs(task.Task.Directory)
+		dir, err = filepath.Abs(task.Directory)
 		if err != nil {
 			logger.Error("Modify get directory error: ", err)
 			return
 		}
 
-		if task.Task.Name != "" {
-			log.Println(chalk.Green.Color(fmt.Sprintf("Task: %s(%s)", task.Task.Id, task.Task.Name)))
+		if task.Name != "" {
+			log.Println(chalk.Green.Color(fmt.Sprintf("Task: %s(%s)", task.Id, task.Name)))
 		} else {
-			log.Println(chalk.Green.Color(fmt.Sprintf("Task: %s", task.Task.Id)))
+			log.Println(chalk.Green.Color(fmt.Sprintf("Task: %s", task.Id)))
 		}
 		log.Println(chalk.Green.Color("Build start"))
 		log.Println(chalk.Green.Color("Exec directory:"), dir)
 
-		build := task.Task.GetBuild(env.Id)
-		if build == nil {
-			continue
-		}
-
-		err = execCommand(ctx.Directory, task.Task, build)
+		err = execCommand(ctx.Directory, task, build)
 		if err != nil {
 			return
 		}
 
-		if task.Build.Type == enums.ChangeTypeForce {
+		if build.Force {
 			continue
 		}
 
 		branch := core.Branch(ctx.Directory)
 
-		err = moveBin(ctx.Directory, task.Task.Directory, task.Task.Id, branch, env.Id, build.Bin)
+		err = moveBin(ctx.Directory, task.Directory, task.Id, branch, env.Id, build.Bin)
 		if err != nil {
 			return
 		}

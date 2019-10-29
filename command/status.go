@@ -39,7 +39,7 @@ func StatusCommand(c *cli.Context) (err error) {
 		build := task.Build
 		if len(build.New) > 0 || len(build.Update) > 0 || len(build.Delete) > 0 {
 			if buildCount == 0 {
-				fmt.Println(chalk.Green.Color(chalk.Bold.TextStyle("Bin task:")))
+				fmt.Println(chalk.Green.Color(chalk.Bold.TextStyle("Build task:")))
 			}
 			if task.Task.Name != "" {
 				fmt.Println(strings.Repeat(" ", enums.FirstLevel), chalk.Green.Color(chalk.Bold.TextStyle(fmt.Sprintf("%s (%s)", task.Task.Id, task.Task.Name))+":"))

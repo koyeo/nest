@@ -78,6 +78,7 @@ func (p *ChangeTask) AddDeploy(bin *ChangeTaskDeploy) {
 type ChangeTaskBuild struct {
 	Modify   bool
 	Md5      string
+	Force    bool
 	Type     int
 	None     []*ChangeFile
 	New      []*ChangeFile
@@ -203,12 +204,6 @@ func MakeChange() (change *Change, err error) {
 		}
 
 		changeTask := NewChangeTask(task)
-
-		if len(task.Watch) == 0 {
-			changeTask.Build.Type = enums.ChangeTypeForce
-			change.Add(task.Id, changeTask)
-			continue
-		}
 
 		if taskRecord == nil {
 			taskRecord = NewTaskRecord(branch, task.Id)
