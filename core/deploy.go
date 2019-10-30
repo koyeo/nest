@@ -286,7 +286,7 @@ func deploySourceBuild(sshClient *ssh.Client, sftpClient *sftp.Client, ctx *Cont
 	return
 }
 
-func uploadBin(sshClient *ssh.Client, sftpClient *sftp.Client, ctx *Context, deploy *Deploy, changeDeploy *ChangeTaskDeploy) (err error) {
+func uploadBin(sshClient *ssh.Client, sftpClient *sftp.Client, ctx *Context, task *Task, env *Env, deploy *Deploy, changeDeploy *ChangeTaskDeploy) (err error) {
 
 	binPath := deploy.Bin.Path
 
