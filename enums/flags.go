@@ -1,7 +1,7 @@
 package enums
 
 const (
-	DeployFlag       = "deploy,d"
+	DeployFlag       = "deploy"
 	DeployUsage      = "Deploy after build"
 	PrintScriptFlag  = "print_script"
 	PrintScriptUsage = "Print script on console"
