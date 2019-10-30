@@ -6,6 +6,8 @@ const (
 	DataDir                 = "data"
 	DataFile                = "nest.db"
 	BinDir                  = "bin"
+	RemoteOptBinDir         = "/opt/bin"
+	RemoteBinDir         = "script"
 	RemoteOptScriptDir      = "/opt/script"
 	RemoteScriptDir         = "script"
 	GoSuffix                = ".go"

@@ -14,7 +14,11 @@ import (
 func ParsePath(root string, path ...string) string {
 	for k, v := range path {
 		if strings.HasPrefix(v, enums.RelativePathPrefix) {
-			filepath.Join(append([]string{v}, path[k:]...)...)
+			if k < len(path)-1 {
+				return filepath.Join(append([]string{v}, path[k+1:]...)...)
+			} else {
+				return v
+			}
 		}
 	}
 	return filepath.Join(append([]string{root}, path...)...)
@@ -107,6 +111,7 @@ func Root() string {
 	root, err := os.Getwd()
 	if err != nil {
 		logger.Error("Getwd error: ", err)
+		os.Exit(1)
 	}
 
 	return root

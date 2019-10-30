@@ -82,7 +82,7 @@ func SSHPipeExec(sshClient *ssh.Client, command string) (err error) {
 
 	session, err := sshClient.NewSession()
 	if err != nil {
-		logger.Error("New ssh session error: ", err)
+		logger.Error("New remote ssh session error: ", err)
 		return
 	}
 
@@ -90,22 +90,24 @@ func SSHPipeExec(sshClient *ssh.Client, command string) (err error) {
 		_ = session.Close()
 	}()
 
-	log.Println(chalk.Green.Color("Exec ssh command:"), command)
+	log.Println(chalk.Green.Color("Run remote ssh command:"), command)
 
 	stderr, err := session.StderrPipe()
 	if err != nil {
-		logger.Error("Exec ssh command get stderr error: ", err)
+		logger.Error("Run remote ssh command get stderr error: ", err)
 	}
 
 	stdout, err := session.StdoutPipe()
 	if err != nil {
-		logger.Error("Exec ssh command get stdout error: ", err)
+		logger.Error("Run remote ssh command get stdout error: ", err)
 	}
 
-	out := make(chan string)
+	out := make(chan string, 1048576)
 	defer func() {
-		time.Sleep(1 * time.Second)
-		close(out)
+		for len(out) > 0 {
+			time.Sleep(500 * time.Millisecond)
+			close(out)
+		}
 	}()
 
 	go func() {
@@ -135,7 +137,7 @@ func SSHPipeExec(sshClient *ssh.Client, command string) (err error) {
 
 	err = session.Run(command)
 	if err != nil {
-		logger.Error("Exec ssh command run error: ", err)
+		logger.Error("Run remote ssh command run error: ", err)
 	}
 
 	return

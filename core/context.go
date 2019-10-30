@@ -11,15 +11,16 @@ import (
 )
 
 type Context struct {
-	Id        string
-	Name      string
-	Directory string
-	Env       []*Env
-	envMap    map[string]*Env
-	Script    []*Script
-	scriptMap map[string]*Script
-	Task      []*Task
-	taskMap   map[string]*Task
+	Id             string
+	Name           string
+	Directory      string
+	Env            []*Env
+	envMap         map[string]*Env
+	Script         []*Script
+	scriptMap      map[string]*Script
+	Task           []*Task
+	taskMap        map[string]*Task
+	uploadedScript map[string]bool
 }
 
 func (p *Context) GetEnv(envId string) *Env {
@@ -104,6 +105,20 @@ func (p *Context) AddTask(task *config.Task) (err error) {
 	return
 }
 
+func (p *Context) AddUploadedScript(scriptId string) (exist bool) {
+
+	if p.uploadedScript == nil {
+		p.uploadedScript = make(map[string]bool)
+	}
+	if _, ok := p.uploadedScript[scriptId]; ok {
+		exist = true
+		return
+	}
+	p.uploadedScript[scriptId] = true
+
+	return
+}
+
 type Env struct {
 	Id        string
 	Name      string
@@ -159,13 +174,14 @@ func ToEnv(o *config.Env) (n *Env, err error) {
 }
 
 type Server struct {
-	Id   string
-	Name string
-	Ip   string
-	SSH  *SSH
+	Id        string
+	Name      string
+	Workspace string
+	SSH       *SSH
 }
 
 type SSH struct {
+	Ip       string
 	Port     uint64
 	User     string
 	Password string
@@ -174,6 +190,7 @@ type SSH struct {
 
 func ToSSH(o *config.SSH) *SSH {
 	n := new(SSH)
+	n.Ip = o.Ip
 	n.Port = o.Port
 	n.User = o.User
 	n.Password = o.Password
@@ -185,7 +202,7 @@ func ToServer(o *config.Server) *Server {
 	n := new(Server)
 	n.Id = o.Id
 	n.Name = o.Name
-	n.Ip = o.Ip
+	n.Workspace = o.Workspace
 	if o.SSH != nil {
 		n.SSH = ToSSH(o.SSH)
 	}
@@ -204,6 +221,7 @@ func ToScript(o *config.Script) *Script {
 	n := new(Script)
 	n.Id = o.Id
 	n.Name = o.Name
+	n.File = o.File
 	n.Command = o.Command
 	return n
 }
@@ -412,7 +430,12 @@ func ToDeploy(o *config.Deploy) (n *Deploy, err error) {
 		n.Daemon = ToDaemon(o.Daemon)
 	}
 	n.Server = o.Server
-	n.Command = o.Command
+	for _, v := range o.Command {
+		if strings.TrimSpace(v) != "" {
+			n.Command = append(n.Command, v)
+		}
+	}
+
 	return
 }
 

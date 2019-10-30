@@ -22,21 +22,23 @@ type Env struct {
 }
 
 type Server struct {
-	Id   string `yaml:"id,omitempty"`
-	Name string `yaml:"name,omitempty"`
-	Ip   string `yaml:"ip,omitempty"`
-	SSH  *SSH   `yaml:"ssh"`
+	Id        string `yaml:"id,omitempty"`
+	Name      string `yaml:"name,omitempty"`
+	Workspace string `yaml:"workspace,omitempty"`
+	SSH       *SSH   `yaml:"ssh"`
 }
 type SSH struct {
 	Port     uint64 `yaml:"port,omitempty"`
 	User     string `yaml:"user,omitempty"`
 	Password string `yaml:"password,omitempty"`
 	Identity string `yaml:"identity,omitempty"`
+	Ip       string `yaml:"ip,omitempty"`
 }
 
 type Script struct {
 	Id      string   `yaml:"id,omitempty"`
 	Name    string   `yaml:"name,omitempty"`
+	File    string   `yaml:"file,omitempty"`
 	Command []string `yaml:"command,omitempty"`
 }
 
@@ -84,7 +86,7 @@ type Bin struct {
 type Daemon struct {
 	Pid   string       `yaml:"pid,omitempty"`
 	Start *DaemonStart `yaml:"start,omitempty"`
-	Stop  *DaemonStop `yaml:"stop,omitempty"`
+	Stop  *DaemonStop  `yaml:"stop,omitempty"`
 	Log   *Log         `yaml:"log,omitempty"`
 }
 

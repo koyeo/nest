@@ -52,6 +52,12 @@ func DeployCommand(c *cli.Context) (err error) {
 			}
 
 			count++
+
+			if changeTask.Task.Name != "" {
+				log.Println(chalk.Green.Color(fmt.Sprintf("Task: %s(%s)", changeTask.Task.Id, changeTask.Task.Name)))
+			} else {
+				log.Println(chalk.Green.Color(fmt.Sprintf("Task: %s", changeTask.Task.Id)))
+			}
 			log.Println(chalk.Green.Color("Deploy start"))
 			task := ctx.GetTask(changeDeploy.TaskId)
 			if task == nil {
@@ -109,10 +115,10 @@ func DeployCommand(c *cli.Context) (err error) {
 	}
 
 	if success {
-		err = core.CommitDeploy(change)
-		if err != nil {
-			return
-		}
+		//err = core.CommitDeploy(change)
+		//if err != nil {
+		//	return
+		//}
 		log.Println(chalk.Green.Color("Commit deploy success"))
 		notify.DeployDone(count)
 	}
@@ -133,7 +139,11 @@ func printDeployResult(servers []*core.Server, deployResult map[string]error) bo
 		}
 	}
 
-	log.Println(chalk.Green.Color("Deploy result"), fmt.Sprintf("total: %d, success: %d, failed: %d", total, len(success), len(failed)))
+	if len(failed) > 0 {
+		log.Println(chalk.Red.Color("Deploy result"), fmt.Sprintf("total: %d, success: %d, failed: %d", total, len(success), len(failed)))
+	} else {
+		log.Println(chalk.Green.Color("Deploy result"), fmt.Sprintf("total: %d, success: %d, failed: %d", total, len(success), len(failed)))
+	}
 
 	if len(success) > 0 {
 		if len(success) > 1 {
@@ -142,7 +152,7 @@ func printDeployResult(servers []*core.Server, deployResult map[string]error) bo
 			log.Println(chalk.Green.Color("Deploy success server:"))
 		}
 		for _, v := range success {
-			fmt.Println(v.Id, strings.Repeat(" ", enums.StatusMarginLeft), v.Name, strings.Repeat(" ", enums.StatusMarginLeft), v.Ip)
+			fmt.Println(v.Id, strings.Repeat(" ", enums.StatusMarginLeft), v.Name, strings.Repeat(" ", enums.StatusMarginLeft), v.SSH.Ip)
 		}
 	}
 
@@ -153,7 +163,7 @@ func printDeployResult(servers []*core.Server, deployResult map[string]error) bo
 			log.Println(chalk.Red.Color("Deploy failed server:"))
 		}
 		for _, v := range failed {
-			fmt.Println(v.Id, strings.Repeat(" ", enums.StatusMarginLeft), v.Name, strings.Repeat(" ", enums.StatusMarginLeft), v.Ip)
+			fmt.Println(v.Id, strings.Repeat(" ", enums.StatusMarginLeft), v.Name, strings.Repeat(" ", enums.StatusMarginLeft), v.SSH.Ip)
 		}
 	}
 
