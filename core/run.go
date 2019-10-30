@@ -8,6 +8,7 @@ import (
 	"log"
 	"nest/logger"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -21,7 +22,8 @@ func Exec(dir, command string) (out string, err error) {
 		return
 	}
 
-	out = string(res)
+	out = strings.TrimSpace(string(res))
+
 	return
 }
 

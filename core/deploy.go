@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
+	"io/ioutil"
 	"nest/enums"
 	"nest/logger"
 	"nest/storage"
@@ -197,10 +198,59 @@ func ExecStart(ctx *Context, task *Task, server *Server, start *DaemonStart) (er
 	return
 }
 
+func home() (path string, err error) {
+	path, err = Exec("", "echo ~")
+	if err != nil {
+		logger.Error("Get home path error", err)
+		return
+	}
+
+	return
+}
+
+func publicKey(path string) (auth ssh.AuthMethod, err error) {
+
+	u, err := home()
+	if err != nil {
+		return
+	}
+
+	if strings.HasPrefix(path, "~") {
+		path = filepath.Join(u, strings.TrimPrefix(path, "~"))
+	}
+
+	key, err := ioutil.ReadFile(path)
+	if err != nil {
+		logger.Error("Read identity error:", err)
+		return
+	}
+	signer, err := ssh.ParsePrivateKey(key)
+	if err != nil {
+		logger.Error("Read identity error:", err)
+		return
+	}
+	auth = ssh.PublicKeys(signer)
+
+	return
+}
+
 func SSHClient(server *Server) (client *ssh.Client, err error) {
 
 	var auth []ssh.AuthMethod
-	auth = append(auth, ssh.Password(server.SSH.Password))
+
+	if server.SSH.Password != "" {
+		auth = append(auth, ssh.Password(server.SSH.Password))
+	}
+
+	if server.SSH.Identity != "" {
+		var ident ssh.AuthMethod
+		ident, err = publicKey(server.SSH.Identity)
+		if err != nil {
+			return
+		}
+		auth = append(auth, ident)
+	}
+
 	client, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", server.SSH.Ip, server.SSH.Port), &ssh.ClientConfig{
 		User:            server.SSH.User,
 		Auth:            auth,
