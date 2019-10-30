@@ -62,15 +62,24 @@ func StatusCommand(c *cli.Context) (err error) {
 			if !deploy.Modify {
 				continue
 			}
-			if deployCount == 0 {
-				fmt.Println(chalk.Green.Color(chalk.Bold.TextStyle("Deploy task:")))
-				if task.Task.Name != "" {
-					fmt.Println(strings.Repeat(" ", enums.FirstLevel), chalk.Green.Color(chalk.Bold.TextStyle(fmt.Sprintf("%s (%s)", task.Task.Id, task.Task.Name))+":"))
-				} else {
-					fmt.Println(strings.Repeat(" ", enums.FirstLevel), chalk.Green.Color(chalk.Bold.TextStyle(task.Task.Id)+":"))
-				}
+			//if deployCount == 0 {
+			//	fmt.Println(chalk.Green.Color(chalk.Bold.TextStyle("Deploy task:")))
+			//	if task.Task.Name != "" {
+			//		fmt.Println(strings.Repeat(" ", enums.FirstLevel), chalk.Green.Color(chalk.Bold.TextStyle(fmt.Sprintf("%s (%s)", task.Task.Id, task.Task.Name))+":"))
+			//	} else {
+			//		fmt.Println(strings.Repeat(" ", enums.FirstLevel), chalk.Green.Color(chalk.Bold.TextStyle(task.Task.Id)+":"))
+			//	}
+			//}
+			taskName := deploy.TaskId
+			if task.Task.Name != "" {
+				taskName = fmt.Sprintf("%s(%s)", deploy.TaskId, task.Task.Name)
 			}
-			fmt.Println(strings.Repeat(" ", enums.SecondLevel), chalk.Cyan.Color(deploy.TaskId), strings.Repeat(" ", enums.StatusMarginLeft), chalk.Cyan.Color(deploy.EnvId))
+			env := ctx.GetEnv(deploy.EnvId)
+			envName := deploy.EnvId
+			if env.Name != "" {
+				envName = fmt.Sprintf("%s(%s)", env.Id, env.Name)
+			}
+			fmt.Println(strings.Repeat(" ", enums.SecondLevel), chalk.Green.Color(taskName), strings.Repeat(" ", enums.StatusMarginLeft), chalk.Cyan.Color(envName))
 			deployCount++
 
 		}

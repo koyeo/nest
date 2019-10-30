@@ -106,7 +106,7 @@ func BuildCommand(c *cli.Context) (err error) {
 }
 
 func execCommand(dir string, task *core.Task, build *core.Build) (err error) {
-	for _, command := range build.BeforeCommand {
+	for _, command := range build.Command {
 		err = core.PipeRun(dir, command)
 		if err != nil {
 			return
