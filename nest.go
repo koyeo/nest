@@ -39,6 +39,10 @@ func main() {
 			Action: command.BuildCommand,
 			Flags: []cli.Flag{
 				cli.BoolFlag{
+					Name:  enums.DeployFlag,
+					Usage: enums.DeployUsage,
+				},
+				cli.BoolFlag{
 					Name:  enums.HideCommandFlag,
 					Usage: enums.HideCommandUsage,
 				},

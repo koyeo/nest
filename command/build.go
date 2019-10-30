@@ -102,6 +102,13 @@ func BuildCommand(c *cli.Context) (err error) {
 
 	notify.BuildDone(count)
 
+	if c.Bool(enums.DeployFlag) {
+		err = DepCommand(c)
+		if err != nil {
+			return
+		}
+	}
+
 	return
 }
 
