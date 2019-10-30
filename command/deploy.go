@@ -210,13 +210,13 @@ func printDeployResult(servers []*core.Server, deployResult map[string]error) bo
 	return total == len(success)
 }
 
-func printStartResult(servers []*core.Server, deployResult map[string]error) bool {
+func printStartResult(servers []*core.Server, startResult map[string]error) bool {
 
-	total := len(deployResult)
+	total := len(startResult)
 	success := make([]*core.Server, 0)
 	failed := make([]*core.Server, 0)
 	for _, v := range servers {
-		if deployResult[v.Id] == nil {
+		if startResult[v.Id] == nil {
 			success = append(success, v)
 		} else {
 			failed = append(failed, v)
@@ -251,5 +251,5 @@ func printStartResult(servers []*core.Server, deployResult map[string]error) boo
 		}
 	}
 
-	return total == len(success)
+	return len(failed) == 0
 }

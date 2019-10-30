@@ -234,6 +234,19 @@ func ToScript(o *config.Script) *Script {
 	return n
 }
 
+func (p *Script) Copy() *Script {
+	n := new(Script)
+	n.Id = p.Id
+	n.Name = p.Name
+	n.File = p.File
+	copy(n.Command, p.Command)
+	n.Vars = make(map[string]string)
+	for k, v := range p.Vars {
+		n.Vars[k] = v
+	}
+	return n
+}
+
 type ExtendScript struct {
 	Type    string
 	File    string
@@ -609,6 +622,7 @@ func (p *Context) CheckScript(scriptId string) (script *Script, position string,
 		return
 	}
 
+	script = script.Copy()
 	script.Vars = vars
 
 	return
@@ -718,6 +732,8 @@ func MakeContext(config *config.Config) (ctx *Context, err error) {
 			}
 
 		}
+
 	}
+
 	return
 }
