@@ -44,7 +44,7 @@ func RunCommand(c *cli.Context) (err error) {
 
 	dir := filepath.Join(ctx.Directory, task.Directory)
 	log.Println(chalk.Green.Color("Exec directory:"), storage.Abs(dir))
-	err = core.PipeExec(dir, run.Start)
+	err = core.PipeRun(dir, run.Start)
 	if err != nil {
 		return
 	}

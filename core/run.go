@@ -25,7 +25,7 @@ func Exec(dir, command string) (out string, err error) {
 	return
 }
 
-func PipeExec(dir, command string) (err error) {
+func PipeRun(dir, command string) (err error) {
 
 	log.Println(chalk.Green.Color("Exec command:"), command)
 
@@ -78,7 +78,22 @@ func PipeExec(dir, command string) (err error) {
 	return
 }
 
-func SSHPipeExec(sshClient *ssh.Client, command string) (err error) {
+func RunScript(sshClient *ssh.Client, ctx *Context, script *Script, printScript bool) (err error) {
+
+	content, err := PrepareScript(ctx, script)
+	if err != nil {
+		return
+	}
+
+	err = SSHPipeRunCommand(sshClient, fmt.Sprintf(`echo '%s' | /bin/bash -s`, content), !printScript)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func SSHPipeRunCommand(sshClient *ssh.Client, command string, hideCommand bool) (err error) {
 
 	session, err := sshClient.NewSession()
 	if err != nil {
@@ -89,8 +104,9 @@ func SSHPipeExec(sshClient *ssh.Client, command string) (err error) {
 	defer func() {
 		_ = session.Close()
 	}()
-
-	log.Println(chalk.Green.Color("Run remote ssh command:"), command)
+	if !hideCommand {
+		log.Println(chalk.Green.Color("Run remote ssh command:"), command)
+	}
 
 	stderr, err := session.StderrPipe()
 	if err != nil {
@@ -138,6 +154,12 @@ func SSHPipeExec(sshClient *ssh.Client, command string) (err error) {
 	err = session.Run(command)
 	if err != nil {
 		logger.Error("Run remote ssh command run error: ", err)
+		if hideCommand {
+			fmt.Println("------- command start -------")
+			fmt.Println(command)
+			fmt.Println("------- command end -------")
+		}
+		return
 	}
 
 	return

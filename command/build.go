@@ -26,6 +26,7 @@ func BuildCommand(c *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
+	ctx.SetCli(c)
 
 	change, err := core.MakeChange()
 	if err != nil {
@@ -106,7 +107,7 @@ func BuildCommand(c *cli.Context) (err error) {
 
 func execCommand(dir string, task *core.Task, build *core.Build) (err error) {
 	for _, command := range build.BeforeCommand {
-		err = core.PipeExec(dir, command)
+		err = core.PipeRun(dir, command)
 		if err != nil {
 			return
 		}
@@ -130,7 +131,7 @@ func moveBin(projectDir, taskDir, taskId, branch, envId, dist string) (err error
 	binDir := filepath.Join(storage.BinDir(), taskId, envId, branch)
 	if storage.Exist(binDir) {
 		command := fmt.Sprintf("rm -rf %s/*", binDir)
-		err = core.PipeExec("", command)
+		err = core.PipeRun("", command)
 		if err != nil {
 			logger.Error("Clean bin error: ", err)
 			return
@@ -141,17 +142,17 @@ func moveBin(projectDir, taskDir, taskId, branch, envId, dist string) (err error
 
 	buildBinFile := filepath.Join(binDir, dist)
 
-	err = core.PipeExec("", fmt.Sprintf("mv %s %s", buildFile, buildBinFile))
+	err = core.PipeRun("", fmt.Sprintf("mv %s %s", buildFile, buildBinFile))
 	if err != nil {
 		return
 	}
 
-	err = core.PipeExec(binDir, fmt.Sprintf("zip -q  %s.zip %s", binName, dist))
+	err = core.PipeRun(binDir, fmt.Sprintf("zip -q  %s.zip %s", binName, dist))
 	if err != nil {
 		return
 	}
 
-	err = core.PipeExec("", fmt.Sprintf("rm %s", buildBinFile))
+	err = core.PipeRun("", fmt.Sprintf("rm %s", buildBinFile))
 	if err != nil {
 		return
 	}

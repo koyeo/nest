@@ -45,6 +45,7 @@ func DeployCommand(c *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
+	ctx.SetCli(c)
 
 	count := 0
 	deploySuccess := true
@@ -133,10 +134,10 @@ func DeployCommand(c *cli.Context) (err error) {
 	}
 
 	if len(deployStarts) == 0 {
-		//err = core.CommitDeploy(change)
-		//if err != nil {
-		//	return
-		//}
+		err = core.CommitDeploy(change)
+		if err != nil {
+			return
+		}
 		log.Println(chalk.Green.Color("Commit deploy Success"))
 		notify.DeployDone(count)
 		return
@@ -154,10 +155,10 @@ func DeployCommand(c *cli.Context) (err error) {
 	startSuccess = printStartResult(servers, startResult)
 
 	if startSuccess {
-		//err = core.CommitDeploy(change)
-		//if err != nil {
-		//	return
-		//}
+		err = core.CommitDeploy(change)
+		if err != nil {
+			return
+		}
 		log.Println(chalk.Green.Color("Commit deploy Success"))
 		notify.DeployDone(count)
 	}

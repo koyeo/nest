@@ -5,6 +5,7 @@ import (
 	"github.com/urfave/cli"
 	"log"
 	"nest/command"
+	"nest/enums"
 	"os"
 )
 
@@ -36,6 +37,12 @@ func main() {
 			Name:   "build",
 			Usage:  "build task",
 			Action: command.BuildCommand,
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  enums.HideCommandFlag,
+					Usage: enums.HideCommandUsage,
+				},
+			},
 		},
 		{
 			Name:   "run",
@@ -46,6 +53,16 @@ func main() {
 			Name:   "deploy",
 			Usage:  "deploy task",
 			Action: command.DeployCommand,
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  enums.PrintScriptFlag,
+					Usage: enums.PrintScriptUsage,
+				},
+				cli.BoolFlag{
+					Name:  enums.HideCommandFlag,
+					Usage: enums.HideCommandUsage,
+				},
+			},
 		},
 	}
 	err := app.Run(os.Args)

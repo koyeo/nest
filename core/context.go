@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/urfave/cli"
 	"nest/config"
 	"nest/enums"
 	"nest/logger"
@@ -21,6 +22,13 @@ type Context struct {
 	Task           []*Task
 	taskMap        map[string]*Task
 	uploadedScript map[string]bool
+	cli            *cli.Context
+}
+
+func (p *Context) SetCli(cli *cli.Context) {
+	if p.cli == nil {
+		p.cli = cli
+	}
 }
 
 func (p *Context) GetEnv(envId string) *Env {
