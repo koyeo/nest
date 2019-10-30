@@ -13,6 +13,16 @@ import (
 	"strings"
 )
 
+type DeployStart struct {
+	Task   *core.Task
+	Server *core.Server
+	Start  *core.DaemonStart
+}
+
+func NewDeployStart(task *core.Task, server *core.Server, start *core.DaemonStart) *DeployStart {
+	return &DeployStart{Task: task, Server: server, Start: start}
+}
+
 func DeployCommand(c *cli.Context) (err error) {
 
 	defer func() {
@@ -37,8 +47,9 @@ func DeployCommand(c *cli.Context) (err error) {
 	}
 
 	count := 0
-	success := true
+	deploySuccess := true
 
+	deployStarts := make([]*DeployStart, 0)
 	for _, changeTask := range change.TaskList {
 
 		for _, changeDeploy := range changeTask.Deploy {
@@ -47,7 +58,7 @@ func DeployCommand(c *cli.Context) (err error) {
 				continue
 			}
 
-			if !success {
+			if !deploySuccess {
 				break
 			}
 
@@ -100,10 +111,13 @@ func DeployCommand(c *cli.Context) (err error) {
 			for _, server := range servers {
 				err = core.ExecDeploy(ctx, task, server, deploy, changeDeploy)
 				deployResult[server.Id] = err
+				if deploy.Daemon != nil && deploy.Daemon.Start != nil {
+					deployStarts = append(deployStarts, NewDeployStart(task, server, deploy.Daemon.Start))
+				}
 			}
 
 			if len(servers) > 0 {
-				success = printDeployResult(servers, deployResult)
+				deploySuccess = printDeployResult(servers, deployResult)
 			}
 		}
 
@@ -114,12 +128,37 @@ func DeployCommand(c *cli.Context) (err error) {
 		return
 	}
 
-	if success {
+	if !deploySuccess {
+		return
+	}
+
+	if len(deployStarts) == 0 {
 		//err = core.CommitDeploy(change)
 		//if err != nil {
 		//	return
 		//}
-		log.Println(chalk.Green.Color("Commit deploy success"))
+		log.Println(chalk.Green.Color("Commit deploy Success"))
+		notify.DeployDone(count)
+		return
+	}
+
+	startSuccess := true
+	startResult := make(map[string]error)
+	servers := make([]*core.Server, 0)
+	for _, deployStart := range deployStarts {
+		err = core.ExecStart(ctx, deployStart.Task, deployStart.Server, deployStart.Start)
+		startResult[deployStart.Server.Id] = err
+		servers = append(servers, deployStart.Server)
+	}
+
+	startSuccess = printStartResult(servers, startResult)
+
+	if startSuccess {
+		//err = core.CommitDeploy(change)
+		//if err != nil {
+		//	return
+		//}
+		log.Println(chalk.Green.Color("Commit deploy Success"))
 		notify.DeployDone(count)
 	}
 
@@ -161,6 +200,50 @@ func printDeployResult(servers []*core.Server, deployResult map[string]error) bo
 			log.Println(chalk.Red.Color("Deploy failed servers:"))
 		} else {
 			log.Println(chalk.Red.Color("Deploy failed server:"))
+		}
+		for _, v := range failed {
+			fmt.Println(v.Id, strings.Repeat(" ", enums.StatusMarginLeft), v.Name, strings.Repeat(" ", enums.StatusMarginLeft), v.SSH.Ip)
+		}
+	}
+
+	return total == len(success)
+}
+
+func printStartResult(servers []*core.Server, deployResult map[string]error) bool {
+
+	total := len(deployResult)
+	success := make([]*core.Server, 0)
+	failed := make([]*core.Server, 0)
+	for _, v := range servers {
+		if deployResult[v.Id] == nil {
+			success = append(success, v)
+		} else {
+			failed = append(failed, v)
+		}
+	}
+
+	if len(failed) > 0 {
+		log.Println(chalk.Red.Color("Start result"), fmt.Sprintf("total: %d, success: %d, failed: %d", total, len(success), len(failed)))
+	} else {
+		log.Println(chalk.Green.Color("Start result"), fmt.Sprintf("total: %d, success: %d, failed: %d", total, len(success), len(failed)))
+	}
+
+	if len(success) > 0 {
+		if len(success) > 1 {
+			log.Println(chalk.Green.Color("Start success servers:"))
+		} else {
+			log.Println(chalk.Green.Color("Start success server:"))
+		}
+		for _, v := range success {
+			fmt.Println(v.Id, strings.Repeat(" ", enums.StatusMarginLeft), v.Name, strings.Repeat(" ", enums.StatusMarginLeft), v.SSH.Ip)
+		}
+	}
+
+	if len(failed) > 0 {
+		if len(failed) > 1 {
+			log.Println(chalk.Red.Color("Start failed servers:"))
+		} else {
+			log.Println(chalk.Red.Color("Start failed server:"))
 		}
 		for _, v := range failed {
 			fmt.Println(v.Id, strings.Repeat(" ", enums.StatusMarginLeft), v.Name, strings.Repeat(" ", enums.StatusMarginLeft), v.SSH.Ip)

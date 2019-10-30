@@ -92,14 +92,14 @@ type Daemon struct {
 
 type DaemonStart struct {
 	Flag    string   `yaml:"flag,omitempty"`
-	Command string   `yaml:"command,omitempty"`
+	Command []string `yaml:"command,omitempty"`
 	Script  []string `yaml:"script,omitempty"`
 }
 
 type DaemonStop struct {
 	Signal  string   `yaml:"signal,omitempty"`
 	Flag    string   `yaml:"flag,omitempty"`
-	Command string   `yaml:"command,omitempty"`
+	Command []string `yaml:"command,omitempty"`
 	Script  []string `yaml:"script,omitempty"`
 }
 

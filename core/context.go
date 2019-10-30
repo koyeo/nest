@@ -463,7 +463,7 @@ func ToDaemon(o *config.Daemon) *Daemon {
 
 type DaemonStart struct {
 	Flag          string
-	Command       string
+	Command       []string
 	BeforeCommand []string
 	AfterCommand  []string
 	BeforeScript  []*Script
@@ -472,7 +472,11 @@ type DaemonStart struct {
 
 func ToDaemonStart(o *config.DaemonStart) *DaemonStart {
 	n := new(DaemonStart)
-	n.Command = o.Command
+	for _, v := range o.Command {
+		if strings.TrimSpace(v) != "" {
+			n.Command = append(n.Command, v)
+		}
+	}
 	n.Flag = o.Flag
 	return n
 }
@@ -480,7 +484,7 @@ func ToDaemonStart(o *config.DaemonStart) *DaemonStart {
 type DaemonStop struct {
 	Signal        string
 	Flag          string
-	Command       string
+	Command       []string
 	BeforeCommand []string
 	AfterCommand  []string
 	BeforeScript  []*Script
@@ -489,7 +493,11 @@ type DaemonStop struct {
 
 func ToDaemonStop(o *config.DaemonStop) *DaemonStop {
 	n := new(DaemonStop)
-	n.Command = o.Command
+	for _, v := range o.Command {
+		if strings.TrimSpace(v) != "" {
+			n.Command = append(n.Command, v)
+		}
+	}
 	n.Flag = o.Flag
 	for _, v := range o.Script {
 		o.Script = append(o.Script, v)
