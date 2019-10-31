@@ -36,7 +36,7 @@ func PipeRun(shell, dir, command string) (err error) {
 		shell = enums.DefaultShell
 	}
 
-	c := exec.Command("bash", "-c", command)
+	c := exec.Command(shell, "-c", command)
 	c.Dir = dir
 
 	stderr, err := c.StderrPipe()
