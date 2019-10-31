@@ -7,7 +7,7 @@ const (
 	DataFile                = "nest.db"
 	BinDir                  = "bin"
 	RemoteOptBinDir         = "/opt/bin"
-	RemoteBinDir         = "script"
+	RemoteBinDir            = "script"
 	RemoteOptScriptDir      = "/opt/script"
 	RemoteScriptDir         = "script"
 	GoSuffix                = ".go"
@@ -41,4 +41,5 @@ const (
 	ScriptVarWrapFlagLeft   = "("
 	ScriptVarWrapFlagRight  = ")"
 	RelativePathPrefix      = "./"
+	DefaultShell            = "bash"
 )

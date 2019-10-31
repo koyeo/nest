@@ -392,6 +392,7 @@ func ToTask(o *config.Task) (n *Task, err error) {
 type Build struct {
 	Id            string
 	Force         bool
+	Shell         string
 	Env           string
 	Bin           string
 	BeforeScript  []*Script
@@ -405,6 +406,7 @@ func ToBuild(o *config.Build) (n *Build, err error) {
 	n = new(Build)
 	n.Id = o.Id
 	n.Force = o.Force
+	n.Shell = o.Shell
 	n.Env = o.Env
 	n.Bin = o.Dist
 	n.Command = o.Command

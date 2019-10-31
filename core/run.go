@@ -6,6 +6,7 @@ import (
 	"github.com/ttacon/chalk"
 	"golang.org/x/crypto/ssh"
 	"log"
+	"nest/enums"
 	"nest/logger"
 	"os/exec"
 	"strings"
@@ -27,9 +28,13 @@ func Exec(dir, command string) (out string, err error) {
 	return
 }
 
-func PipeRun(dir, command string) (err error) {
+func PipeRun(shell, dir, command string) (err error) {
 
 	log.Println(chalk.Green.Color("Exec command:"), command)
+
+	if shell == "" {
+		shell = enums.DefaultShell
+	}
 
 	c := exec.Command("bash", "-c", command)
 	c.Dir = dir

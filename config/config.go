@@ -59,6 +59,7 @@ type Run struct {
 
 type Build struct {
 	Id      string   `yaml:"id,omitempty"`
+	Shell   string   `yaml:"shell,omitempty"`
 	Force   bool     `yaml:"force,omitempty"`
 	Env     string   `yaml:"env,omitempty"`
 	Dist    string   `yaml:"dist,omitempty"`
