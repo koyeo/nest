@@ -34,6 +34,8 @@ func PipeRun(shell, dir, command string) (err error) {
 
 	if shell == "" {
 		shell = enums.DefaultShell
+	} else {
+		log.Println(chalk.Green.Color("Use shell:"), shell)
 	}
 
 	c := exec.Command(shell, "-c", command)
