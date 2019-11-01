@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -43,56 +44,37 @@ func PipeRun(shell, dir, command string) (err error) {
 	c.Dir = dir
 	c.Env = os.Environ()
 	c.Stdin = os.Stdin
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
 
-	//stderr, err := c.StderrPipe()
-	//if err != nil {
-	//	logger.Error("Exec command get stderr error: ", err)
-	//}
-	//
-	//stdout, err := c.StdoutPipe()
-	//if err != nil {
-	//	logger.Error("Exec command get stdout error: ", err)
-	//}
+	stdout, err := c.StdoutPipe()
+	if err != nil {
+		logger.Error("Exec command get stdout error: ", err)
+	}
 
-	//out := make(chan string, 1048576)
-	//defer func() {
-	//	for len(out) != 0 {
-	//		time.Sleep(500 * time.Millisecond)
-	//	}
-	//	close(out)
-	//}()
-	//
-	//go func() {
-	//	scanner := bufio.NewScanner(stdout)
-	//	scanner.Split(bufio.ScanLines)
-	//	for scanner.Scan() {
-	//		out <- scanner.Text()
-	//	}
-	//}()
-	//
-	//go func() {
-	//	scanner := bufio.NewScanner(stderr)
-	//	scanner.Split(bufio.ScanLines)
-	//	for scanner.Scan() {
-	//		out <- scanner.Text()
-	//	}
-	//}()
-	//
-	//go func() {
-	//	for {
-	//		m := <-out
-	//		if m != "" {
-	//			fmt.Println(m)
-	//		}
-	//	}
-	//}()
+	c.Stderr = c.Stdout
+
+	out := make(chan []byte)
+	defer func() {
+		close(out)
+	}()
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		scanner.Split(bufio.ScanBytes)
+		for scanner.Scan() {
+			_, _ = os.Stdout.Write(scanner.Bytes())
+		}
+		wg.Done()
+	}()
 
 	err = c.Run()
 	if err != nil {
 		logger.Error("Exec command run error: ", err)
 	}
+
+	wg.Wait()
 
 	return
 }
