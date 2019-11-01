@@ -63,6 +63,7 @@ type Build struct {
 	Force   bool     `yaml:"force,omitempty"`
 	Env     string   `yaml:"env,omitempty"`
 	Dist    string   `yaml:"dist,omitempty"`
+	Clean   bool     `yaml:"clean,omitempty"`
 	Script  []string `yaml:"script,omitempty"`
 	Command []string `yaml:"command,omitempty"`
 }

@@ -29,7 +29,7 @@ func BuildDone(count int) {
 		message = fmt.Sprintf("exec %d task", count)
 	}
 
-	Alert("Bin done", message, "assets/success.png")
+	Alert("Dist done", message, "assets/success.png")
 }
 
 func DeployDone(count int) {

@@ -74,13 +74,13 @@ func BuildCommand(c *cli.Context) (err error) {
 			return
 		}
 
-		if build.Force {
-			continue
-		}
+		//if build.Force {
+		//	continue
+		//}
 
 		branch := core.Branch(ctx.Directory)
 
-		err = moveBin(ctx.Directory, task.Directory, task.Id, branch, env.Id, build.Bin)
+		err = moveBin(ctx.Directory, task.Directory, task.Id, branch, env.Id, build.Dist)
 		if err != nil {
 			return
 		}
@@ -154,12 +154,12 @@ func moveBin(projectDir, taskDir, taskId, branch, envId, dist string) (err error
 		return
 	}
 
-	err = core.PipeRun("", binDir, fmt.Sprintf("zip -q  %s.zip %s", binName, dist))
+	err = core.PipeRun("", binDir, fmt.Sprintf("zip -q -r %s.zip %s", binName, dist))
 	if err != nil {
 		return
 	}
 
-	err = core.PipeRun("", "", fmt.Sprintf("rm %s", buildBinFile))
+	err = core.PipeRun("", "", fmt.Sprintf("rm -rf %s", buildBinFile))
 	if err != nil {
 		return
 	}

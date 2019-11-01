@@ -394,7 +394,7 @@ type Build struct {
 	Force         bool
 	Shell         string
 	Env           string
-	Bin           string
+	Dist          string
 	BeforeScript  []*Script
 	AfterScript   []*Script
 	Command       []string
@@ -408,7 +408,7 @@ func ToBuild(o *config.Build) (n *Build, err error) {
 	n.Force = o.Force
 	n.Shell = o.Shell
 	n.Env = o.Env
-	n.Bin = o.Dist
+	n.Dist = o.Dist
 	n.Command = o.Command
 	return
 }

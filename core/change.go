@@ -298,7 +298,7 @@ func MakeChange() (change *Change, err error) {
 			if deploy.Bin != nil && deploy.Bin.Source == enums.DeploySourceBuild {
 
 				build := task.GetBuild(deploy.Env)
-				if build == nil || build.Bin == "" {
+				if build == nil || build.Dist == "" {
 					continue
 				}
 

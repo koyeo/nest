@@ -8,6 +8,7 @@ import (
 	"log"
 	"nest/enums"
 	"nest/logger"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -40,44 +41,53 @@ func PipeRun(shell, dir, command string) (err error) {
 
 	c := exec.Command(shell, "-c", command)
 	c.Dir = dir
+	c.Env = os.Environ()
+	c.Stdin = os.Stdin
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
 
-	stderr, err := c.StderrPipe()
-	if err != nil {
-		logger.Error("Exec command get stderr error: ", err)
-	}
+	//stderr, err := c.StderrPipe()
+	//if err != nil {
+	//	logger.Error("Exec command get stderr error: ", err)
+	//}
+	//
+	//stdout, err := c.StdoutPipe()
+	//if err != nil {
+	//	logger.Error("Exec command get stdout error: ", err)
+	//}
 
-	stdout, err := c.StdoutPipe()
-	if err != nil {
-		logger.Error("Exec command get stdout error: ", err)
-	}
-
-	out := make(chan string)
-	defer close(out)
-
-	go func() {
-		scanner := bufio.NewScanner(stdout)
-		scanner.Split(bufio.ScanLines)
-		for scanner.Scan() {
-			out <- scanner.Text()
-		}
-	}()
-
-	go func() {
-		scanner := bufio.NewScanner(stderr)
-		scanner.Split(bufio.ScanLines)
-		for scanner.Scan() {
-			out <- scanner.Text()
-		}
-	}()
-
-	go func() {
-		for {
-			m := <-out
-			if m != "" {
-				fmt.Println(m)
-			}
-		}
-	}()
+	//out := make(chan string, 1048576)
+	//defer func() {
+	//	for len(out) != 0 {
+	//		time.Sleep(500 * time.Millisecond)
+	//	}
+	//	close(out)
+	//}()
+	//
+	//go func() {
+	//	scanner := bufio.NewScanner(stdout)
+	//	scanner.Split(bufio.ScanLines)
+	//	for scanner.Scan() {
+	//		out <- scanner.Text()
+	//	}
+	//}()
+	//
+	//go func() {
+	//	scanner := bufio.NewScanner(stderr)
+	//	scanner.Split(bufio.ScanLines)
+	//	for scanner.Scan() {
+	//		out <- scanner.Text()
+	//	}
+	//}()
+	//
+	//go func() {
+	//	for {
+	//		m := <-out
+	//		if m != "" {
+	//			fmt.Println(m)
+	//		}
+	//	}
+	//}()
 
 	err = c.Run()
 	if err != nil {
