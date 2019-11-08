@@ -6,6 +6,7 @@ import (
 )
 
 func Alert(title, message string, icon ...string) {
+	return
 	err := beeep.Beep(beeep.DefaultFreq, beeep.DefaultDuration)
 	if err != nil {
 		return
@@ -20,6 +21,7 @@ func Alert(title, message string, icon ...string) {
 }
 
 func BuildDone(count int) {
+	return
 
 	var message string
 
@@ -33,6 +35,7 @@ func BuildDone(count int) {
 }
 
 func DeployDone(count int) {
+	return
 
 	var message string
 
