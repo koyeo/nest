@@ -1,5 +1,7 @@
 # github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d
 github.com/cpuguy83/go-md2man/v2/md2man
+# github.com/fsnotify/fsnotify v1.4.7
+github.com/fsnotify/fsnotify
 # github.com/gen2brain/beeep v0.0.0-20190719094215-ece0cb67ca77
 github.com/gen2brain/beeep
 # github.com/godbus/dbus v4.1.0+incompatible
@@ -8,8 +10,16 @@ github.com/godbus/dbus
 github.com/gopherjs/gopherjs/js
 # github.com/gopherjs/gopherwasm v1.1.0
 github.com/gopherjs/gopherwasm/js
+# github.com/kr/fs v0.1.0
+github.com/kr/fs
+# github.com/mattn/go-sqlite3 v1.11.0
+github.com/mattn/go-sqlite3
 # github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
 github.com/nu7hatch/gouuid
+# github.com/pkg/errors v0.8.1
+github.com/pkg/errors
+# github.com/pkg/sftp v1.10.1
+github.com/pkg/sftp
 # github.com/russross/blackfriday/v2 v2.0.1
 github.com/russross/blackfriday/v2
 # github.com/shurcooL/sanitized_anchor_name v1.0.0
@@ -20,10 +30,26 @@ github.com/tadvi/systray
 github.com/ttacon/chalk
 # github.com/urfave/cli v1.22.1
 github.com/urfave/cli
+# golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
+golang.org/x/crypto/curve25519
+golang.org/x/crypto/ed25519
+golang.org/x/crypto/ed25519/internal/edwards25519
+golang.org/x/crypto/internal/chacha20
+golang.org/x/crypto/internal/subtle
+golang.org/x/crypto/poly1305
+golang.org/x/crypto/ssh
 # golang.org/x/sys v0.0.0-20191018095205-727590c5006e
+golang.org/x/sys/cpu
+golang.org/x/sys/unix
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
 # gopkg.in/toast.v1 v1.0.0-20180812000517-0a84660828b2
 gopkg.in/toast.v1
 # gopkg.in/yaml.v2 v2.2.4
 gopkg.in/yaml.v2
+# xorm.io/builder v0.3.6
+xorm.io/builder
+# xorm.io/core v0.7.2
+xorm.io/core
+# xorm.io/xorm v0.8.0
+xorm.io/xorm

@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/gen2brain/beeep v0.0.0-20190719094215-ece0cb67ca77
-	github.com/go-xorm/xorm v0.7.9
+	github.com/go-xorm/xorm v0.7.9 // indirect
 	github.com/godbus/dbus v4.1.0+incompatible // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20190915194858-d3ddacdb130f // indirect
 	github.com/gopherjs/gopherwasm v1.1.0 // indirect
