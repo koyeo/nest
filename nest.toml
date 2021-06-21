@@ -2,44 +2,31 @@
 [[servers]]
 name = "161"
 host = "192.168.1.161"
-port = "22"
+port = 22
 user = "root"
-identity_file = "~/.rsa"
+identity_file = "/Users/kun/.ssh/id_rsa"
 
-# 脚本配置
-[[scripts]]
-name = "supervisor"
-file = "./"
-
-
-# 部署
-[[tasks]]
-name = "generator"
-build.command = "go build -o $TaskName main.go "
-build.script = ""
-deploy.server = "151"
-deploy.path = "/app/mian"
-deploy.script = "supervisor"
-deploy.command = ""
-tasks = [
-    "api@build => ",
-    "admin@build => ",
+[[watchers]]
+name = "api"
+command = ""
+watch = [
+    "123"
 ]
 
-# 部署
+# 任务1
 [[tasks]]
 name = "deploy_test"
-build.command = "go build -o ${bin} main.go "
-build.script = ""
-deploy.server = "151"
-deploy.path = "/app/mian"
-deploy.script = "supervisor"
-deploy.command = ""
-pipeline = [
-    "generator",
-    "${self}",
-    "admin",
-]
+target = "test_api"
+build_command = "echo hi"
+build_script_file = "./test/shell/test.sh"
+deploy_server = ["161"]
+deploy_path = "/app/mian"
+deploy_script = "supervisor"
+deploy_command = ""
+#deploy_supervisor_file = "./supervisor.tpl"
+pipeline = ["_"]
+
+
 
 
 

@@ -19,8 +19,8 @@ func MakeDone() {
 	log.Println(chalk.Green.Color("Make done"))
 }
 
-func Success(msg string) {
-	log.Println(chalk.Green.Color(msg))
+func Successf(format string, a ...interface{}) {
+	log.Println(chalk.Green.Color(fmt.Sprintf(format, a...)))
 }
 
 func ReadFile(path string) {
@@ -28,7 +28,6 @@ func ReadFile(path string) {
 	path = strings.TrimPrefix(path, wd+"/")
 	log.Println(chalk.Green.Color("Read file:"), chalk.Green.Color(chalk.Bold.TextStyle(path)))
 }
-
 
 func MakeDirSuccess(path string) {
 	wd, _ := os.Getwd()

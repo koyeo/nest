@@ -2,85 +2,135 @@ package main
 
 import (
 	"fmt"
-	"github.com/koyeo/nest/command"
-	"github.com/koyeo/nest/enums"
-	"github.com/urfave/cli"
-	"log"
+	"github.com/koyeo/nest/config"
+	"github.com/koyeo/nest/constant"
+	"github.com/koyeo/nest/protocol"
+	"github.com/ttacon/chalk"
+	"github.com/urfave/cli/v2"
 	"os"
+	"path/filepath"
 )
 
 func main() {
 	app := cli.NewApp()
 	app.Name = "nest"
 	app.Usage = "nest"
-	app.Action = func(c *cli.Context) error {
-		fmt.Println("boom! I say!")
-		return nil
+	app.Flags = []cli.Flag{
+		&cli.StringFlag{
+			Name:  constant.CONFIG_FLAG,
+			Usage: "use assigned config file",
+		},
 	}
-	app.Commands = []cli.Command{
+	app.Action = func(c *cli.Context) error {
+		return cli.ShowAppHelp(c)
+	}
+	app.Commands = []*cli.Command{
 		{
-			Name:   "init",
-			Usage:  "nest init",
-			Action: command.Init,
-		},
-		{
-			Name:   "status",
-			Usage:  "nest status",
-			Action: command.StatusCommand,
-		},
-		{
-			Name:   "run",
-			Usage:  "nest run task",
-			Action: command.RunCommand,
-		},
-		{
-			Name:   "build",
-			Usage:  "nest build task ...",
-			Action: command.BuildCommand,
-			Flags: []cli.Flag{
-				cli.BoolFlag{
-					Name:  enums.DeployFlag,
-					Usage: enums.DeployUsage,
-				},
-				cli.BoolFlag{
-					Name:  enums.HideCommandFlag,
-					Usage: enums.HideCommandUsage,
-				},
+			Name:  "init",
+			Usage: "init project",
+			Action: func(c *cli.Context) (err error) {
+				err = initConfig(c)
+				if err != nil {
+					return
+				}
+				return
 			},
 		},
 		{
-			Name:   "deploy",
-			Usage:  "nest deploy task ...",
-			Action: command.DeployCommand,
-			Flags: []cli.Flag{
-				cli.BoolFlag{
-					Name:  enums.PrintScriptFlag,
-					Usage: enums.PrintScriptUsage,
-				},
-				cli.BoolFlag{
-					Name:  enums.HideCommandFlag,
-					Usage: enums.HideCommandUsage,
-				},
+			Name:  "list",
+			Usage: "list project tasks",
+			Action: func(c *cli.Context) (err error) {
+				err = initConfig(c)
+				if err != nil {
+					return
+				}
+				if len(protocol.Project.ServerManager().List()) > 0 {
+					fmt.Println(chalk.Green.Color("servers:"))
+					for _, v := range protocol.Project.ServerManager().List() {
+						fmt.Printf("  %s\n", v.Name)
+					}
+				}
+				if len(protocol.Project.WatcherManager().List()) > 0 {
+					fmt.Println(chalk.Green.Color("watcher:"))
+					for _, v := range protocol.Project.WatcherManager().List() {
+						fmt.Printf("  %s\n", v.Name)
+					}
+				}
+				if len(protocol.Project.TaskManager().List()) > 0 {
+					fmt.Println(chalk.Green.Color("tasks:"))
+					for _, v := range protocol.Project.TaskManager().List() {
+						if len(v.Pipeline) > 0 {
+							fmt.Printf("  %s(%s)\n", v.Name, chalk.Yellow.Color("pipeline"))
+						} else {
+							fmt.Printf("  %s\n", v.Name)
+						}
+					}
+				}
+				return
 			},
 		},
 		{
-			Name:   "pipeline",
-			Usage:  "exec pipeline task",
-			Action: command.DeployCommand,
-			Flags: []cli.Flag{
-				cli.BoolFlag{
-					Name:  enums.PrintScriptFlag,
-					Usage: enums.PrintScriptUsage,
-				},
-				cli.BoolFlag{
-					Name:  enums.HideCommandFlag,
-					Usage: enums.HideCommandUsage,
-				},
+			Name:  "watch",
+			Usage: "run watcher",
+			Action: func(c *cli.Context) (err error) {
+				err = initConfig(c)
+				if err != nil {
+					return
+				}
+				return
+			},
+		},
+		{
+			Name:  "run",
+			Usage: "run task",
+			Action: func(c *cli.Context) (err error) {
+				err = initConfig(c)
+				if err != nil {
+					return
+				}
+				if c.Args().Len() == 0 {
+					return cli.ShowCommandHelp(c, "run")
+				}
+				for _, name := range c.Args().Slice() {
+					task := protocol.Project.TaskManager().Get(name)
+					if task == nil {
+						err = fmt.Errorf("task '%s' not found", name)
+						return
+					}
+					err = task.Run()
+					if err != nil {
+						return
+					}
+				}
+				
+				return
 			},
 		},
 	}
 	err := app.Run(os.Args)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		os.Exit(1)
 	}
+}
+
+func initConfig(c *cli.Context) error {
+	path := c.String(constant.NEST_TOML)
+	if path != "" {
+		return config.Load(path)
+	}
+	pwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	err = config.Load(filepath.Join(pwd, constant.NEST_TOML))
+	if err != nil {
+		return err
+	}
+	
+	err = protocol.Project.LoadConfig()
+	if err != nil {
+		return err
+	}
+	return nil
 }

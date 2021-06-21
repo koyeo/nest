@@ -1,6 +1,8 @@
 package config
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/BurntSushi/toml"
 )
 
@@ -11,52 +13,43 @@ func Load(path string) (err error) {
 	if err != nil {
 		return
 	}
+	d, _ := json.MarshalIndent(Config, "", "\t")
+	fmt.Println(string(d))
 	return
 }
 
 type config struct {
 	Servers  []*Server  `toml:"servers,omitempty"`
-	Scripts  []*Script  `toml:"scripts,omitempty"`
 	Watchers []*Watcher `toml:"watchers,omitempty"`
 	Tasks    []*Task    `toml:"tasks,omitempty"`
 }
 
 type Server struct {
 	Name         string `toml:"name,omitempty"`
+	Host         string `toml:"host,omitempty"`
 	Port         uint64 `toml:"port,omitempty"`
 	User         string `toml:"user,omitempty"`
 	Password     string `toml:"password,omitempty"`
 	IdentityFile string `toml:"identity_file,omitempty"`
-	Host         string `toml:"host,omitempty"`
-}
-
-type Script struct {
-	Name    string   `toml:"name,omitempty"`
-	File    string   `toml:"file,omitempty"`
-	Command []string `toml:"command,omitempty"`
 }
 
 type Watcher struct {
-	Command string `toml:"command,omitempty"`
+	Name    string   `toml:"name,omitempty"`
+	Command string   `toml:"command,omitempty"`
+	Watch   []string `toml:"watch,omitempty"`
 }
 
 type Task struct {
-	Name     string   `toml:"name,omitempty"`
-	Build    *Build   `json:"build"`
-	Deploy   *Deploy  `json:"deploy"`
-	Pipeline []string `toml:"pipeline"`
-}
-
-type Build struct {
-	Command string `toml:"command,omitempty"`
-	Script  string `toml:"script,omitempty"`
-}
-
-type Deploy struct {
-	Path    string `json:"path"`
-	Server  string `toml:"server,omitempty"`
-	Command string `toml:"command,omitempty"`
-	Script  string `toml:"script,omitempty"`
+	Name                 string   `toml:"name,omitempty"`
+	Target               string   `toml:"target,omitempty"`
+	BuildCommand         string   `toml:"build_command,omitempty"`
+	BuildScriptFile      string   `toml:"build_script_file,omitempty"`
+	DeployPath           string   `toml:"deploy_path,omitempty"`
+	DeployCommand        string   `toml:"deploy_command,omitempty"`
+	DeployScriptFile     string   `toml:"deploy_script_file,omitempty"`
+	DeploySupervisorFile string   `toml:"deploy_supervisor_file,omitempty"`
+	DeployServer         []string `toml:"deploy_server,omitempty"`
+	Pipeline             []string `toml:"pipeline,omitempty"`
 }
 
 //func ParseExtendScript(name string) (script, position string, err error) {

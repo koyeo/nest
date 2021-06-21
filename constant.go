@@ -1,6 +1,6 @@
 package main
 
 const (
-	LOCAL  = "local"
-	SERVER = "server"
+	LOCAL     = "local"
+	SERVER    = "server"
 )
