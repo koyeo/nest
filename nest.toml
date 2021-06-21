@@ -1,0 +1,45 @@
+# 服务器配置
+[[servers]]
+name = "161"
+host = "192.168.1.161"
+port = "22"
+user = "root"
+identity_file = "~/.rsa"
+
+# 脚本配置
+[[scripts]]
+name = "supervisor"
+file = "./"
+
+
+# 部署
+[[tasks]]
+name = "generator"
+build.command = "go build -o $TaskName main.go "
+build.script = ""
+deploy.server = "151"
+deploy.path = "/app/mian"
+deploy.script = "supervisor"
+deploy.command = ""
+tasks = [
+    "api@build => ",
+    "admin@build => ",
+]
+
+# 部署
+[[tasks]]
+name = "deploy_test"
+build.command = "go build -o ${bin} main.go "
+build.script = ""
+deploy.server = "151"
+deploy.path = "/app/mian"
+deploy.script = "supervisor"
+deploy.command = ""
+pipeline = [
+    "generator",
+    "${self}",
+    "admin",
+]
+
+
+

@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/urfave/cli"
-	"log"
 	"github.com/koyeo/nest/command"
 	"github.com/koyeo/nest/enums"
+	"github.com/urfave/cli"
+	"log"
 	"os"
 )
 
@@ -20,22 +20,22 @@ func main() {
 	app.Commands = []cli.Command{
 		{
 			Name:   "init",
-			Usage:  "Init nest project",
+			Usage:  "nest init",
 			Action: command.Init,
 		},
 		{
-			Name:   "dep",
-			Usage:  "GetTask task dep files",
-			Action: command.DepCommand,
-		},
-		{
 			Name:   "status",
-			Usage:  "Show project status",
+			Usage:  "nest status",
 			Action: command.StatusCommand,
 		},
 		{
+			Name:   "run",
+			Usage:  "nest run task",
+			Action: command.RunCommand,
+		},
+		{
 			Name:   "build",
-			Usage:  "build task",
+			Usage:  "nest build task ...",
 			Action: command.BuildCommand,
 			Flags: []cli.Flag{
 				cli.BoolFlag{
@@ -49,13 +49,23 @@ func main() {
 			},
 		},
 		{
-			Name:   "run",
-			Usage:  "run task",
-			Action: command.RunCommand,
+			Name:   "deploy",
+			Usage:  "nest deploy task ...",
+			Action: command.DeployCommand,
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  enums.PrintScriptFlag,
+					Usage: enums.PrintScriptUsage,
+				},
+				cli.BoolFlag{
+					Name:  enums.HideCommandFlag,
+					Usage: enums.HideCommandUsage,
+				},
+			},
 		},
 		{
-			Name:   "deploy",
-			Usage:  "deploy task",
+			Name:   "pipeline",
+			Usage:  "exec pipeline task",
 			Action: command.DeployCommand,
 			Flags: []cli.Flag{
 				cli.BoolFlag{

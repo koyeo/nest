@@ -274,7 +274,7 @@ type Run struct {
 	Start string
 }
 
-func ToRun(o *config.Run) *Run {
+func ToRun(o *config.Watcher) *Run {
 	n := new(Run)
 	n.Env = o.Env
 	n.Start = o.Start
@@ -294,7 +294,7 @@ type Task struct {
 	deployMap map[string]*Deploy
 }
 
-func (p *Task) AddRun(run *config.Run) {
+func (p *Task) AddRun(run *config.Watcher) {
 
 	if p.runMap == nil {
 		p.runMap = make(map[string]*Run)

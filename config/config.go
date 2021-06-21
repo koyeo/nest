@@ -1,129 +1,72 @@
 package config
 
 import (
-	"fmt"
-	"github.com/koyeo/nest/enums"
-	"strings"
+	"github.com/BurntSushi/toml"
 )
 
-type Config struct {
-	Id        string    `yaml:"id,omitempty"`
-	Name      string    `yaml:"name,omitempty"`
-	Directory string    `yaml:"directory,omitempty"`
-	Env       []*Env    `yaml:"env,omitempty"`
-	Script    []*Script `yaml:"script,omitempty"`
-	Task      []*Task   `yaml:"task,omitempty"`
-}
+var Config = &config{}
 
-type Env struct {
-	Id     string    `yaml:"id,omitempty"`
-	Name   string    `yaml:"name,omitempty"`
-	Server []*Server `yaml:"server,omitempty"`
-}
-
-type Server struct {
-	Id        string `yaml:"id,omitempty"`
-	Name      string `yaml:"name,omitempty"`
-	Workspace string `yaml:"workspace,omitempty"`
-	SSH       *SSH   `yaml:"ssh"`
-}
-type SSH struct {
-	Port     uint64 `yaml:"port,omitempty"`
-	User     string `yaml:"user,omitempty"`
-	Password string `yaml:"password,omitempty"`
-	Identity string `yaml:"identity,omitempty"`
-	Ip       string `yaml:"ip,omitempty"`
-}
-
-type Script struct {
-	Id      string   `yaml:"id,omitempty"`
-	Name    string   `yaml:"name,omitempty"`
-	File    string   `yaml:"file,omitempty"`
-	Command []string `yaml:"command,omitempty"`
-}
-
-type Task struct {
-	Id        string    `yaml:"id,omitempty"`
-	Name      string    `yaml:"name,omitempty"`
-	Watch     []string  `yaml:"watch,omitempty"`
-	Directory string    `yaml:"directory,omitempty"`
-	Run       []*Run    `yaml:"run,omitempty"`
-	Build     []*Build  `yaml:"build,omitempty"`
-	Deploy    []*Deploy `yaml:"deploy,omitempty"`
-}
-
-type Run struct {
-	Env   string `yaml:"env,omitempty"`
-	Start string `yaml:"start,omitempty"`
-}
-
-type Build struct {
-	Id      string   `yaml:"id,omitempty"`
-	Shell   string   `yaml:"shell,omitempty"`
-	Force   bool     `yaml:"force,omitempty"`
-	Env     string   `yaml:"env,omitempty"`
-	Dist    string   `yaml:"dist,omitempty"`
-	Clean   bool     `yaml:"clean,omitempty"`
-	Script  []string `yaml:"script,omitempty"`
-	Command []string `yaml:"command,omitempty"`
-}
-
-type Deploy struct {
-	Id      string   `yaml:"id,omitempty"`
-	Force   bool     `yaml:"force,omitempty"`
-	Env     string   `yaml:"env,omitempty"`
-	Bin     *Bin     `yaml:"bin,omitempty"`
-	Daemon  *Daemon  `yaml:"daemon,omitempty"`
-	Server  []string `yaml:"server,omitempty"`
-	Script  []string `yaml:"script,omitempty"`
-	Command []string `yaml:"command,omitempty"`
-}
-
-type Bin struct {
-	Source string `yaml:"source,omitempty"`
-	Param  string `yaml:"param,omitempty"`
-	Path   string `yaml:"path,omitempty"`
-}
-
-type Daemon struct {
-	Pid   string       `yaml:"pid,omitempty"`
-	Start *DaemonStart `yaml:"start,omitempty"`
-	Stop  *DaemonStop  `yaml:"stop,omitempty"`
-	Log   *Log         `yaml:"log,omitempty"`
-}
-
-type DaemonStart struct {
-	Flag    string   `yaml:"flag,omitempty"`
-	Command []string `yaml:"command,omitempty"`
-	Script  []string `yaml:"script,omitempty"`
-}
-
-type DaemonStop struct {
-	Signal  string   `yaml:"signal,omitempty"`
-	Flag    string   `yaml:"flag,omitempty"`
-	Command []string `yaml:"command,omitempty"`
-	Script  []string `yaml:"script,omitempty"`
-}
-
-type Log struct {
-	Path     string `yaml:"path,omitempty"`
-	File     string `yaml:"file,omitempty"`
-	Level    string `yaml:"level,omitempty"`
-	Size     uint64 `yaml:"size,omitempty"`
-	Backup   uint64 `yaml:"backup,omitempty"`
-	Age      uint64 `yaml:"age,omitempty"`
-	Compress bool   `yaml:"compress,omitempty"`
-	Daily    bool   `yaml:"daily,omitempty"`
-}
-
-func ParseExtendScript(name string) (script, position string, err error) {
-	if strings.Contains(name, enums.ScriptExtendIdent) {
-		items := strings.Split(name, enums.ScriptExtendIdent)
-		script, position = items[0], items[1]
-		if position != enums.ScriptTypeBefore && position != enums.ScriptTypeAfter {
-			err = fmt.Errorf("invaild script position \"%s\"", position)
-			return
-		}
+func Load(path string) (err error) {
+	_, err = toml.DecodeFile(path, Config)
+	if err != nil {
+		return
 	}
 	return
 }
+
+type config struct {
+	Servers  []*Server  `toml:"servers,omitempty"`
+	Scripts  []*Script  `toml:"scripts,omitempty"`
+	Watchers []*Watcher `toml:"watchers,omitempty"`
+	Tasks    []*Task    `toml:"tasks,omitempty"`
+}
+
+type Server struct {
+	Name         string `toml:"name,omitempty"`
+	Port         uint64 `toml:"port,omitempty"`
+	User         string `toml:"user,omitempty"`
+	Password     string `toml:"password,omitempty"`
+	IdentityFile string `toml:"identity_file,omitempty"`
+	Host         string `toml:"host,omitempty"`
+}
+
+type Script struct {
+	Name    string   `toml:"name,omitempty"`
+	File    string   `toml:"file,omitempty"`
+	Command []string `toml:"command,omitempty"`
+}
+
+type Watcher struct {
+	Command string `toml:"command,omitempty"`
+}
+
+type Task struct {
+	Name     string   `toml:"name,omitempty"`
+	Build    *Build   `json:"build"`
+	Deploy   *Deploy  `json:"deploy"`
+	Pipeline []string `toml:"pipeline"`
+}
+
+type Build struct {
+	Command string `toml:"command,omitempty"`
+	Script  string `toml:"script,omitempty"`
+}
+
+type Deploy struct {
+	Path    string `json:"path"`
+	Server  string `toml:"server,omitempty"`
+	Command string `toml:"command,omitempty"`
+	Script  string `toml:"script,omitempty"`
+}
+
+//func ParseExtendScript(name string) (script, position string, err error) {
+//	if strings.Contains(name, enums.ScriptExtendIdent) {
+//		items := strings.Split(name, enums.ScriptExtendIdent)
+//		script, position = items[0], items[1]
+//		if position != enums.ScriptTypeBefore && position != enums.ScriptTypeAfter {
+//			err = fmt.Errorf("invaild script position \"%s\"", position)
+//			return
+//		}
+//	}
+//	return
+//}

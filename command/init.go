@@ -5,7 +5,5 @@ import (
 )
 
 func Init(c *cli.Context) error {
-
-
 	return nil
 }
