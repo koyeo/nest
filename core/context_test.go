@@ -1,7 +1,7 @@
 package core
 
 import (
-	"nest/config"
+	"github.com/koyeo/nest/config"
 	"testing"
 )
 

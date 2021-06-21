@@ -2,10 +2,10 @@ package command
 
 import (
 	"fmt"
+	"github.com/koyeo/nest/core"
+	"github.com/koyeo/nest/enums"
 	"github.com/ttacon/chalk"
 	"github.com/urfave/cli"
-	"nest/core"
-	"nest/enums"
 	"os"
 	"strings"
 )

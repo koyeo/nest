@@ -1,4 +1,4 @@
-module nest
+module github.com/koyeo/nest
 
 go 1.13
 

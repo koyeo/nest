@@ -1,7 +1,7 @@
 package core
 
 import (
-	"nest/logger"
+	"github.com/koyeo/nest/logger"
 )
 
 func AddTaskRecord(branch, id, md5 string) (taskRecord *TaskRecord, err error) {

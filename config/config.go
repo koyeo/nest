@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"nest/enums"
+	"github.com/koyeo/nest/enums"
 	"strings"
 )
 

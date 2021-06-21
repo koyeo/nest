@@ -2,8 +2,8 @@ package core
 
 import (
 	"fmt"
-	"nest/enums"
-	"nest/storage"
+	"github.com/koyeo/nest/enums"
+	"github.com/koyeo/nest/storage"
 	"os"
 	"regexp"
 	"strings"

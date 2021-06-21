@@ -2,8 +2,8 @@ package core
 
 import (
 	"fmt"
-	"nest/enums"
-	"nest/logger"
+	"github.com/koyeo/nest/enums"
+	"github.com/koyeo/nest/logger"
 )
 
 func CommitBuild(change *Change) (err error) {

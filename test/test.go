@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"nest/test/second"
-	"nest/test/second/third"
+	"github.com/koyeo/nest/test/second"
+	"github.com/koyeo/nest/test/second/third"
 	"time"
 )
 

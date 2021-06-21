@@ -2,10 +2,10 @@ package core
 
 import (
 	"fmt"
-	"nest/enums"
-	"nest/logger"
-	"nest/storage"
-	"nest/utils/secret"
+	"github.com/koyeo/nest/enums"
+	"github.com/koyeo/nest/logger"
+	"github.com/koyeo/nest/storage"
+	"github.com/koyeo/nest/utils/secret"
 	"os"
 	"path"
 	"path/filepath"

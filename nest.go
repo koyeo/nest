@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/urfave/cli"
 	"log"
-	"nest/command"
-	"nest/enums"
+	"github.com/koyeo/nest/command"
+	"github.com/koyeo/nest/enums"
 	"os"
 )
 

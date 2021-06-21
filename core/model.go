@@ -1,7 +1,7 @@
 package core
 
 import (
-	"nest/utils/secret"
+	"github.com/koyeo/nest/utils/secret"
 )
 
 func NewTaskRecord(branch, id string) *TaskRecord {

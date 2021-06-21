@@ -2,9 +2,9 @@ package command
 
 import (
 	"fmt"
+	"github.com/koyeo/nest/core"
+	"github.com/koyeo/nest/logger"
 	"github.com/urfave/cli"
-	"nest/core"
-	"nest/logger"
 )
 
 func getTask(c *cli.Context, index int) (task *core.Task) {
