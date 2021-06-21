@@ -124,10 +124,10 @@ func DeployCommand(c *cli.Context) (err error) {
 
 	}
 
-	if count == 0 {
-		fmt.Println(chalk.Green.Color("no change"))
-		return
-	}
+	//if count == 0 {
+	//	fmt.Println(chalk.Green.Color("no change"))
+	//	return
+	//}
 
 	if !deploySuccess {
 		return
