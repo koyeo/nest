@@ -30,6 +30,8 @@ github.com/tadvi/systray
 github.com/ttacon/chalk
 # github.com/urfave/cli v1.22.1
 github.com/urfave/cli
+# github.com/webview/webview v0.0.0-20210330151455-f540d88dde4e
+github.com/webview/webview
 # golang.org/x/crypto v0.0.0-20190820162420-60c769a6c586
 golang.org/x/crypto/curve25519
 golang.org/x/crypto/ed25519
