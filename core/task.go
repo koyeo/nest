@@ -98,6 +98,9 @@ func (p *Task) Run(c *cli.Context) (err error) {
 		return p.run()
 	}
 	
+	// clean
+	_ = storage.Remove(filepath.Join(pwd, constant.NEST_WORKSPACE))
+	
 	return
 }
 
