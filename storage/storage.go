@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"github.com/koyeo/nest/enums"
 	"github.com/koyeo/nest/logger"
 	"io/ioutil"
 	"os"
@@ -11,46 +10,13 @@ import (
 	"strings"
 )
 
-func ParsePath(root string, path ...string) string {
-	for k, v := range path {
-		if strings.HasPrefix(v, enums.RelativePathPrefix) {
-			if k < len(path)-1 {
-				return filepath.Join(append([]string{v}, path[k+1:]...)...)
-			} else {
-				return v
-			}
-		}
-	}
-	return filepath.Join(append([]string{root}, path...)...)
-}
-
-func WorkspaceDir(path ...string) string {
-	return filepath.Join("./", enums.WorkspaceDir, filepath.Join(path...))
-}
-
-func DataFile() string {
-	return WorkspaceDir(enums.DataDir, enums.DataFile)
-}
-
-func DataDir() string {
-	return WorkspaceDir(enums.DataDir)
-}
-
-func BinDir() string {
-	return WorkspaceDir(enums.BinDir)
-}
-
-func BinFile(file string) string {
-	return WorkspaceDir(enums.BinDir, file)
-}
-
 func Read(path string) (data []byte, err error) {
-
+	
 	data, err = ioutil.ReadFile(path)
 	if err != nil {
 		return
 	}
-
+	
 	return
 }
 
@@ -69,14 +35,14 @@ func Exist(path string) bool {
 }
 
 func Files(path string, suffix ...string) (files []string, err error) {
-
+	
 	dir, err := ioutil.ReadDir(path)
 	if err != nil {
 		return
 	}
-
+	
 	sep := string(os.PathSeparator)
-
+	
 	for _, fi := range dir {
 		if fi.IsDir() {
 			var dirFiles []string
@@ -86,13 +52,13 @@ func Files(path string, suffix ...string) (files []string, err error) {
 			}
 			files = append(files, dirFiles...)
 		} else {
-
+			
 			if hasSuffix(suffix, fi.Name()) {
 				files = append(files, filepath.Join(path, sep, fi.Name()))
 			}
 		}
 	}
-
+	
 	return
 }
 
@@ -102,18 +68,18 @@ func hasSuffix(suffix []string, fileName string) bool {
 			return true
 		}
 	}
-
+	
 	return false
 }
 
 func Root() string {
-
+	
 	root, err := os.Getwd()
 	if err != nil {
 		logger.Error("Getwd error: ", err)
 		os.Exit(1)
 	}
-
+	
 	return root
 }
 

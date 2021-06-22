@@ -17,8 +17,9 @@ func main() {
 	app.Usage = "nest"
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
-			Name:  constant.CONFIG_FLAG,
-			Usage: "use assigned config file",
+			Name:    constant.CONFIG,
+			Aliases: []string{"c"},
+			Usage:   "use assigned config file",
 		},
 	}
 	app.Action = func(c *cli.Context) error {
@@ -59,7 +60,7 @@ func main() {
 				if len(protocol.Project.TaskManager().List()) > 0 {
 					fmt.Println(chalk.Green.Color("tasks:"))
 					for _, v := range protocol.Project.TaskManager().List() {
-						if len(v.Pipeline) > 0 {
+						if len(v.Flow) > 0 {
 							fmt.Printf("  %s(%s)\n", v.Name, chalk.Yellow.Color("pipeline"))
 						} else {
 							fmt.Printf("  %s\n", v.Name)
@@ -83,6 +84,13 @@ func main() {
 		{
 			Name:  "run",
 			Usage: "run task",
+			Flags: []cli.Flag{
+				&cli.BoolFlag{
+					Name:    constant.FLOW,
+					Aliases: []string{"f"},
+					Usage:   "run task flow",
+				},
+			},
 			Action: func(c *cli.Context) (err error) {
 				err = initConfig(c)
 				if err != nil {
@@ -97,7 +105,7 @@ func main() {
 						err = fmt.Errorf("task '%s' not found", name)
 						return
 					}
-					err = task.Run()
+					err = task.Run(c)
 					if err != nil {
 						return
 					}

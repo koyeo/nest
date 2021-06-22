@@ -162,7 +162,7 @@ func (p *project) LoadPipelines() (err error) {
 			err = fmt.Errorf("cant't fetch task '%s'", v.Name)
 			return
 		}
-		for _, vv := range v.Pipeline {
+		for _, vv := range v.Flow {
 			if vv == "_" {
 				vv = v.Name
 			}
@@ -171,7 +171,7 @@ func (p *project) LoadPipelines() (err error) {
 				err = fmt.Errorf("task '%s' pipeline use task '%s' not exist", v.Name, vv)
 				return
 			}
-			self.Pipeline = append(self.Pipeline, task)
+			self.Flow = append(self.Flow, task)
 		}
 	}
 	return

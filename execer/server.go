@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/koyeo/nest/logger"
 	"golang.org/x/crypto/ssh"
+	"os"
+	"sync"
 	"time"
 )
 
@@ -48,35 +50,59 @@ func ServerRunCommand(sshClient *ssh.Client, command string) (err error) {
 		}
 	}()
 	
+	var wg sync.WaitGroup
+	wg.Add(2)
+	
+	//go func() {
+	//	scanner := bufio.NewScanner(stdout)
+	//	scanner.Split(bufio.ScanLines)
+	//	for scanner.Scan() {
+	//		out <- scanner.Text()
+	//	}
+	//	wg.Done()
+	//}()
+	//
+	//go func() {
+	//	scanner := bufio.NewScanner(stderr)
+	//	scanner.Split(bufio.ScanLines)
+	//	for scanner.Scan() {
+	//		out <- scanner.Text()
+	//	}
+	//	wg.Done()
+	//}()
+	//
+	//go func() {
+	//	for {
+	//		m := <-out
+	//		if m != "" {
+	//			fmt.Println(m)
+	//		}
+	//	}
+	//}()
+	
 	go func() {
 		scanner := bufio.NewScanner(stdout)
-		scanner.Split(bufio.ScanLines)
+		scanner.Split(bufio.ScanBytes)
 		for scanner.Scan() {
-			out <- scanner.Text()
+			_, _ = os.Stdout.Write(scanner.Bytes())
 		}
+		wg.Done()
 	}()
 	
 	go func() {
 		scanner := bufio.NewScanner(stderr)
-		scanner.Split(bufio.ScanLines)
+		scanner.Split(bufio.ScanBytes)
 		for scanner.Scan() {
-			out <- scanner.Text()
+			_, _ = os.Stderr.Write(scanner.Bytes())
 		}
-	}()
-	
-	go func() {
-		for {
-			m := <-out
-			if m != "" {
-				fmt.Println(m)
-			}
-		}
+		wg.Done()
 	}()
 	
 	err = session.Run(command)
 	if err != nil {
 		return
 	}
+	wg.Wait()
 	
 	return
 }

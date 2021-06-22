@@ -9,6 +9,7 @@ import (
 	"github.com/koyeo/snowflake"
 	"github.com/pkg/sftp"
 	"github.com/ttacon/chalk"
+	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh"
 	"io/ioutil"
 	"log"
@@ -66,26 +67,72 @@ type Task struct {
 	DeployScript         []byte
 	DeploySupervisorConf []byte
 	DeployServer         []*Server
-	Pipeline             []*Task
+	Flow                 []*Task
 }
 
 func (p *Task) vars() map[string]interface{} {
 	return map[string]interface{}{}
 }
 
-func (p *Task) Run() (err error) {
-	
-	log.Println(chalk.Green.Color("[Run task]"), p.Name)
-	
+func (p *Task) Run(c *cli.Context) (err error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return
 	}
+	if c.Bool(constant.FLOW) {
+		log.Println(chalk.Green.Color("[Run task flow]"), p.Name)
+		
+		for _, v := range p.Flow {
+			err = v.build(pwd, p.makeVars(v, pwd))
+			if err != nil {
+				return
+			}
+		}
+		
+		for _, v := range p.Flow {
+			err = v.deploy(p.makeVars(v, pwd))
+			if err != nil {
+				return
+			}
+		}
+	} else {
+		return p.run()
+	}
 	
+	return
+}
+
+func (p *Task) run() (err error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+	vars := p.makeVars(p, pwd)
+	log.Println(chalk.Green.Color("[Run task]"), p.Name)
+	err = p.build(pwd, vars)
+	if err != nil {
+		return
+	}
+	
+	err = p.deploy(vars)
+	if err != nil {
+		return
+	}
+	
+	logger.Successf("[Done]")
+	
+	return
+}
+
+func (p *Task) makeVars(task *Task, pwd string) map[string]string {
 	vars := map[string]string{}
-	vars[constant.NAME] = p.Name
-	vars[constant.SELF] = p.Name
-	vars[constant.WORKSPACE] = filepath.Join(pwd, constant.NEST_WORKSPACE, p.Name)
+	vars[constant.NAME] = task.Name
+	vars[constant.SELF] = task.Name
+	vars[constant.WORKSPACE] = filepath.Join(pwd, constant.NEST_WORKSPACE, task.Name)
+	return vars
+}
+
+func (p *Task) build(pwd string, vars map[string]string) (err error) {
 	
 	defer func() {
 		if err != nil {
@@ -118,16 +165,6 @@ func (p *Task) Run() (err error) {
 	if printBuild {
 		log.Println(chalk.Green.Color("[Build End]"))
 	}
-	
-	if len(p.DeployServer) > 0 {
-		err = p.deploy(vars)
-		if err != nil {
-			return
-		}
-	}
-	
-	logger.Successf("[Exec Done]")
-	
 	return
 }
 
@@ -198,6 +235,14 @@ func (p *Task) execBuildScriptFile(pwd string, vars map[string]string) (err erro
 }
 
 func (p *Task) deploy(vars map[string]string) (err error) {
+	
+	defer func() {
+		if err != nil {
+			err = nil
+			os.Exit(1)
+		}
+	}()
+	
 	for _, v := range p.DeployServer {
 		err = p.deployServer(v, vars)
 		if err != nil {
@@ -212,7 +257,7 @@ func (p *Task) deployServer(server *Server, vars map[string]string) (err error) 
 	// 2. 上传包
 	// 3. 远程执行命令
 	// 4. 远程执行脚本
-	log.Println(chalk.Green.Color("[Deploy Start]"), fmt.Sprintf("%s(%s)", server.Name, server.Host))
+	log.Println(chalk.Green.Color("[Deploy Start]"), fmt.Sprintf("%s (%s)", chalk.Yellow.Color(server.Name), server.Host))
 	sshClient, err := p.newSSHClient(server)
 	if err != nil {
 		
@@ -241,7 +286,16 @@ func (p *Task) deployServer(server *Server, vars map[string]string) (err error) 
 			return
 		}
 	}
-	log.Println(chalk.Green.Color("[Deploy End]"), fmt.Sprintf("%s(%s)", server.Name, server.Host))
+	
+	if len(p.DeployScript) > 0 {
+		err = execer.ServerRunScript(sshClient, string(p.DeployScript))
+		if err != nil {
+			return
+		}
+	}
+	
+	log.Println(chalk.Green.Color("[Deploy End]"), fmt.Sprintf("%s (%s)", chalk.Yellow.Color(server.Name), server.Host))
+	
 	return
 }
 

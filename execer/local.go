@@ -3,7 +3,6 @@ package execer
 import (
 	"bufio"
 	"github.com/koyeo/nest/constant"
-	"github.com/koyeo/nest/enums"
 	"github.com/koyeo/nest/logger"
 	"github.com/ttacon/chalk"
 	"log"
@@ -41,6 +40,11 @@ func RunCommand(shell, dir, command string) (err error) {
 	c.Env = os.Environ()
 	c.Stdin = os.Stdin
 	
+	stderr, err := c.StderrPipe()
+	if err != nil {
+		logger.Error("[Run remote ssh command get stderr error]", err)
+	}
+	
 	stdout, err := c.StdoutPipe()
 	if err != nil {
 		logger.Error("[Exec get stdout pipe error]", err)
@@ -56,12 +60,21 @@ func RunCommand(shell, dir, command string) (err error) {
 	
 	var wg sync.WaitGroup
 	
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
 		scanner := bufio.NewScanner(stdout)
 		scanner.Split(bufio.ScanBytes)
 		for scanner.Scan() {
 			_, _ = os.Stdout.Write(scanner.Bytes())
+		}
+		wg.Done()
+	}()
+	
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		scanner.Split(bufio.ScanBytes)
+		for scanner.Scan() {
+			_, _ = os.Stderr.Write(scanner.Bytes())
 		}
 		wg.Done()
 	}()
@@ -80,7 +93,7 @@ func RunCommand(shell, dir, command string) (err error) {
 func RunScript(shell, dir, file string) (err error) {
 	
 	if shell == "" {
-		shell = enums.DefaultShell
+		shell = constant.BASH
 	} else {
 		log.Println(chalk.Green.Color("[Use shell]"), shell)
 	}
@@ -89,6 +102,11 @@ func RunScript(shell, dir, file string) (err error) {
 	c.Dir = dir
 	c.Env = os.Environ()
 	c.Stdin = os.Stdin
+	
+	stderr, err := c.StderrPipe()
+	if err != nil {
+		logger.Error("[Run remote ssh command get stderr error]", err)
+	}
 	
 	stdout, err := c.StdoutPipe()
 	if err != nil {
@@ -105,12 +123,21 @@ func RunScript(shell, dir, file string) (err error) {
 	
 	var wg sync.WaitGroup
 	
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
 		scanner := bufio.NewScanner(stdout)
 		scanner.Split(bufio.ScanBytes)
 		for scanner.Scan() {
 			_, _ = os.Stdout.Write(scanner.Bytes())
+		}
+		wg.Done()
+	}()
+	
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		scanner.Split(bufio.ScanBytes)
+		for scanner.Scan() {
+			_, _ = os.Stderr.Write(scanner.Bytes())
 		}
 		wg.Done()
 	}()
