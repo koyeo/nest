@@ -162,7 +162,7 @@ func (p *project) LoadPipelines() (err error) {
 			err = fmt.Errorf("cant't fetch task '%s'", v.Name)
 			return
 		}
-		for _, vv := range v.Flow {
+		for _, vv := range v.WorkFlow {
 			if vv == "_" {
 				vv = v.Name
 			}

@@ -24,7 +24,7 @@ deploy_path = "/app/nest/test"
 deploy_script = "supervisor"
 deploy_command = "touch /app/nest/hello.world"
 deploy_script_file = "./test/shell/test.sh"
-flow = ["_"]
+workflow = ["_"]
 
 
 

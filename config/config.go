@@ -47,7 +47,7 @@ type Task struct {
 	DeployScriptFile     string   `toml:"deploy_script_file,omitempty"`
 	DeploySupervisorFile string   `toml:"deploy_supervisor_file,omitempty"`
 	DeployServer         []string `toml:"deploy_server,omitempty"`
-	Flow                 []string `toml:"flow,omitempty"`
+	WorkFlow             []string `toml:"workflow,omitempty"`
 }
 
 //func ParseExtendScript(name string) (script, position string, err error) {
