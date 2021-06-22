@@ -1,4 +1,4 @@
-package protocol
+package core
 
 import (
 	"fmt"
@@ -79,9 +79,8 @@ func (p *Task) Run(c *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
-	if c.Bool(constant.FLOW) {
-		log.Println(chalk.Green.Color("[Run task flow]"), p.Name)
-		
+	if len(p.Flow) > 0 {
+		log.Println(chalk.Green.Color("[run task flow]"), p.Name)
 		for _, v := range p.Flow {
 			err = v.build(pwd, p.makeVars(v, pwd))
 			if err != nil {
@@ -145,7 +144,7 @@ func (p *Task) build(pwd string, vars map[string]string) (err error) {
 	
 	if p.BuildCommand != "" {
 		printBuild = true
-		log.Println(chalk.Green.Color("[Build Start]"))
+		log.Println(chalk.Green.Color("[build start]"))
 		err = p.execBuildCommand(pwd, vars)
 		if err != nil {
 			return
@@ -155,7 +154,7 @@ func (p *Task) build(pwd string, vars map[string]string) (err error) {
 	if p.BuildScriptFile != "" {
 		if !printBuild {
 			printBuild = true
-			log.Println(chalk.Green.Color("[Build Start]"))
+			log.Println(chalk.Green.Color("[build start]"))
 		}
 		err = p.execBuildScriptFile(pwd, vars)
 		if err != nil {
@@ -163,7 +162,7 @@ func (p *Task) build(pwd string, vars map[string]string) (err error) {
 		}
 	}
 	if printBuild {
-		log.Println(chalk.Green.Color("[Build End]"))
+		log.Println(chalk.Green.Color("[build end]"))
 	}
 	return
 }
@@ -178,7 +177,7 @@ func (p *Task) execBuildCommand(pwd string, vars map[string]string) (err error) 
 		storage.MakeDir(workspace)
 	}
 	
-	log.Println(chalk.Green.Color("[Exec command]"), command)
+	log.Println(chalk.Green.Color("[exec command]"), command)
 	
 	err = execer.RunCommand("", pwd, command)
 	if err != nil {
@@ -224,7 +223,7 @@ func (p *Task) execBuildScriptFile(pwd string, vars map[string]string) (err erro
 		_ = storage.Remove(tmpScript)
 	}()
 	
-	log.Println(chalk.Green.Color("[Exec script]"), p.BuildScriptFile)
+	log.Println(chalk.Green.Color("[exec script]"), p.BuildScriptFile)
 	
 	err = execer.RunScript("", pwd, tmpScript)
 	if err != nil {
@@ -253,14 +252,17 @@ func (p *Task) deploy(vars map[string]string) (err error) {
 }
 
 func (p *Task) deployServer(server *Server, vars map[string]string) (err error) {
-	// 1. 准备 SSH, SFTP 客户端
-	// 2. 上传包
-	// 3. 远程执行命令
-	// 4. 远程执行脚本
-	log.Println(chalk.Green.Color("[Deploy Start]"), fmt.Sprintf("%s (%s)", chalk.Yellow.Color(server.Name), server.Host))
+	
+	log.Println(chalk.Green.Color("[deploy start]"), fmt.Sprintf("%s (%s)", chalk.Yellow.Color(server.Name), server.Host))
+	defer func() {
+		if err != nil {
+			return
+		}
+		log.Println(chalk.Green.Color("[deploy end]"), fmt.Sprintf("%s (%s)", chalk.Yellow.Color(server.Name), server.Host))
+	}()
+	
 	sshClient, err := p.newSSHClient(server)
 	if err != nil {
-		
 		return
 	}
 	
@@ -293,8 +295,6 @@ func (p *Task) deployServer(server *Server, vars map[string]string) (err error) 
 			return
 		}
 	}
-	
-	log.Println(chalk.Green.Color("[Deploy End]"), fmt.Sprintf("%s (%s)", chalk.Yellow.Color(server.Name), server.Host))
 	
 	return
 }

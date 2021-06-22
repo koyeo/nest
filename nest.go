@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/koyeo/nest/config"
 	"github.com/koyeo/nest/constant"
-	"github.com/koyeo/nest/protocol"
+	"github.com/koyeo/nest/core"
 	"github.com/ttacon/chalk"
 	"github.com/urfave/cli/v2"
 	"os"
@@ -45,21 +45,21 @@ func main() {
 				if err != nil {
 					return
 				}
-				if len(protocol.Project.ServerManager().List()) > 0 {
+				if len(core.Project.ServerManager().List()) > 0 {
 					fmt.Println(chalk.Green.Color("servers:"))
-					for _, v := range protocol.Project.ServerManager().List() {
+					for _, v := range core.Project.ServerManager().List() {
 						fmt.Printf("  %s\n", v.Name)
 					}
 				}
-				if len(protocol.Project.WatcherManager().List()) > 0 {
+				if len(core.Project.WatcherManager().List()) > 0 {
 					fmt.Println(chalk.Green.Color("watcher:"))
-					for _, v := range protocol.Project.WatcherManager().List() {
+					for _, v := range core.Project.WatcherManager().List() {
 						fmt.Printf("  %s\n", v.Name)
 					}
 				}
-				if len(protocol.Project.TaskManager().List()) > 0 {
+				if len(core.Project.TaskManager().List()) > 0 {
 					fmt.Println(chalk.Green.Color("tasks:"))
-					for _, v := range protocol.Project.TaskManager().List() {
+					for _, v := range core.Project.TaskManager().List() {
 						if len(v.Flow) > 0 {
 							fmt.Printf("  %s(%s)\n", v.Name, chalk.Yellow.Color("pipeline"))
 						} else {
@@ -100,7 +100,7 @@ func main() {
 					return cli.ShowCommandHelp(c, "run")
 				}
 				for _, name := range c.Args().Slice() {
-					task := protocol.Project.TaskManager().Get(name)
+					task := core.Project.TaskManager().Get(name)
 					if task == nil {
 						err = fmt.Errorf("task '%s' not found", name)
 						return
@@ -136,7 +136,7 @@ func initConfig(c *cli.Context) error {
 		return err
 	}
 	
-	err = protocol.Project.LoadConfig()
+	err = core.Project.LoadConfig()
 	if err != nil {
 		return err
 	}
