@@ -265,11 +265,17 @@ func (p *Task) deployServer(server *Server, vars map[string]string) (err error) 
 	if err != nil {
 		return
 	}
+	defer func() {
+		_ = sshClient.Close()
+	}()
 	
 	sftpClient, err := p.newSFTPClient(sshClient)
 	if err != nil {
 		return
 	}
+	defer func() {
+		_ = sftpClient.Close()
+	}()
 	
 	err = p.uploadTarget(sshClient, sftpClient, server, vars)
 	if err != nil {
