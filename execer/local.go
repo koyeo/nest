@@ -152,3 +152,13 @@ func RunScript(shell, dir, file string) (err error) {
 	
 	return
 }
+
+func HomePath() (path string, err error) {
+	
+	path, err = Exec("", "echo ~")
+	if err != nil {
+		return
+	}
+	
+	return
+}

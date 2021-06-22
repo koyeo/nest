@@ -3,7 +3,10 @@ package core
 import (
 	"fmt"
 	"github.com/koyeo/nest/config"
+	"github.com/koyeo/nest/execer"
 	"github.com/koyeo/nest/storage"
+	"path/filepath"
+	"strings"
 )
 
 var Project = &project{}
@@ -74,6 +77,15 @@ func (p *project) LoadServer(conf *config.Server) (err error) {
 	err = p.ServerManager().Add(item)
 	if err != nil {
 		return
+	}
+	
+	if strings.HasPrefix(conf.IdentityFile, "~") {
+		var home string
+		home, err = execer.HomePath()
+		if err != nil {
+			return
+		}
+		conf.IdentityFile = filepath.Join(home, strings.TrimPrefix(conf.IdentityFile, "~"))
 	}
 	
 	if !storage.Exist(conf.IdentityFile) {

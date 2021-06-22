@@ -299,19 +299,9 @@ func (p *Task) deployServer(server *Server, vars map[string]string) (err error) 
 	return
 }
 
-func (p *Task) homePath() (path string, err error) {
-	
-	path, err = execer.Exec("", "echo ~")
-	if err != nil {
-		return
-	}
-	
-	return
-}
-
 func (p *Task) newSSHPublicKey(path string) (auth ssh.AuthMethod, err error) {
 	
-	home, err := p.homePath()
+	home, err := execer.HomePath()
 	if err != nil {
 		return
 	}
