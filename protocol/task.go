@@ -7,10 +7,17 @@ import (
 	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/storage"
 	"github.com/koyeo/snowflake"
+	"github.com/pkg/sftp"
 	"github.com/ttacon/chalk"
+	"golang.org/x/crypto/ssh"
+	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
+	"strings"
+	"time"
 )
 
 type TaskManager struct {
@@ -51,11 +58,11 @@ func (p *TaskManager) List() []*Task {
 
 type Task struct {
 	Name                 string
-	Target               string
 	BuildCommand         Statement
 	BuildScriptFile      string
-	DeployPath           string
+	DeployPath           Statement
 	DeployCommand        Statement
+	DeploySource         Statement
 	DeployScript         []byte
 	DeploySupervisorConf []byte
 	DeployServer         []*Server
@@ -76,12 +83,9 @@ func (p *Task) Run() (err error) {
 	}
 	
 	vars := map[string]string{}
+	vars[constant.NAME] = p.Name
 	vars[constant.SELF] = p.Name
 	vars[constant.WORKSPACE] = filepath.Join(pwd, constant.NEST_WORKSPACE, p.Name)
-	if p.Target != "" {
-		vars[constant.TARGET] = p.Target
-	}
-	vars[constant.TARGET] = filepath.Join(vars[constant.WORKSPACE], vars[constant.TARGET])
 	
 	defer func() {
 		if err != nil {
@@ -90,7 +94,11 @@ func (p *Task) Run() (err error) {
 		}
 	}()
 	
+	printBuild := false
+	
 	if p.BuildCommand != "" {
+		printBuild = true
+		log.Println(chalk.Green.Color("[Build Start]"))
 		err = p.execBuildCommand(pwd, vars)
 		if err != nil {
 			return
@@ -98,13 +106,27 @@ func (p *Task) Run() (err error) {
 	}
 	
 	if p.BuildScriptFile != "" {
+		if !printBuild {
+			printBuild = true
+			log.Println(chalk.Green.Color("[Build Start]"))
+		}
 		err = p.execBuildScriptFile(pwd, vars)
 		if err != nil {
 			return
 		}
 	}
+	if printBuild {
+		log.Println(chalk.Green.Color("[Build End]"))
+	}
 	
-	logger.Successf("[Exec done]")
+	if len(p.DeployServer) > 0 {
+		err = p.deploy(vars)
+		if err != nil {
+			return
+		}
+	}
+	
+	logger.Successf("[Exec Done]")
 	
 	return
 }
@@ -118,6 +140,9 @@ func (p *Task) execBuildCommand(pwd string, vars map[string]string) (err error) 
 	if !storage.Exist(workspace) {
 		storage.MakeDir(workspace)
 	}
+	
+	log.Println(chalk.Green.Color("[Exec command]"), command)
+	
 	err = execer.RunCommand("", pwd, command)
 	if err != nil {
 		return
@@ -165,6 +190,225 @@ func (p *Task) execBuildScriptFile(pwd string, vars map[string]string) (err erro
 	log.Println(chalk.Green.Color("[Exec script]"), p.BuildScriptFile)
 	
 	err = execer.RunScript("", pwd, tmpScript)
+	if err != nil {
+		return
+	}
+	
+	return
+}
+
+func (p *Task) deploy(vars map[string]string) (err error) {
+	for _, v := range p.DeployServer {
+		err = p.deployServer(v, vars)
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+func (p *Task) deployServer(server *Server, vars map[string]string) (err error) {
+	// 1. 准备 SSH, SFTP 客户端
+	// 2. 上传包
+	// 3. 远程执行命令
+	// 4. 远程执行脚本
+	log.Println(chalk.Green.Color("[Deploy Start]"), fmt.Sprintf("%s(%s)", server.Name, server.Host))
+	sshClient, err := p.newSSHClient(server)
+	if err != nil {
+		
+		return
+	}
+	
+	sftpClient, err := p.newSFTPClient(sshClient)
+	if err != nil {
+		return
+	}
+	
+	err = p.uploadTarget(sshClient, sftpClient, server, vars)
+	if err != nil {
+		logger.Error("[deploy error]", err)
+		return
+	}
+	
+	if p.DeployCommand != "" {
+		var cmd string
+		cmd, err = p.DeployCommand.Render(vars)
+		if err != nil {
+			return
+		}
+		err = execer.ServerRunCommand(sshClient, cmd)
+		if err != nil {
+			return
+		}
+	}
+	log.Println(chalk.Green.Color("[Deploy End]"), fmt.Sprintf("%s(%s)", server.Name, server.Host))
+	return
+}
+
+func (p *Task) homePath() (path string, err error) {
+	
+	path, err = execer.Exec("", "echo ~")
+	if err != nil {
+		return
+	}
+	
+	return
+}
+
+func (p *Task) newSSHPublicKey(path string) (auth ssh.AuthMethod, err error) {
+	
+	home, err := p.homePath()
+	if err != nil {
+		return
+	}
+	
+	if strings.HasPrefix(path, "~") {
+		path = filepath.Join(home, strings.TrimPrefix(path, "~"))
+	}
+	
+	key, err := ioutil.ReadFile(path)
+	if err != nil {
+		return
+	}
+	signer, err := ssh.ParsePrivateKey(key)
+	if err != nil {
+		return
+	}
+	auth = ssh.PublicKeys(signer)
+	
+	return
+}
+
+func (p *Task) newSSHClient(server *Server) (client *ssh.Client, err error) {
+	
+	var auth []ssh.AuthMethod
+	
+	if server.Password != "" {
+		auth = append(auth, ssh.Password(server.Password))
+	}
+	
+	if server.IdentityFile != "" {
+		var ident ssh.AuthMethod
+		ident, err = p.newSSHPublicKey(server.IdentityFile)
+		if err != nil {
+			return
+		}
+		auth = append(auth, ident)
+	}
+	
+	client, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", server.Host, server.Port), &ssh.ClientConfig{
+		User:            server.User,
+		Auth:            auth,
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         5 * time.Second,
+	})
+	
+	if err != nil {
+		return
+	}
+	
+	return
+}
+
+func (p *Task) newSFTPClient(sshClient *ssh.Client) (client *sftp.Client, err error) {
+	
+	client, err = sftp.NewClient(sshClient)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, server *Server, vars map[string]string) (err error) {
+	
+	deploySource, err := p.DeploySource.Render(vars)
+	if err != nil {
+		return
+	}
+	
+	deployPath, err := p.DeployPath.Render(vars)
+	if err != nil {
+		return
+	}
+	
+	reg := regexp.MustCompile(`/.+`)
+	if !reg.MatchString(deployPath) {
+		err = fmt.Errorf("iggleal deployt path: %s", deployPath)
+		return
+	}
+	
+	deployDir := path.Dir(deployPath)
+	deployName := path.Base(deployPath)
+	//sourceName := path.Base(deploySource)
+	serverName := fmt.Sprintf("%s(%s)", server.Name, server.Host)
+	tarName := fmt.Sprintf("%s.tar.gz", deployName)
+	workspace := vars[constant.WORKSPACE]
+	sourceDir := path.Dir(deploySource)
+	sourceName := path.Base(deploySource)
+	log.Println(chalk.Green.Color("[zip target]"), deploySource)
+	err = execer.RunCommand(
+		"",
+		sourceDir,
+		fmt.Sprintf("tar -czf %s %s && mv %s %s/%s", tarName, sourceName, tarName, workspace, tarName),
+	)
+	if err != nil {
+		return
+	}
+	
+	info, err := sftpClient.Stat(deployDir)
+	if err == nil {
+		if !info.IsDir() {
+			err = fmt.Errorf("server %s deploy path '%s' is not directory", serverName, deployDir)
+			return
+		}
+	} else {
+		if os.IsNotExist(err) {
+			err = sftpClient.MkdirAll(deployDir)
+			if err != nil {
+				err = fmt.Errorf("server %s make path '%s' error: %s", serverName, deployDir, err)
+				return
+			}
+		} else {
+			logger.Error("GetTask path info error: ", err)
+			return
+		}
+	}
+	
+	targetFile := filepath.Join(deployDir, tarName)
+	file, err := sftpClient.Create(targetFile)
+	if err != nil {
+		logger.Error("Create bin file error: ", err)
+		return
+	}
+	
+	data, err := storage.Read(filepath.Join(workspace, tarName))
+	if err != nil {
+		logger.Error("Read bin file error: ", err)
+		return
+	}
+	
+	_, err = file.Write(data)
+	if err != nil {
+		logger.Error("Write bin file error: ", err)
+		return
+	}
+	
+	if strings.Contains(deployName, "/") {
+		err = fmt.Errorf("illeagel deploy target name")
+		return
+	}
+	
+	err = execer.ServerRunCommand(sshClient, fmt.Sprintf("cd %s && rm -rf %s", deployDir, deployName))
+	if err != nil {
+		return
+	}
+	
+	err = execer.ServerRunCommand(sshClient, fmt.Sprintf("cd %s && tar -xzvf %s", deployDir, tarName))
+	if err != nil {
+		return
+	}
+	
+	err = execer.ServerRunCommand(sshClient, fmt.Sprintf("rm %s", targetFile))
 	if err != nil {
 		return
 	}

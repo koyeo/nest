@@ -2,21 +2,36 @@ package execer
 
 import (
 	"bufio"
+	"github.com/koyeo/nest/constant"
 	"github.com/koyeo/nest/enums"
 	"github.com/koyeo/nest/logger"
 	"github.com/ttacon/chalk"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 )
 
+func Exec(dir, command string) (out string, err error) {
+	
+	c := exec.Command(constant.BASH, "-c", command)
+	c.Dir = dir
+	
+	res, err := c.CombinedOutput()
+	if err != nil {
+		return
+	}
+	
+	out = strings.TrimSpace(string(res))
+	
+	return
+}
+
 func RunCommand(shell, dir, command string) (err error) {
 	
-	log.Println(chalk.Green.Color("[Exec command]"), command)
-	
 	if shell == "" {
-		shell = enums.DefaultShell
+		shell = constant.BASH
 	} else {
 		log.Println(chalk.Green.Color("[Use shell]"), shell)
 	}
@@ -28,7 +43,8 @@ func RunCommand(shell, dir, command string) (err error) {
 	
 	stdout, err := c.StdoutPipe()
 	if err != nil {
-		logger.Error("[Exec error]", err)
+		logger.Error("[Exec get stdout pipe error]", err)
+		return
 	}
 	
 	c.Stderr = c.Stdout
@@ -54,6 +70,7 @@ func RunCommand(shell, dir, command string) (err error) {
 	wg.Wait()
 	
 	if err != nil {
+		logger.Error("[Exec error]", err)
 		return
 	}
 	
@@ -75,7 +92,8 @@ func RunScript(shell, dir, file string) (err error) {
 	
 	stdout, err := c.StdoutPipe()
 	if err != nil {
-		logger.Error("[Exec error]", err)
+		logger.Error("[Exec get stdout pipe error]", err)
+		return
 	}
 	
 	c.Stderr = c.Stdout
@@ -101,6 +119,7 @@ func RunScript(shell, dir, file string) (err error) {
 	wg.Wait()
 	
 	if err != nil {
+		logger.Error("[Exec error]", err)
 		return
 	}
 	

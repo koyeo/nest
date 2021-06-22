@@ -1,8 +1,6 @@
 package config
 
 import (
-	"encoding/json"
-	"fmt"
 	"github.com/BurntSushi/toml"
 )
 
@@ -13,8 +11,8 @@ func Load(path string) (err error) {
 	if err != nil {
 		return
 	}
-	d, _ := json.MarshalIndent(Config, "", "\t")
-	fmt.Println(string(d))
+	//d, _ := json.MarshalIndent(Config, "", "\t")
+	//fmt.Println(string(d))
 	return
 }
 
@@ -41,10 +39,10 @@ type Watcher struct {
 
 type Task struct {
 	Name                 string   `toml:"name,omitempty"`
-	Target               string   `toml:"target,omitempty"`
 	BuildCommand         string   `toml:"build_command,omitempty"`
 	BuildScriptFile      string   `toml:"build_script_file,omitempty"`
 	DeployPath           string   `toml:"deploy_path,omitempty"`
+	DeploySource         string   `toml:"deploy_source,omitempty"`
 	DeployCommand        string   `toml:"deploy_command,omitempty"`
 	DeployScriptFile     string   `toml:"deploy_script_file,omitempty"`
 	DeploySupervisorFile string   `toml:"deploy_supervisor_file,omitempty"`

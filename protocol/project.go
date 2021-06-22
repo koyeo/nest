@@ -100,9 +100,9 @@ func (p *project) LoadWatcher(conf *config.Watcher) (err error) {
 func (p *project) LoadTask(conf *config.Task) (err error) {
 	item := &Task{
 		Name:          conf.Name,
-		Target:        conf.Target,
 		BuildCommand:  Statement(conf.BuildCommand),
-		DeployPath:    conf.DeployPath,
+		DeploySource:  Statement(conf.DeploySource),
+		DeployPath:    Statement(conf.DeployPath),
 		DeployCommand: Statement(conf.DeployCommand),
 	}
 	

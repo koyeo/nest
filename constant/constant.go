@@ -6,6 +6,8 @@ const (
 	CONFIG         = "config"
 	CONFIG_FLAG    = "config,c"
 	WORKSPACE      = "workspace"
-	TARGET            = "target"
+	TARGET         = "target"
 	SELF           = "self"
+	NAME           = "name"
+	BASH           = "bash"
 )
