@@ -452,7 +452,6 @@ func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, serv
 	if err != nil {
 		return
 	}
-	fmt.Println(deployDir, tarName)
 	err = execer.ServerRunCommand(sshClient, fmt.Sprintf("cd %s && tar -xzf %s", deployDir, tarName))
 	if err != nil {
 		return
