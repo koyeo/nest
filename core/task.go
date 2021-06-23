@@ -67,7 +67,7 @@ type Task struct {
 	DeployScript         []byte
 	DeploySupervisorConf []byte
 	DeployServer         []*Server
-	Flow                 []*Task
+	Pipeline             []*Task
 }
 
 func (p *Task) vars() map[string]interface{} {
@@ -79,16 +79,18 @@ func (p *Task) Run(c *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
-	if len(p.Flow) > 0 {
-		log.Println(chalk.Green.Color("[run task flow]"), p.Name)
-		for _, v := range p.Flow {
+	if len(p.Pipeline) > 0 {
+		
+		log.Println(chalk.Green.Color("[run pipeline]"), p.Name)
+		
+		for _, v := range p.Pipeline {
 			err = v.build(pwd, p.makeVars(v, pwd))
 			if err != nil {
 				return
 			}
 		}
 		
-		for _, v := range p.Flow {
+		for _, v := range p.Pipeline {
 			err = v.deploy(p.makeVars(v, pwd))
 			if err != nil {
 				return

@@ -60,7 +60,7 @@ func main() {
 				if len(core.Project.TaskManager().List()) > 0 {
 					fmt.Println(chalk.Green.Color("tasks:"))
 					for _, v := range core.Project.TaskManager().List() {
-						if len(v.Flow) > 0 {
+						if len(v.Pipeline) > 0 {
 							fmt.Printf("  %s (%s)\n", v.Name, chalk.Yellow.Color("workflow"))
 						} else {
 							fmt.Printf("  %s\n", v.Name)
