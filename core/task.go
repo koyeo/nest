@@ -398,12 +398,9 @@ func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, serv
 	workspace := vars[constant.WORKSPACE]
 	sourceDir := path.Dir(deploySource)
 	sourceName := path.Base(deploySource)
-	log.Println(chalk.Green.Color("[zip target]"), deploySource)
-	err = execer.RunCommand(
-		"",
-		sourceDir,
-		fmt.Sprintf("tar -czf %s %s && mv %s %s/%s", tarName, sourceName, tarName, workspace, tarName),
-	)
+	log.Println(chalk.Green.Color("[upload target]"), deploySource)
+	err = execer.RunCommand("", sourceDir, fmt.Sprintf("tar -czf %s %s", tarName, sourceName))
+	//fmt.Sprintf("tar -czf %s %s && mv %s %s/%s", tarName, sourceName, tarName, workspace, tarName),
 	if err != nil {
 		return
 	}
@@ -455,8 +452,8 @@ func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, serv
 	if err != nil {
 		return
 	}
-	
-	err = execer.ServerRunCommand(sshClient, fmt.Sprintf("cd %s && tar -xzvf %s", deployDir, tarName))
+	fmt.Println(deployDir, tarName)
+	err = execer.ServerRunCommand(sshClient, fmt.Sprintf("cd %s && tar -xzf %s", deployDir, tarName))
 	if err != nil {
 		return
 	}
