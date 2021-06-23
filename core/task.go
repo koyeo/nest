@@ -250,6 +250,7 @@ func (p *Task) deploy(vars map[string]string) (err error) {
 	for _, v := range p.DeployServer {
 		err = p.deployServer(v, vars)
 		if err != nil {
+			logger.Error("[deploy error]", err)
 			return
 		}
 	}
