@@ -5,10 +5,13 @@ import (
 	"github.com/koyeo/nest/config"
 	"github.com/koyeo/nest/constant"
 	"github.com/koyeo/nest/core"
+	"github.com/koyeo/nest/logger"
 	"github.com/ttacon/chalk"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/crypto/ssh"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -35,6 +38,77 @@ func main() {
 					return
 				}
 				return
+			},
+		},
+		{
+			Name:  "server",
+			Usage: "server operation",
+			Action: func(c *cli.Context) (err error) {
+				return cli.ShowCommandHelp(c, "server")
+			},
+			Subcommands: []*cli.Command{
+				{
+					Name:  "test",
+					Usage: "test server",
+					Flags: []cli.Flag{
+						&cli.StringFlag{
+							Name:    "socks",
+							Aliases: []string{"s"},
+						},
+					},
+					Action: func(c *cli.Context) (err error) {
+						err = initConfig(c)
+						if err != nil {
+							return
+						}
+						if c.Args().Len() != 1 {
+							return cli.ShowCommandHelp(c, "server test")
+						}
+						
+						serverName := c.Args().First()
+						
+						server := core.Project.ServerManager().Get(serverName)
+						if server == nil {
+							return fmt.Errorf("server '%s' not found", serverName)
+						}
+						
+						var (
+							sshClient    *ssh.Client
+							proxyAddress = c.String("socks")
+						)
+						
+						if proxyAddress != "" {
+							logger.Successf("[use socks] %s", proxyAddress)
+							sshClient, err = core.NewProxySSHClient(proxyAddress, server)
+						} else {
+							sshClient, err = core.NewSSHClient(server)
+						}
+						if err != nil {
+							return
+						}
+						
+						defer func() {
+							_ = sshClient.Close()
+						}()
+						
+						var session *ssh.Session
+						session, err = sshClient.NewSession()
+						if err != nil {
+							return
+						}
+						defer func() {
+							_ = session.Close()
+						}()
+						var bs []byte
+						bs, err = session.CombinedOutput("echo 'ok'")
+						if err != nil {
+							return
+						}
+						fmt.Println(chalk.Green.Color(strings.TrimSpace(string(bs))))
+						
+						return
+					},
+				},
 			},
 		},
 		{
@@ -85,10 +159,10 @@ func main() {
 			Name:  "run",
 			Usage: "run task",
 			Flags: []cli.Flag{
-				&cli.BoolFlag{
-					Name:    constant.FLOW,
-					Aliases: []string{"f"},
-					Usage:   "run task flow",
+				&cli.StringFlag{
+					Name:    "socks",
+					Aliases: []string{"s"},
+					Usage:   "use socks proxy, eg: 127.0.0.1:1081",
 				},
 			},
 			Action: func(c *cli.Context) (err error) {
@@ -127,6 +201,8 @@ func initConfig(c *cli.Context) error {
 	if path != "" {
 		return config.Load(path)
 	}
+	// TODO 指定项目
+	// TODO 指定配置文件
 	pwd, err := os.Getwd()
 	if err != nil {
 		return err

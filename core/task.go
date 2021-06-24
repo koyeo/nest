@@ -11,14 +11,12 @@ import (
 	"github.com/ttacon/chalk"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 )
 
 type TaskManager struct {
@@ -91,13 +89,13 @@ func (p *Task) Run(c *cli.Context) (err error) {
 		}
 		
 		for _, v := range p.Pipeline {
-			err = v.deploy(p.makeVars(v, pwd))
+			err = v.deploy(c, p.makeVars(v, pwd))
 			if err != nil {
 				return
 			}
 		}
 	} else {
-		return p.run()
+		return p.run(c)
 	}
 	
 	// clean
@@ -106,7 +104,7 @@ func (p *Task) Run(c *cli.Context) (err error) {
 	return
 }
 
-func (p *Task) run() (err error) {
+func (p *Task) run(c *cli.Context) (err error) {
 	pwd, err := os.Getwd()
 	if err != nil {
 		return
@@ -118,7 +116,7 @@ func (p *Task) run() (err error) {
 		return
 	}
 	
-	err = p.deploy(vars)
+	err = p.deploy(c, vars)
 	if err != nil {
 		return
 	}
@@ -238,7 +236,7 @@ func (p *Task) execBuildScriptFile(pwd string, vars map[string]string) (err erro
 	return
 }
 
-func (p *Task) deploy(vars map[string]string) (err error) {
+func (p *Task) deploy(c *cli.Context, vars map[string]string) (err error) {
 	
 	defer func() {
 		if err != nil {
@@ -248,7 +246,7 @@ func (p *Task) deploy(vars map[string]string) (err error) {
 	}()
 	
 	for _, v := range p.DeployServer {
-		err = p.deployServer(v, vars)
+		err = p.deployServer(c, v, vars)
 		if err != nil {
 			logger.Error("[deploy error]", err)
 			return
@@ -257,7 +255,7 @@ func (p *Task) deploy(vars map[string]string) (err error) {
 	return
 }
 
-func (p *Task) deployServer(server *Server, vars map[string]string) (err error) {
+func (p *Task) deployServer(c *cli.Context, server *Server, vars map[string]string) (err error) {
 	
 	log.Println(chalk.Green.Color("[deploy start]"), fmt.Sprintf("%s (%s)", chalk.Yellow.Color(server.Name), server.Host))
 	defer func() {
@@ -267,7 +265,15 @@ func (p *Task) deployServer(server *Server, vars map[string]string) (err error) 
 		log.Println(chalk.Green.Color("[deploy end]"), fmt.Sprintf("%s (%s)", chalk.Yellow.Color(server.Name), server.Host))
 	}()
 	
-	sshClient, err := p.newSSHClient(server)
+	var sshClient *ssh.Client
+	
+	proxyAddress := c.String("socks")
+	if proxyAddress != "" {
+		logger.Successf("[use socks] %s", proxyAddress)
+		sshClient, err = NewProxySSHClient(proxyAddress, server)
+	} else {
+		sshClient, err = NewSSHClient(server)
+	}
 	if err != nil {
 		return
 	}
@@ -275,7 +281,7 @@ func (p *Task) deployServer(server *Server, vars map[string]string) (err error) 
 		_ = sshClient.Close()
 	}()
 	
-	sftpClient, err := p.newSFTPClient(sshClient)
+	sftpClient, err := NewSFTPClient(sshClient)
 	if err != nil {
 		return
 	}
@@ -311,70 +317,6 @@ func (p *Task) deployServer(server *Server, vars map[string]string) (err error) 
 	return
 }
 
-func (p *Task) newSSHPublicKey(path string) (auth ssh.AuthMethod, err error) {
-	
-	home, err := execer.HomePath()
-	if err != nil {
-		return
-	}
-	
-	if strings.HasPrefix(path, "~") {
-		path = filepath.Join(home, strings.TrimPrefix(path, "~"))
-	}
-	
-	key, err := ioutil.ReadFile(path)
-	if err != nil {
-		return
-	}
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		return
-	}
-	auth = ssh.PublicKeys(signer)
-	
-	return
-}
-
-func (p *Task) newSSHClient(server *Server) (client *ssh.Client, err error) {
-	
-	var auth []ssh.AuthMethod
-	
-	if server.Password != "" {
-		auth = append(auth, ssh.Password(server.Password))
-	}
-	
-	if server.IdentityFile != "" {
-		var ident ssh.AuthMethod
-		ident, err = p.newSSHPublicKey(server.IdentityFile)
-		if err != nil {
-			return
-		}
-		auth = append(auth, ident)
-	}
-	
-	client, err = ssh.Dial("tcp", fmt.Sprintf("%s:%d", server.Host, server.Port), &ssh.ClientConfig{
-		User:            server.User,
-		Auth:            auth,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         5 * time.Second,
-	})
-	
-	if err != nil {
-		return
-	}
-	
-	return
-}
-
-func (p *Task) newSFTPClient(sshClient *ssh.Client) (client *sftp.Client, err error) {
-	
-	client, err = sftp.NewClient(sshClient)
-	if err != nil {
-		return
-	}
-	return
-}
-
 func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, server *Server, vars map[string]string) (err error) {
 	
 	deploySource, err := p.DeploySource.Render(vars)
@@ -398,9 +340,10 @@ func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, serv
 	//sourceName := path.Base(deploySource)
 	serverName := fmt.Sprintf("%s(%s)", server.Name, server.Host)
 	tarName := fmt.Sprintf("%s.tar.gz", deployName)
-	workspace := vars[constant.WORKSPACE]
+	//workspace := vars[constant.WORKSPACE]
 	sourceDir := path.Dir(deploySource)
 	sourceName := path.Base(deploySource)
+	sourcePath := filepath.Join(sourceDir, tarName)
 	log.Println(chalk.Green.Color("[upload target]"), deploySource)
 	err = execer.RunCommand("", sourceDir, fmt.Sprintf("tar -czf %s %s", tarName, sourceName))
 	//fmt.Sprintf("tar -czf %s %s && mv %s %s/%s", tarName, sourceName, tarName, workspace, tarName),
@@ -434,17 +377,42 @@ func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, serv
 		return
 	}
 	
-	data, err := storage.Read(filepath.Join(workspace, tarName))
+	distInfo, err := os.Stat(sourcePath)
 	if err != nil {
-		logger.Error("Read bin file error: ", err)
 		return
 	}
 	
-	_, err = file.Write(data)
+	distFile, err := os.Open(sourcePath)
 	if err != nil {
-		logger.Error("Write bin file error: ", err)
 		return
 	}
+	defer func() {
+		_ = distFile.Close()
+	}()
+	
+	size := 2 * 1024 * 1024
+	buf := make([]byte, 1024*1024)
+	total := ByteSize(distInfo.Size())
+	uploaded := int64(0)
+	for {
+		n, _ := distFile.Read(buf)
+		if n == 0 {
+			break
+		}
+		uploaded += int64(n)
+		if n < size {
+			_, err = file.Write(buf[0:n])
+		} else {
+			_, err = file.Write(buf)
+		}
+		if err != nil {
+			logger.Error("Write bin file error: ", err)
+			return
+		}
+		
+		fmt.Printf("\rtotal: %s uploaded: %s", total, ByteSize(uploaded))
+	}
+	fmt.Printf("\n")
 	
 	if strings.Contains(deployName, "/") {
 		err = fmt.Errorf("illeagel deploy target name")

@@ -6,6 +6,14 @@ port = 22
 user = "root"
 identity_file = "/Users/kun/.ssh/id_rsa"
 
+[[servers]]
+name = "aws"
+host = "54.179.7.34"
+port = 22
+user = "centos"
+identity_file = "~/.ssh/filecoinwallet.pem"
+
+
 [[watchers]]
 name = "api"
 command = ""
