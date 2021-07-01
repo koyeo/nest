@@ -14,7 +14,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.11.0
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/pkg/sftp v1.10.1
-	github.com/shopspring/decimal v1.2.0 // indirect
+	github.com/shopspring/decimal v1.2.0
 	github.com/stretchr/testify v1.4.0
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	github.com/ttacon/chalk v0.0.0-20160626202418-22c06c80ed31
