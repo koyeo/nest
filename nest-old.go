@@ -31,7 +31,7 @@ func main() {
 	app.Commands = []*cli.Command{
 		{
 			Name:  "init",
-			Usage: "init project",
+			Usage: "初始化项目",
 			Action: func(c *cli.Context) (err error) {
 				err = initConfig(c)
 				if err != nil {
@@ -42,7 +42,7 @@ func main() {
 		},
 		{
 			Name:  "server",
-			Usage: "server operation",
+			Usage: "服务器操作",
 			Action: func(c *cli.Context) (err error) {
 				return cli.ShowCommandHelp(c, "server")
 			},
@@ -113,7 +113,7 @@ func main() {
 		},
 		{
 			Name:  "list",
-			Usage: "list project tasks",
+			Usage: "列出项目任务列表",
 			Action: func(c *cli.Context) (err error) {
 				err = initConfig(c)
 				if err != nil {
@@ -146,7 +146,7 @@ func main() {
 		},
 		{
 			Name:  "watch",
-			Usage: "run watcher",
+			Usage: "文件变动监听器",
 			Action: func(c *cli.Context) (err error) {
 				err = initConfig(c)
 				if err != nil {
@@ -157,7 +157,7 @@ func main() {
 		},
 		{
 			Name:  "run",
-			Usage: "run task",
+			Usage: "执行任务",
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:    "socks",
