@@ -4,7 +4,7 @@ import (
 	"github.com/koyeo/nest/cmd/git"
 	initCmd "github.com/koyeo/nest/cmd/init"
 	"github.com/koyeo/nest/cmd/run"
-	"github.com/koyeo/nest/cmd/upload"
+	"github.com/koyeo/nest/cmd/server"
 	"github.com/koyeo/nest/cmd/watch"
 	"os"
 	
@@ -27,7 +27,7 @@ func Execute() {
 	rootCmd.AddCommand(
 		initCmd.Cmd,
 		run.Cmd,
-		upload.Cmd,
+		server.Cmd,
 		git.Cmd,
 		watch.Cmd,
 	)

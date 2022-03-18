@@ -2,6 +2,7 @@ package execer
 
 import (
 	"bufio"
+	"fmt"
 	"github.com/koyeo/nest/constant"
 	"github.com/koyeo/nest/logger"
 	"github.com/ttacon/chalk"
@@ -21,7 +22,6 @@ func Exec(dir, command string) (out string, err error) {
 	if err != nil {
 		return
 	}
-	
 	out = strings.TrimSpace(string(res))
 	
 	return
@@ -42,12 +42,13 @@ func RunCommand(shell, dir, command string) (err error) {
 	
 	stderr, err := c.StderrPipe()
 	if err != nil {
-		logger.Error("[Run remote ssh command get stderr error]", err)
+		//logger.Error("[Run remote ssh command get stderr error]", err)
+		return
 	}
 	
 	stdout, err := c.StdoutPipe()
 	if err != nil {
-		logger.Error("[Exec get stdout pipe error]", err)
+		//logger.Error("[Exec get stdout pipe error]", err)
 		return
 	}
 	
@@ -62,9 +63,14 @@ func RunCommand(shell, dir, command string) (err error) {
 	
 	wg.Add(2)
 	go func() {
+		enter := false
 		scanner := bufio.NewScanner(stdout)
 		scanner.Split(bufio.ScanBytes)
 		for scanner.Scan() {
+			if !enter {
+				enter = true
+				_, _ = os.Stderr.Write([]byte(fmt.Sprintf("%s \n", chalk.Red.Color("错误"))))
+			}
 			_, _ = os.Stdout.Write(scanner.Bytes())
 		}
 		wg.Done()
@@ -83,7 +89,7 @@ func RunCommand(shell, dir, command string) (err error) {
 	wg.Wait()
 	
 	if err != nil {
-		logger.Error("[Exec error]", err)
+		//logger.Error("[Exec error]", err)
 		return
 	}
 	
