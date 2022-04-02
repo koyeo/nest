@@ -15,18 +15,18 @@ import (
 )
 
 var (
-	src  string
-	dist string
-	host string
-	port uint64
-	user string
-	pem  string
-	yes  bool
+	uploadSrc  string
+	uploadDist string
+	uploadHost string
+	uploadPort uint64
+	uploadUser string
+	uploadPem  string
+	uploadYes  bool
 )
 
 // Cmd represents the upload command
 var Cmd = &cobra.Command{
-	Use:   "upload",
+	Use:   "server",
 	Short: "上传文件或目录到远程服务器，支持网络代理（http,socks5），远程目录询问自动创建",
 	Long:  `用于上传文件或目录到远程服务器`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -42,27 +42,27 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
-	Cmd.PersistentFlags().StringVar(&src, "src", "", "指定源文件或目录路径")
-	Cmd.PersistentFlags().StringVar(&dist, "dist", "", "指定远程存放目录路径")
-	Cmd.PersistentFlags().StringVar(&host, "host", "", "远程服务器 IP 地址，如：192.168.1.2")
-	Cmd.PersistentFlags().StringVar(&user, "user", "", "远程服务器用户，如：root")
-	Cmd.PersistentFlags().Uint64Var(&port, "port", 22, "远程服务器端口，默认采用 sftp 上传使用 22 端口")
-	Cmd.PersistentFlags().StringVar(&pem, "pem", "~/.ssh/id_rsa", "服务器认证私钥文件，默认使用: ~/.ssh/id_rsa 文件")
-	Cmd.PersistentFlags().BoolVar(&yes, "y", false, "开启默允模式，如果远程目录不存在，则自动创建，若远程目录下同名文件和目录已存在，则自动覆盖")
+	Cmd.PersistentFlags().StringVar(&uploadSrc, "src", "", "指定源文件或目录路径")
+	Cmd.PersistentFlags().StringVar(&uploadDist, "dist", "", "指定远程存放目录路径")
+	Cmd.PersistentFlags().StringVar(&uploadHost, "host", "", "远程服务器 IP 地址，如：192.168.1.2")
+	Cmd.PersistentFlags().StringVar(&uploadUser, "user", "", "远程服务器用户，如：root")
+	Cmd.PersistentFlags().Uint64Var(&uploadPort, "port", 22, "远程服务器端口，默认采用 sftp 上传使用 22 端口")
+	Cmd.PersistentFlags().StringVar(&uploadPem, "pem", "~/.ssh/id_rsa", "服务器认证私钥文件，默认使用: ~/.ssh/id_rsa 文件")
+	Cmd.PersistentFlags().BoolVar(&uploadYes, "y", false, "开启默允模式，如果远程目录不存在，则自动创建，若远程目录下同名文件和目录已存在，则自动覆盖")
 }
 
 // 执行上传
 func upload(cmd *cobra.Command) error {
-	if src == "" {
+	if uploadSrc == "" {
 		return fmt.Errorf("请指定待上传的源文件或目录路径，如 --src=./demo.txt")
 	}
-	if dist == "" {
+	if uploadDist == "" {
 		return fmt.Errorf("请指定远程存放目录路径，如 --dist=/app/demo")
 	}
-	if host == "" {
+	if uploadHost == "" {
 		return fmt.Errorf("请指定远程服务器地址，如 --host=192.168.1.168")
 	}
-	if user == "" {
+	if uploadUser == "" {
 		return fmt.Errorf("请指定远程服务器用户，如 --user=root")
 	}
 	server := PrepareUploadServer()
@@ -103,7 +103,7 @@ func Upload(server *Server) (err error) {
 			server.Host,
 		))
 	}()
-	
+
 	// 构造 Sftp 对象用以服务器操作
 	sshClient, sftpClient, err := PrepareSftpClient(server)
 	if err != nil {
@@ -113,7 +113,7 @@ func Upload(server *Server) (err error) {
 		_ = sftpClient.Close()
 		_ = sshClient.Close()
 	}()
-	
+
 	// 测试服务器连通性
 	logger.Print(chalk.Cyan.Color("[上传中] 测试服务器连通性... "))
 	err = ping(sshClient)
@@ -121,45 +121,45 @@ func Upload(server *Server) (err error) {
 		return
 	}
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	logger.Print(chalk.Cyan.Color("[上传中] 检查远程目录是否存在... "))
-	err = checkDistDir(sshClient, dist)
+	err = checkDistDir(sshClient, uploadDist)
 	if err != nil {
 		return
 	}
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	logger.Print(chalk.Cyan.Color("[上传中] 检查远程目录下同名文件或目录是否存在... "))
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	logger.Print(chalk.Cyan.Color("[上传中] 压缩本地源文件... "))
-	err = compressSrc(src)
+	err = compressSrc(uploadSrc)
 	if err != nil {
 		return
 	}
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	logger.Print(chalk.Cyan.Color("[上传中] 开始上传... "))
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	logger.Print(chalk.Cyan.Color("[上传中] 解压远程文件... "))
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	logger.Print(chalk.Cyan.Color("[上传中] 清理临时文件... "))
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	// 打印上传信息
-	
+
 	return
 }
 
 // PrepareUploadServer  准备 Server 对象
 func PrepareUploadServer() (server *Server) {
 	server = &Server{
-		Host:         host,
-		Port:         port,
-		User:         user,
-		IdentityFile: pem,
+		Host:         uploadHost,
+		Port:         uploadPort,
+		User:         uploadUser,
+		IdentityFile: uploadPem,
 	}
 	return
 }
@@ -207,7 +207,7 @@ func exec(sshClient *ssh.Client) {
 }
 
 func checkDistDir(sshClient *ssh.Client, dist string) (err error) {
-	
+
 	return
 }
 
@@ -223,7 +223,7 @@ func compressSrc(src string) (err error) {
 
 // 解压远程目标文件
 func decompressDist() {
-	fmt.Println(dist)
+	fmt.Println(uploadDist)
 }
 func GetNestTempDir() string {
 	return "./.nest/temp"
