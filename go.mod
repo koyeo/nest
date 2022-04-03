@@ -1,4 +1,4 @@
-module github.com/koyeo/nest
+module github.com/koyeo/yo
 
 go 1.13
 
