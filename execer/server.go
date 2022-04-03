@@ -3,7 +3,7 @@ package execer
 import (
 	"bufio"
 	"fmt"
-	"github.com/koyeo/nest/logger"
+	"github.com/koyeo/yo/logger"
 	"golang.org/x/crypto/ssh"
 	"os"
 	"sync"
@@ -11,37 +11,37 @@ import (
 )
 
 func ServerRunScript(sshClient *ssh.Client, script string) (err error) {
-	
+
 	err = ServerRunCommand(sshClient, fmt.Sprintf(`echo '%s' | /bin/bash -s`, script))
 	if err != nil {
 		return
 	}
-	
+
 	return
 }
 
 func ServerRunCommand(sshClient *ssh.Client, command string) (err error) {
-	
+
 	session, err := sshClient.NewSession()
 	if err != nil {
 		logger.Error("New remote ssh session error: ", err)
 		return
 	}
-	
+
 	defer func() {
 		_ = session.Close()
 	}()
-	
+
 	stderr, err := session.StderrPipe()
 	if err != nil {
 		logger.Error("[Run remote ssh command get stderr error]", err)
 	}
-	
+
 	stdout, err := session.StdoutPipe()
 	if err != nil {
 		logger.Error("[Run remote ssh command get stdout error]", err)
 	}
-	
+
 	out := make(chan string, 1048576)
 	defer func() {
 		for len(out) > 0 {
@@ -49,10 +49,10 @@ func ServerRunCommand(sshClient *ssh.Client, command string) (err error) {
 			close(out)
 		}
 	}()
-	
+
 	var wg sync.WaitGroup
 	wg.Add(2)
-	
+
 	//go func() {
 	//	scanner := bufio.NewScanner(stdout)
 	//	scanner.Split(bufio.ScanLines)
@@ -79,7 +79,7 @@ func ServerRunCommand(sshClient *ssh.Client, command string) (err error) {
 	//		}
 	//	}
 	//}()
-	
+
 	go func() {
 		scanner := bufio.NewScanner(stdout)
 		scanner.Split(bufio.ScanBytes)
@@ -88,7 +88,7 @@ func ServerRunCommand(sshClient *ssh.Client, command string) (err error) {
 		}
 		wg.Done()
 	}()
-	
+
 	go func() {
 		scanner := bufio.NewScanner(stderr)
 		scanner.Split(bufio.ScanBytes)
@@ -97,13 +97,13 @@ func ServerRunCommand(sshClient *ssh.Client, command string) (err error) {
 		}
 		wg.Done()
 	}()
-	
+
 	err = session.Run(command)
 	if err != nil {
 		return
 	}
 	wg.Wait()
-	
+
 	return
 }
 

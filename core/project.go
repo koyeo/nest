@@ -2,9 +2,9 @@ package core
 
 import (
 	"fmt"
-	"github.com/koyeo/nest/config"
-	"github.com/koyeo/nest/execer"
-	"github.com/koyeo/nest/storage"
+	"github.com/koyeo/yo/config"
+	"github.com/koyeo/yo/execer"
+	"github.com/koyeo/yo/storage"
 	"path/filepath"
 	"strings"
 )
@@ -73,12 +73,12 @@ func (p *project) LoadServer(conf *config.Server) (err error) {
 		Password:     conf.Password,
 		IdentityFile: conf.IdentityFile,
 	}
-	
+
 	err = p.ServerManager().Add(item)
 	if err != nil {
 		return
 	}
-	
+
 	if strings.HasPrefix(conf.IdentityFile, "~") {
 		var home string
 		home, err = execer.HomePath()
@@ -87,7 +87,7 @@ func (p *project) LoadServer(conf *config.Server) (err error) {
 		}
 		conf.IdentityFile = filepath.Join(home, strings.TrimPrefix(conf.IdentityFile, "~"))
 	}
-	
+
 	if !storage.Exist(conf.IdentityFile) {
 		err = fmt.Errorf("server '%s' identity_file '%s' not exist", item.Name, item.IdentityFile)
 		return
@@ -101,7 +101,7 @@ func (p *project) LoadWatcher(conf *config.Watcher) (err error) {
 		Command: conf.Command,
 		Watch:   conf.Watch,
 	}
-	
+
 	err = p.WatcherManager().Add(item)
 	if err != nil {
 		return
@@ -117,12 +117,12 @@ func (p *project) LoadTask(conf *config.Task) (err error) {
 		DeployPath:    Statement(conf.DeployPath),
 		DeployCommand: Statement(conf.DeployCommand),
 	}
-	
+
 	err = p.TaskManager().Add(item)
 	if err != nil {
 		return
 	}
-	
+
 	if conf.BuildScriptFile != "" {
 		if !storage.Exist(conf.BuildScriptFile) {
 			err = fmt.Errorf("task '%s' build_script_file '%s' not exist", item.Name, conf.BuildScriptFile)
@@ -130,7 +130,7 @@ func (p *project) LoadTask(conf *config.Task) (err error) {
 		}
 		item.BuildScriptFile = conf.BuildScriptFile
 	}
-	
+
 	if conf.DeployScriptFile != "" {
 		if !storage.Exist(conf.DeployScriptFile) {
 			err = fmt.Errorf("task '%s' deploy_script_file '%s' not exist", item.Name, conf.BuildScriptFile)
@@ -142,7 +142,7 @@ func (p *project) LoadTask(conf *config.Task) (err error) {
 			return
 		}
 	}
-	
+
 	if conf.DeploySupervisorFile != "" {
 		if !storage.Exist(conf.DeploySupervisorFile) {
 			err = fmt.Errorf("task '%s' deploy_supervisor_file '%s' not exist", item.Name, conf.DeploySupervisorFile)
@@ -154,7 +154,7 @@ func (p *project) LoadTask(conf *config.Task) (err error) {
 			return
 		}
 	}
-	
+
 	for _, v := range conf.DeployServer {
 		server := p.ServerManager().Get(v)
 		if server == nil {
@@ -163,7 +163,7 @@ func (p *project) LoadTask(conf *config.Task) (err error) {
 		}
 		item.DeployServer = append(item.DeployServer, server)
 	}
-	
+
 	return
 }
 

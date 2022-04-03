@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/koyeo/nest/config"
-	"github.com/koyeo/nest/constant"
-	"github.com/koyeo/nest/core"
-	"github.com/koyeo/nest/logger"
+	"github.com/koyeo/yo/config"
+	"github.com/koyeo/yo/constant"
+	"github.com/koyeo/yo/core"
+	"github.com/koyeo/yo/logger"
 	"github.com/ttacon/chalk"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/crypto/ssh"
@@ -64,19 +64,19 @@ func main() {
 						if c.Args().Len() != 1 {
 							return cli.ShowCommandHelp(c, "server test")
 						}
-						
+
 						serverName := c.Args().First()
-						
+
 						server := core.Project.ServerManager().Get(serverName)
 						if server == nil {
 							return fmt.Errorf("server '%s' not found", serverName)
 						}
-						
+
 						var (
 							sshClient    *ssh.Client
 							proxyAddress = c.String("socks")
 						)
-						
+
 						if proxyAddress != "" {
 							logger.Successf("[use socks] %s", proxyAddress)
 							sshClient, err = core.NewProxySSHClient(proxyAddress, server)
@@ -86,11 +86,11 @@ func main() {
 						if err != nil {
 							return
 						}
-						
+
 						defer func() {
 							_ = sshClient.Close()
 						}()
-						
+
 						var session *ssh.Session
 						session, err = sshClient.NewSession()
 						if err != nil {
@@ -105,7 +105,7 @@ func main() {
 							return
 						}
 						fmt.Println(chalk.Green.Color(strings.TrimSpace(string(bs))))
-						
+
 						return
 					},
 				},
@@ -184,7 +184,7 @@ func main() {
 						return
 					}
 				}
-				
+
 				return
 			},
 		},
@@ -211,7 +211,7 @@ func initConfig(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	
+
 	err = core.Project.LoadConfig()
 	if err != nil {
 		return err
