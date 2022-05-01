@@ -1,4 +1,4 @@
-package core
+package unit
 
 import (
 	"errors"
@@ -32,7 +32,7 @@ var invalidByteQuantityError = errors.New("byte quantity must be a positive inte
 func ByteSize(bytes int64) string {
 	unit := ""
 	value := float64(bytes)
-	
+
 	switch {
 	case bytes >= EXABYTE:
 		unit = "E"
@@ -57,7 +57,7 @@ func ByteSize(bytes int64) string {
 	case bytes == 0:
 		return "0"
 	}
-	
+
 	return decimal.NewFromFloat(value).Round(2).String() + unit
 }
 
@@ -67,7 +67,7 @@ func ToMegabytes(s string) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	
+
 	return bytes / MEGABYTE, nil
 }
 
@@ -81,19 +81,19 @@ func ToMegabytes(s string) (uint64, error) {
 func ToBytes(s string) (uint64, error) {
 	s = strings.TrimSpace(s)
 	s = strings.ToUpper(s)
-	
+
 	i := strings.IndexFunc(s, unicode.IsLetter)
-	
+
 	if i == -1 {
 		return 0, invalidByteQuantityError
 	}
-	
+
 	bytesString, multiple := s[:i], s[i:]
 	bytes, err := strconv.ParseFloat(bytesString, 64)
 	if err != nil || bytes <= 0 {
 		return 0, invalidByteQuantityError
 	}
-	
+
 	switch multiple {
 	case "E", "EB", "EIB":
 		return uint64(bytes * EXABYTE), nil

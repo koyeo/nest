@@ -3,7 +3,6 @@ package runner
 import (
 	"fmt"
 	"github.com/gozelle/_exec"
-	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/protocol"
 )
 
@@ -63,7 +62,7 @@ func (p TaskRunner) use(key string) error {
 
 	task, ok := p.conf.Tasks[key]
 	if !ok {
-		return fmt.Errorf("use task: %s not found", key)
+		return fmt.Errorf("use task: '%s' not found", key)
 	}
 	taskRunner := NewTaskRunner(p.conf, task, key)
 
@@ -75,12 +74,48 @@ func (p TaskRunner) use(key string) error {
 }
 
 func (p TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
-	fmt.Println("略过部署")
+	servers := map[string]*protocol.Server{}
+	for _, v := range deploy.Servers {
+		if v.Use != "" {
+			server, ok := p.conf.Servers[v.Use]
+			if !ok {
+				err = fmt.Errorf("deploy use server: '%s' not exists", v.Use)
+				return
+			}
+			servers[server.Host] = server
+		} else {
+			servers[v.Host] = v
+		}
+	}
+	for key, server := range servers {
+		if server.Host == "" {
+			err = fmt.Errorf("deploy server host is empty")
+			return
+		}
+		serverRunner := NewServerRunner(p.conf, server, key)
+		for _, mapper := range deploy.Mappers {
+			err = serverRunner.Upload(mapper.Source, mapper.Target)
+			if err != nil {
+				return
+			}
+		}
+	}
+	for key, server := range servers {
+		serverRunner := NewServerRunner(p.conf, server, key)
+		for _, execute := range deploy.Executes {
+			err = serverRunner.Exec(execute.Run)
+			if err != nil {
+				err = fmt.Errorf("server execute error: %s", err)
+				return
+			}
+		}
+	}
+
 	return
 }
 
 func (p TaskRunner) execute(step *protocol.Step) (err error) {
-	logger.Print(fmt.Sprintf("执行命令: %s\n", step.Run))
+	//logger.Print(fmt.Sprintf("执行命令: %s\n", step.Run))
 	runner := _exec.NewRunner()
 	runner.AddCommand(step.Run)
 	runner.SetEnviron(p.prepareEnviron())

@@ -6,6 +6,7 @@ import (
 	"github.com/koyeo/nest/execer"
 	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/storage"
+	"github.com/koyeo/nest/utils/unit"
 	"github.com/koyeo/snowflake"
 	"github.com/pkg/sftp"
 	"github.com/ttacon/chalk"
@@ -25,22 +26,22 @@ type TaskManager struct {
 }
 
 func (p *TaskManager) Add(item *Task) error {
-	
+
 	if item.Name == "" {
 		return fmt.Errorf("task with empty name")
 	}
-	
+
 	if p._map == nil {
 		p._map = map[string]*Task{}
 	}
-	
+
 	if _, ok := p._map[item.Name]; ok {
 		return fmt.Errorf("duplicated task: %s", item.Name)
 	}
-	
+
 	p._map[item.Name] = item
 	p._list = append(p._list, item)
-	
+
 	return nil
 }
 
@@ -78,16 +79,16 @@ func (p *Task) Run(c *cli.Context) (err error) {
 		return
 	}
 	if len(p.Pipeline) > 0 {
-		
+
 		log.Println(chalk.Green.Color("[run pipeline]"), p.Name)
-		
+
 		for _, v := range p.Pipeline {
 			err = v.build(pwd, p.makeVars(v, pwd))
 			if err != nil {
 				return
 			}
 		}
-		
+
 		for _, v := range p.Pipeline {
 			err = v.deploy(c, p.makeVars(v, pwd))
 			if err != nil {
@@ -97,10 +98,10 @@ func (p *Task) Run(c *cli.Context) (err error) {
 	} else {
 		return p.run(c)
 	}
-	
+
 	// clean
 	_ = storage.Remove(filepath.Join(pwd, constant.NEST_WORKSPACE))
-	
+
 	return
 }
 
@@ -115,14 +116,14 @@ func (p *Task) run(c *cli.Context) (err error) {
 	if err != nil {
 		return
 	}
-	
+
 	err = p.deploy(c, vars)
 	if err != nil {
 		return
 	}
-	
+
 	logger.Successf("[Done]")
-	
+
 	return
 }
 
@@ -135,16 +136,16 @@ func (p *Task) makeVars(task *Task, pwd string) map[string]string {
 }
 
 func (p *Task) build(pwd string, vars map[string]string) (err error) {
-	
+
 	defer func() {
 		if err != nil {
 			err = nil
 			os.Exit(1)
 		}
 	}()
-	
+
 	printBuild := false
-	
+
 	if p.BuildCommand != "" {
 		printBuild = true
 		log.Println(chalk.Green.Color("[build start]"))
@@ -153,7 +154,7 @@ func (p *Task) build(pwd string, vars map[string]string) (err error) {
 			return
 		}
 	}
-	
+
 	if p.BuildScriptFile != "" {
 		if !printBuild {
 			printBuild = true
@@ -179,9 +180,9 @@ func (p *Task) execBuildCommand(pwd string, vars map[string]string) (err error) 
 	if !storage.Exist(workspace) {
 		storage.MakeDir(workspace)
 	}
-	
+
 	log.Println(chalk.Green.Color("[exec command]"), command)
-	
+
 	err = execer.RunCommand("", pwd, command)
 	if err != nil {
 		return
@@ -190,30 +191,30 @@ func (p *Task) execBuildCommand(pwd string, vars map[string]string) (err error) 
 }
 
 func (p *Task) execBuildScriptFile(pwd string, vars map[string]string) (err error) {
-	
+
 	bs, err := storage.Read(p.BuildScriptFile)
 	if err != nil {
 		err = fmt.Errorf("task '%s' read build_script_file='%s' error: %s", p.Name, p.BuildScriptFile, err)
 		return
 	}
-	
+
 	content, err := Statement(bs).Render(vars)
 	if err != nil {
 		return
 	}
-	
+
 	gen, err := snowflake.DefaultGenerator(1)
 	if err != nil {
 		err = fmt.Errorf("new snowflake generate error: %s", err)
 		return
 	}
-	
+
 	id, err := gen.Generate()
 	if err != nil {
 		err = fmt.Errorf("snowflake generate id error: %s", err)
 		return
 	}
-	
+
 	tmpName := fmt.Sprintf("%s-%s", filepath.Base(p.BuildScriptFile), id.String())
 	tmpScript := filepath.Join(vars[constant.WORKSPACE], tmpName)
 	err = storage.Write(tmpScript, []byte(content))
@@ -221,30 +222,30 @@ func (p *Task) execBuildScriptFile(pwd string, vars map[string]string) (err erro
 		err = fmt.Errorf("write tmp script error: %s", err)
 		return
 	}
-	
+
 	defer func() {
 		_ = storage.Remove(tmpScript)
 	}()
-	
+
 	log.Println(chalk.Green.Color("[exec script]"), p.BuildScriptFile)
-	
+
 	err = execer.RunScript("", pwd, tmpScript)
 	if err != nil {
 		return
 	}
-	
+
 	return
 }
 
 func (p *Task) deploy(c *cli.Context, vars map[string]string) (err error) {
-	
+
 	defer func() {
 		if err != nil {
 			err = nil
 			os.Exit(1)
 		}
 	}()
-	
+
 	for _, v := range p.DeployServer {
 		err = p.deployServer(c, v, vars)
 		if err != nil {
@@ -256,7 +257,7 @@ func (p *Task) deploy(c *cli.Context, vars map[string]string) (err error) {
 }
 
 func (p *Task) deployServer(c *cli.Context, server *Server, vars map[string]string) (err error) {
-	
+
 	log.Println(chalk.Green.Color("[deploy start]"), fmt.Sprintf("%s (%s)", chalk.Yellow.Color(server.Name), server.Host))
 	defer func() {
 		if err != nil {
@@ -264,9 +265,9 @@ func (p *Task) deployServer(c *cli.Context, server *Server, vars map[string]stri
 		}
 		log.Println(chalk.Green.Color("[deploy end]"), fmt.Sprintf("%s (%s)", chalk.Yellow.Color(server.Name), server.Host))
 	}()
-	
+
 	var sshClient *ssh.Client
-	
+
 	proxyAddress := c.String("socks")
 	if proxyAddress != "" {
 		logger.Successf("[use socks] %s", proxyAddress)
@@ -280,7 +281,7 @@ func (p *Task) deployServer(c *cli.Context, server *Server, vars map[string]stri
 	defer func() {
 		_ = sshClient.Close()
 	}()
-	
+
 	sftpClient, err := NewSFTPClient(sshClient)
 	if err != nil {
 		return
@@ -288,13 +289,13 @@ func (p *Task) deployServer(c *cli.Context, server *Server, vars map[string]stri
 	defer func() {
 		_ = sftpClient.Close()
 	}()
-	
+
 	err = p.uploadTarget(sshClient, sftpClient, server, vars)
 	if err != nil {
 		logger.Error("[deploy error]", err)
 		return
 	}
-	
+
 	if p.DeployCommand != "" {
 		var cmd string
 		cmd, err = p.DeployCommand.Render(vars)
@@ -306,35 +307,35 @@ func (p *Task) deployServer(c *cli.Context, server *Server, vars map[string]stri
 			return
 		}
 	}
-	
+
 	if len(p.DeployScript) > 0 {
 		err = execer.ServerRunScript(sshClient, string(p.DeployScript))
 		if err != nil {
 			return
 		}
 	}
-	
+
 	return
 }
 
 func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, server *Server, vars map[string]string) (err error) {
-	
+
 	deploySource, err := p.DeploySource.Render(vars)
 	if err != nil {
 		return
 	}
-	
+
 	deployPath, err := p.DeployPath.Render(vars)
 	if err != nil {
 		return
 	}
-	
+
 	reg := regexp.MustCompile(`/.+`)
 	if !reg.MatchString(deployPath) {
 		err = fmt.Errorf("iggleal deployt path: %s", deployPath)
 		return
 	}
-	
+
 	deployDir := path.Dir(deployPath)
 	deployName := path.Base(deployPath)
 	//sourceName := path.Base(deploySource)
@@ -350,7 +351,7 @@ func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, serv
 	if err != nil {
 		return
 	}
-	
+
 	info, err := sftpClient.Stat(deployDir)
 	if err == nil {
 		if !info.IsDir() {
@@ -369,19 +370,19 @@ func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, serv
 			return
 		}
 	}
-	
+
 	targetFile := filepath.Join(deployDir, tarName)
 	file, err := sftpClient.Create(targetFile)
 	if err != nil {
 		logger.Error("Create bin file error: ", err)
 		return
 	}
-	
+
 	distInfo, err := os.Stat(sourcePath)
 	if err != nil {
 		return
 	}
-	
+
 	distFile, err := os.Open(sourcePath)
 	if err != nil {
 		return
@@ -389,10 +390,10 @@ func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, serv
 	defer func() {
 		_ = distFile.Close()
 	}()
-	
+
 	size := 2 * 1024 * 1024
 	buf := make([]byte, 1024*1024)
-	total := ByteSize(distInfo.Size())
+	total := unit.ByteSize(distInfo.Size())
 	uploaded := int64(0)
 	for {
 		n, _ := distFile.Read(buf)
@@ -409,16 +410,16 @@ func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, serv
 			logger.Error("Write bin file error: ", err)
 			return
 		}
-		
-		fmt.Printf("\rtotal: %s uploaded: %s", total, ByteSize(uploaded))
+
+		fmt.Printf("\rtotal: %s uploaded: %s", total, unit.ByteSize(uploaded))
 	}
 	fmt.Printf("\n")
-	
+
 	if strings.Contains(deployName, "/") {
 		err = fmt.Errorf("illeagel deploy target name")
 		return
 	}
-	
+
 	err = execer.ServerRunCommand(sshClient, fmt.Sprintf("cd %s && rm -rf %s", deployDir, deployName))
 	if err != nil {
 		return
@@ -427,11 +428,11 @@ func (p *Task) uploadTarget(sshClient *ssh.Client, sftpClient *sftp.Client, serv
 	if err != nil {
 		return
 	}
-	
+
 	err = execer.ServerRunCommand(sshClient, fmt.Sprintf("rm %s", targetFile))
 	if err != nil {
 		return
 	}
-	
+
 	return
 }

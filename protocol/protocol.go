@@ -11,9 +11,10 @@ type Server struct {
 	Alias        string `yaml:"alias"`
 	Use          string `yaml:"use"`
 	Host         string `yaml:"host"`
+	Port         int    `yaml:"port"`
 	User         string `yaml:"user"`
 	Password     string `yaml:"password"`
-	IdentifyFile string `yaml:"identify_file"`
+	IdentityFile string `yaml:"identity_file"`
 }
 
 type Task struct {
