@@ -9,7 +9,7 @@ import (
 // Cmd represents the run command
 var Cmd = &cobra.Command{
 	Use:   "run",
-	Short: "执行任务，可用通过任务组织形成应用的构建部署自动工作流",
+	Short: "执行任务",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 

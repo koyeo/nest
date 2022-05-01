@@ -1,10 +1,10 @@
-package server
+package upload
 
 import (
 	"fmt"
-	"github.com/koyeo/yo/execer"
-	"github.com/koyeo/yo/logger"
-	"github.com/koyeo/yo/storage"
+	"github.com/koyeo/nest/execer"
+	"github.com/koyeo/nest/logger"
+	"github.com/koyeo/nest/storage"
 	"github.com/pkg/sftp"
 	"github.com/spf13/cobra"
 	"github.com/ttacon/chalk"
@@ -26,9 +26,9 @@ var (
 
 // Cmd represents the upload command
 var Cmd = &cobra.Command{
-	Use:   "server",
-	Short: "上传文件或目录到远程服务器，支持网络代理（http,socks5），远程目录询问自动创建",
-	Long:  `用于上传文件或目录到远程服务器`,
+	Use:   "upload",
+	Short: "上传文件或目录到远程服务器",
+	Long:  `用于上传文件或目录到远程服务器,支持网络代理（http,socks5），远程目录询问自动创建`,
 	Run: func(cmd *cobra.Command, args []string) {
 		err := upload(cmd)
 		if err != nil {
@@ -48,7 +48,7 @@ func init() {
 	Cmd.PersistentFlags().StringVar(&uploadUser, "user", "", "远程服务器用户，如：root")
 	Cmd.PersistentFlags().Uint64Var(&uploadPort, "port", 22, "远程服务器端口，默认采用 sftp 上传使用 22 端口")
 	Cmd.PersistentFlags().StringVar(&uploadPem, "pem", "~/.ssh/id_rsa", "服务器认证私钥文件，默认使用: ~/.ssh/id_rsa 文件")
-	Cmd.PersistentFlags().BoolVar(&uploadYes, "y", false, "开启默允模式，如果远程目录不存在，则自动创建，若远程目录下同名文件和目录已存在，则自动覆盖")
+	//Cmd.PersistentFlags().BoolVar(&uploadYes, "y", false, "开启默允模式，如果远程目录不存在，则自动创建，若远程目录下同名文件和目录已存在，则自动覆盖")
 }
 
 // 执行上传
@@ -103,7 +103,7 @@ func Upload(server *Server) (err error) {
 			server.Host,
 		))
 	}()
-
+	
 	// 构造 Sftp 对象用以服务器操作
 	sshClient, sftpClient, err := PrepareSftpClient(server)
 	if err != nil {
@@ -113,7 +113,7 @@ func Upload(server *Server) (err error) {
 		_ = sftpClient.Close()
 		_ = sshClient.Close()
 	}()
-
+	
 	// 测试服务器连通性
 	logger.Print(chalk.Cyan.Color("[上传中] 测试服务器连通性... "))
 	err = ping(sshClient)
@@ -121,35 +121,35 @@ func Upload(server *Server) (err error) {
 		return
 	}
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-
+	
 	logger.Print(chalk.Cyan.Color("[上传中] 检查远程目录是否存在... "))
 	err = checkDistDir(sshClient, uploadDist)
 	if err != nil {
 		return
 	}
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-
+	
 	logger.Print(chalk.Cyan.Color("[上传中] 检查远程目录下同名文件或目录是否存在... "))
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-
+	
 	logger.Print(chalk.Cyan.Color("[上传中] 压缩本地源文件... "))
 	err = compressSrc(uploadSrc)
 	if err != nil {
 		return
 	}
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-
+	
 	logger.Print(chalk.Cyan.Color("[上传中] 开始上传... "))
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-
+	
 	logger.Print(chalk.Cyan.Color("[上传中] 解压远程文件... "))
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-
+	
 	logger.Print(chalk.Cyan.Color("[上传中] 清理临时文件... "))
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-
+	
 	// 打印上传信息
-
+	
 	return
 }
 
@@ -207,7 +207,7 @@ func exec(sshClient *ssh.Client) {
 }
 
 func checkDistDir(sshClient *ssh.Client, dist string) (err error) {
-
+	
 	return
 }
 

@@ -1,14 +1,12 @@
 package cmd
 
 import (
-	"github.com/koyeo/yo/cmd/git"
-	initCmd "github.com/koyeo/yo/cmd/init"
-	"github.com/koyeo/yo/cmd/run"
-	"github.com/koyeo/yo/cmd/server"
-	"github.com/koyeo/yo/cmd/watch"
-	"os"
-
+	"github.com/koyeo/nest/cmd/initialize"
+	"github.com/koyeo/nest/cmd/list"
+	"github.com/koyeo/nest/cmd/run"
+	"github.com/koyeo/nest/cmd/upload"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -25,11 +23,10 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	rootCmd.AddCommand(
-		initCmd.Cmd,
+		initialize.Cmd,
 		run.Cmd,
-		server.Cmd,
-		git.Cmd,
-		watch.Cmd,
+		list.Cmd,
+		upload.Cmd,
 	)
 	err := rootCmd.Execute()
 	if err != nil {
@@ -38,13 +35,5 @@ func Execute() {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
-
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.nest.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

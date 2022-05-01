@@ -1,7 +1,7 @@
 ##########################################################
 #                        Nest                            #
 #            用于快速部署本地本地构建部署工具                 #
-#          官方文档: https://nest.kozilla.io              #
+#            官方文档: https://nestutil.com               #
 ##########################################################
 version: 1.0
 servers:
@@ -18,6 +18,8 @@ tasks:
   161:
     comment: 161 集成服务
     branches: [ 'test' ]
+    watch:
+      - main.go
     envs:
       GOG: sgsr
     steps:

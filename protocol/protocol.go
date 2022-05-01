@@ -1,6 +1,6 @@
 package protocol
 
-type Protocol struct {
+type Config struct {
 	Version string
 	Servers map[string]*Server
 	Envs    map[string]string

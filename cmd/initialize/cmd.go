@@ -1,12 +1,12 @@
-package init
+package initialize
 
 import (
-	"github.com/koyeo/yo/config"
-	"github.com/koyeo/yo/constant"
-	"github.com/koyeo/yo/core"
+	"github.com/koyeo/nest/config"
+	"github.com/koyeo/nest/constant"
+	"github.com/koyeo/nest/core"
 	"os"
 	"path/filepath"
-
+	
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +35,7 @@ func initConfig(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-
+	
 	err = core.Project.LoadConfig()
 	if err != nil {
 		return err
