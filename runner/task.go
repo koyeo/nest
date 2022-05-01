@@ -92,6 +92,7 @@ func (p TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 			err = fmt.Errorf("deploy server host is empty")
 			return
 		}
+		//logger.Print(fmt.Sprintf("server: %s uploading:\n", key))
 		serverRunner := NewServerRunner(p.conf, server, key)
 		for _, mapper := range deploy.Mappers {
 			err = serverRunner.Upload(mapper.Source, mapper.Target)
@@ -103,10 +104,12 @@ func (p TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	for key, server := range servers {
 		serverRunner := NewServerRunner(p.conf, server, key)
 		for _, execute := range deploy.Executes {
-			err = serverRunner.Exec(execute.Run)
-			if err != nil {
-				err = fmt.Errorf("server execute error: %s", err)
-				return
+			if execute.Run != "" {
+				err = serverRunner.PipeExec(execute.Run)
+				if err != nil {
+					err = fmt.Errorf("server execute error: %s", err)
+					return
+				}
 			}
 		}
 	}

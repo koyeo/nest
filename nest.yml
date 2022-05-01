@@ -6,8 +6,8 @@
 version: 1.0
 cache: ./nest
 servers:
-  161:
-    host: 192.168.1.1
+  dell:
+    host: 192.168.1.10
     user: root
 envs:
   NODE_ENV: ok
@@ -29,13 +29,14 @@ tasks:
       #- run: ./build.sh
       - deploy:
           servers:
-            - use: 161
-            - host: 191.168.1.199
-              alias: 生产主机
-              user: root
+            - use: dell
+          #            - host: 191.168.1.199
+          #              alias: 生产主机
+          #              user: root
           mappers:
-            - source: ./main
-              target: /app/nest/bin/server_bin
+            - source: ./readme.md
+              target: /app/nest/readme.md
+            - source: ./assets
+              target: /app/nest/static/
           executes:
-            - run: supervisorctl restart server_bin
-            - run:
+            - run: echo 'uploaded'

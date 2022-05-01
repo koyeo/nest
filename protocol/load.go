@@ -7,7 +7,7 @@ import (
 )
 
 func Load(path string) (config *Config, err error) {
-	ok, err := _fs.Exist(path)
+	ok, err := _fs.Exists(path)
 	if err != nil {
 		return
 	}
