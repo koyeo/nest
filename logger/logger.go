@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime/debug"
 	"strings"
+	"time"
 )
 
 func Done() {
@@ -53,6 +54,14 @@ func TemplateError(msg string, err error) {
 	}
 	errMsg := err.Error()
 	log.Println(chalk.Red.Color(msg), chalk.Red.Color(chalk.Bold.TextStyle(errMsg)))
+}
+
+func Success(msg string) {
+	log.Println(chalk.Green.Color(msg), chalk.Green.Color(msg))
+}
+
+func Print(msg string) {
+	fmt.Printf(fmt.Sprintf("%s %s", time.Now().Format(time.RFC3339), msg))
 }
 
 func Error(msg string, err error) {

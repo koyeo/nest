@@ -1,0 +1,42 @@
+##########################################################
+#                        Nest                            #
+#            用于快速部署本地本地构建部署工具                 #
+#            官方文档: https://nestutil.com               #
+##########################################################
+version: 1.0
+cache: ./nest
+servers:
+  dell:
+    host: 192.168.1.10
+    user: root
+envs:
+  NODE_ENV: ok
+tasks:
+  generate:
+    comment: 打包静态资源
+    steps:
+      - run: echo 'Im generate'
+  161:
+    comment: 161 集成服务
+    branches: [ 'test' ]
+    watch:
+      - main.go
+    envs:
+      GOG: sgsr
+    steps:
+      - use: generate
+      - run: echo 'Hello world'
+      #- run: ./build.sh
+      - deploy:
+          servers:
+            - use: dell
+          #            - host: 191.168.1.199
+          #              alias: 生产主机
+          #              user: root
+          mappers:
+            - source: ./readme.md
+              target: /app/nest/readme.md
+            - source: ./assets
+              target: /app/nest/static/
+          executes:
+            - run: echo 'uploaded'
