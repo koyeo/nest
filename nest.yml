@@ -14,7 +14,7 @@ tasks:
   generate:
     comment: 打包静态资源
     steps:
-      - run: go package 123
+      - run: echo 'Im generate'
   161:
     comment: 161 集成服务
     branches: [ 'test' ]
@@ -24,8 +24,8 @@ tasks:
       GOG: sgsr
     steps:
       - use: generate
-      - run: go build main.go
-      - run: ./build.sh
+      - run: echo 'Hello world'
+      #- run: ./build.sh
       - deploy:
           servers:
             - use: 161

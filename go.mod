@@ -8,6 +8,8 @@ require (
 	github.com/godbus/dbus v4.1.0+incompatible // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20190915194858-d3ddacdb130f // indirect
 	github.com/gopherjs/gopherwasm v1.1.0 // indirect
+	github.com/gozelle/_exec v0.0.0-20220501053948-415f944d2e35 // indirect
+	github.com/gozelle/_fs v0.0.0-20220501080831-f3cc28e31374 // indirect
 	github.com/koyeo/snowflake v0.0.0-20210608015607-9634a808f637
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/pkg/sftp v1.10.1
@@ -21,4 +23,9 @@ require (
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 	golang.org/x/net v0.0.0-20210813160813-60bc85c4be6d
 	gopkg.in/toast.v1 v1.0.0-20180812000517-0a84660828b2 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+)
+
+replace (
+	github.com/gozelle/_exec latest => ../_exec
 )
