@@ -1,0 +1,33 @@
+version: 1.0
+servers:
+  161:
+    host: 192.168.1.1
+    user: root
+envs:
+  NODE_ENV: ok
+tasks:
+  generate:
+    comment: 打包静态资源
+    setps:
+      - run: go package 123
+  161:
+    comment: 161 集成服务
+    branches: [ 'test' ]
+    envs:
+      GOG: sgsr
+    steps:
+      - use: generate
+      - run: go build main.go
+      - run: ./build.sh
+      - deploy:
+          servers:
+            - use: 161
+            - host: 191.168.1.199
+              alias: 生产主机
+              user: root
+          mapping:
+            - source: ./main
+              target: /app/nest/bin/server_bin
+          executes:
+            - run: supervisorctl restart server_bin
+            - run:
