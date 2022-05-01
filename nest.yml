@@ -1,3 +1,8 @@
+##########################################################
+#                        Nest                            #
+#            用于快速部署本地本地构建部署工具                 #
+#          官方文档: https://nest.kozilla.io              #
+##########################################################
 version: 1.0
 servers:
   161:
@@ -8,7 +13,7 @@ envs:
 tasks:
   generate:
     comment: 打包静态资源
-    setps:
+    steps:
       - run: go package 123
   161:
     comment: 161 集成服务
@@ -25,7 +30,7 @@ tasks:
             - host: 191.168.1.199
               alias: 生产主机
               user: root
-          mapping:
+          mappers:
             - source: ./main
               target: /app/nest/bin/server_bin
           executes:
