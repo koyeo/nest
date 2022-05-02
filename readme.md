@@ -8,6 +8,8 @@
 go install github.com/koyeo/nest
 ```
 
+> 注： go install 将会把 nest 编译安装在 $GOPATH/bin 目录下， 安装前请检查 $GOPATH 指向位置，且是否添加的 $PATH 路径下。
+
 ## 项目初始化
 
 ```bash
