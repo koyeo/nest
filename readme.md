@@ -10,7 +10,7 @@ go install github.com/koyeo/nest@latest
 
 > 注： go install 将会把 nest 编译安装在 $GOPATH/bin 目录下， 安装前请检查 $GOPATH 指向位置，且是否添加的 $PATH 路径下。
 
-## 项目初始化
+## 初始化配置
 
 ```bash
 nest init
@@ -19,7 +19,7 @@ nest init
 1. 如果目录下不存在 `nest.yml` 文件，则创建该文件。
 2. 在 `.gitignore` 添加 `.nest` 行，以忽略 Nest 临时工作目录。
 
-## 第一个工作流
+## 第一个任务
 
 通过一些配置示例，实现如下功能：
 
