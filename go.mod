@@ -1,4 +1,4 @@
-module github.com/koyeo/yo
+module github.com/koyeo/nest
 
 go 1.13
 
@@ -8,8 +8,8 @@ require (
 	github.com/godbus/dbus v4.1.0+incompatible // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20190915194858-d3ddacdb130f // indirect
 	github.com/gopherjs/gopherwasm v1.1.0 // indirect
-	github.com/gozelle/_exec v0.0.0-20220501053948-415f944d2e35 // indirect
-	github.com/gozelle/_fs v0.0.0-20220501080831-f3cc28e31374 // indirect
+	github.com/gozelle/_exec v0.0.0-20220502065043-c0bc3c581457 // indirect
+	github.com/gozelle/_fs v0.0.0-20220502065325-0247f9f3079f // indirect
 	github.com/koyeo/snowflake v0.0.0-20210608015607-9634a808f637
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/pkg/sftp v1.13.4
@@ -26,5 +26,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 
-replace github.com/gozelle/_exec v0.0.0-20220501053948-415f944d2e35 => ../_exec
-replace github.com/gozelle/_fs latest => ../_fs
+//replace github.com/gozelle/_exec latest => ../_exec
+//replace github.com/gozelle/_fs latest => ../_fs

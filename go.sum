@@ -203,8 +203,12 @@ github.com/gopherjs/gopherwasm v1.1.0 h1:fA2uLoctU5+T3OhOn2vYP0DVT6pxc7xhTlBB1pa
 github.com/gopherjs/gopherwasm v1.1.0/go.mod h1:SkZ8z7CWBz5VXbhJel8TxCmAcsQqzgWGR/8nMhyhZSI=
 github.com/gozelle/_exec v0.0.0-20220501053948-415f944d2e35 h1:AS6tEEVm5coYmWY6Y9/Qfg/R85LvDxcMyWZNgJagJxs=
 github.com/gozelle/_exec v0.0.0-20220501053948-415f944d2e35/go.mod h1:4E913vtvIwvdRXuIx+/Pp3STfb1qcjZ7iJKb0XnMhYw=
+github.com/gozelle/_exec v0.0.0-20220502065043-c0bc3c581457 h1:KFI/pmv4BSaqj8yTsNqm8iyc4+YjPOsHGUM29YdJ3hU=
+github.com/gozelle/_exec v0.0.0-20220502065043-c0bc3c581457/go.mod h1:NYODJ7ItqUttvMFgODQ4vgVsp9z604EsL49890uV6tw=
 github.com/gozelle/_fs v0.0.0-20220501080831-f3cc28e31374 h1:hFiQFSnQamgZ1o3hJTRviBpt2w2Mprh6DW2RI8pIl0M=
 github.com/gozelle/_fs v0.0.0-20220501080831-f3cc28e31374/go.mod h1:gukgOZGlAZ4sWR6k00zY0Uca7/Lm6niU1XVGuYXe4gA=
+github.com/gozelle/_fs v0.0.0-20220502065325-0247f9f3079f h1:0b+QVNG9SF761PO8Azg6JQOexUtTjfSRp9QJCjORGeU=
+github.com/gozelle/_fs v0.0.0-20220502065325-0247f9f3079f/go.mod h1:gukgOZGlAZ4sWR6k00zY0Uca7/Lm6niU1XVGuYXe4gA=
 github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFbcEtjT1g+wF4CSlocrBnw=
 github.com/hashicorp/consul/api v1.11.0/go.mod h1:XjsvQN+RJGWI2TWy1/kqaE16HrR2J/FWgkYjdZQsX9M=
 github.com/hashicorp/consul/sdk v0.8.0/go.mod h1:GBvyrGALthsZObzUGsfgHZQDXjg4lOjagTIwIR1vPms=
