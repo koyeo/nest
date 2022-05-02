@@ -2,10 +2,10 @@ package run
 
 import (
 	"fmt"
-	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/protocol"
 	"github.com/koyeo/nest/runner"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 // Cmd represents the run command
@@ -18,10 +18,16 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	RunE: exec,
+	Run: exec,
 }
 
-func exec(cmd *cobra.Command, args []string) (err error) {
+func exec(cmd *cobra.Command, args []string) {
+	var err error
+	defer func() {
+		if err != nil {
+			os.Exit(1)
+		}
+	}()
 	conf, err := protocol.Load("nest.yml")
 	if err != nil {
 		return
@@ -30,7 +36,7 @@ func exec(cmd *cobra.Command, args []string) (err error) {
 		err = fmt.Errorf("miss task name, at least pass 1")
 		return
 	}
-
+	
 	for _, v := range args {
 		task, ok := conf.Tasks[v]
 		if !ok {
@@ -38,7 +44,6 @@ func exec(cmd *cobra.Command, args []string) (err error) {
 			return
 		}
 		taskRunner := runner.NewTaskRunner(conf, task, v)
-		logger.PrintStep("执行任务", v)
 		err = taskRunner.Exec()
 		if err != nil {
 			return

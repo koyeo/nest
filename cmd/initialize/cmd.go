@@ -16,7 +16,7 @@ var Cmd = &cobra.Command{
 }
 
 func initialize(cmd *cobra.Command, args []string) (err error) {
-
+	
 	configFile := common.DefaultConfigFile
 	l := len(args)
 	if l > 1 {
@@ -25,13 +25,13 @@ func initialize(cmd *cobra.Command, args []string) (err error) {
 	} else if l == 1 {
 		configFile = args[0]
 	}
-
+	
 	ok, err := _fs.Exists(configFile)
 	if err != nil {
 		return
 	}
 	if !ok {
-		err = _fs.Write(configFile, []byte(tpl))
+		err = _fs.Write(configFile, []byte(strings.TrimSpace(tpl)))
 		if err != nil {
 			return
 		}
@@ -39,12 +39,12 @@ func initialize(cmd *cobra.Command, args []string) (err error) {
 	} else {
 		fmt.Printf("%s already exists\n", configFile)
 	}
-
+	
 	err = injectGitIgnore()
 	if err != nil {
 		return
 	}
-
+	
 	return
 }
 
@@ -74,14 +74,14 @@ tasks:
           executes:
             - run: supervisorctl restart foo   # 服务器重启服务
       - run: rm foo                            # 本地清理
- hi:
-   comment: 打个招呼
-   steps:
-     - run: echo "Hi! this is from nest~" 
+  hi:
+    comment: 打个招呼
+    steps:
+      - run: echo "Hi! this is from nest~"
 `
 
 func injectGitIgnore() (err error) {
-
+	
 	const gitignore = ".gitignore"
 	ok, err := _fs.Exists(gitignore)
 	if err != nil {
@@ -95,7 +95,7 @@ func injectGitIgnore() (err error) {
 		fmt.Printf("create %s\n", gitignore)
 		return
 	}
-
+	
 	content, err := _fs.Read(gitignore)
 	if err != nil {
 		return
@@ -117,6 +117,6 @@ func injectGitIgnore() (err error) {
 		fmt.Printf("update %s\n", gitignore)
 		return
 	}
-
+	
 	return
 }

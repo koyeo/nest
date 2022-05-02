@@ -7,17 +7,20 @@ import (
 	"time"
 )
 
-func PrintStep(step string, args ...string) {
+func Step(taskKey, taskComment, emoji string, args ...string) {
 	for i := 0; i < len(args); i++ {
 		if args[i] == "" {
 			args = append(args[0:i], args[i+1:]...)
 		}
 	}
-	fmt.Printf("%s %s\n",
+	if taskComment != "" {
+		taskKey = taskComment
+	}
+	fmt.Printf("%s %s %s %s\n",
 		_color.WhiteString(time.Now().Format("2006-01-02 15:04:05")),
+		_color.New(_color.FgBlack, _color.BgWhite).Sprintf("[%s]", taskKey),
+		emoji,
 		strings.Join([]string{
-			_color.New(_color.FgHiGreen, _color.Bold).Sprint("[Nest]"),
-			_color.New(_color.FgHiGreen).Sprintf("[%s]", step),
 			strings.Join(args, " "),
 		}, " "),
 	)

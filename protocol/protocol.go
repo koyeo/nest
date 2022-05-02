@@ -1,5 +1,7 @@
 package protocol
 
+import "fmt"
+
 const (
 	Version = "1.0"
 )
@@ -20,6 +22,14 @@ type Server struct {
 	User         string `yaml:"user"`
 	Password     string `yaml:"password"`
 	IdentityFile string `yaml:"identity_file"`
+}
+
+func (p Server) Name() string {
+	serverName := p.Host
+	if p.Comment != "" {
+		serverName = fmt.Sprintf("%s:%s", p.Comment, serverName)
+	}
+	return serverName
 }
 
 type Task struct {

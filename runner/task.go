@@ -34,51 +34,69 @@ func (p TaskRunner) prepareEnviron() []string {
 	return environ
 }
 
-func (p TaskRunner) Exec() error {
+func (p TaskRunner) Exec() (err error) {
+	p.printStart()
+	defer func() {
+		if err == nil {
+			p.printSuccess()
+		} else {
+			p.printFailed()
+		}
+	}()
 	for _, step := range p.task.Steps {
 		if step.Use != "" {
-			if err := p.use(step.Use); err != nil {
-				return err
+			if err = p.use(step.Use); err != nil {
+				return
 			}
 		} else if step.Deploy != nil {
-			if err := p.deploy(step.Deploy); err != nil {
-				return err
+			if err = p.deploy(step.Deploy); err != nil {
+				return
 			}
 		} else {
-			if err := p.execute(step); err != nil {
-				return err
+			if err = p.execute(step); err != nil {
+				return
 			}
 		}
 	}
-	return nil
+	return
 }
 
-func (p TaskRunner) use(key string) error {
-
+func (p TaskRunner) use(key string) (err error) {
+	
+	defer func() {
+		if err == nil {
+			p.printExecUseEnd()
+		}
+	}()
+	
 	// check  circle dependency
 	if p.parents != nil {
 		if _, ok := p.parents[key]; ok {
-			return fmt.Errorf("task: %s depend task: %s circlely", p.key, key)
+			err = fmt.Errorf("task: %s depend task: %s circlely", p.key, key)
+			return
 		}
 	}
-
+	
 	task, ok := p.conf.Tasks[key]
 	if !ok {
-		return fmt.Errorf("use task: '%s' not found", key)
+		err = fmt.Errorf("use task: '%s' not found", key)
+		return
 	}
 	taskRunner := NewTaskRunner(p.conf, task, key)
-
+	
 	// store parent task key to avoid circle dependency
 	taskRunner.parents = map[string]bool{
 		p.key: true,
 	}
-
-	logger.PrintStep("引用任务", _color.HiBlueString(key))
-
-	return taskRunner.Exec()
+	p.printExecUseStart(key, task.Comment)
+	err = taskRunner.Exec()
+	if err != nil {
+		return
+	}
+	return
 }
 
-func (p TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
+func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	servers := map[string]*protocol.Server{}
 	runners := make([]*ServerRunner, 0)
 	defer func() {
@@ -103,7 +121,7 @@ func (p TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 			err = fmt.Errorf("deploy server host is empty")
 			return
 		}
-		serverRunner := NewServerRunner(p.conf, server, key)
+		serverRunner := NewServerRunner(p.conf, p, server, key)
 		runners = append(runners, serverRunner)
 		for _, mapper := range deploy.Mappers {
 			err = serverRunner.Upload(mapper.Source, mapper.Target)
@@ -113,16 +131,11 @@ func (p TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		}
 	}
 	for key, server := range servers {
-		serverRunner := NewServerRunner(p.conf, server, key)
+		serverRunner := NewServerRunner(p.conf, p, server, key)
 		runners = append(runners, serverRunner)
 		for _, execute := range deploy.Executes {
 			if execute.Run != "" {
-				logger.PrintStep(
-					"执行命令",
-					server.Comment,
-					_color.CyanString(server.Host),
-					_color.MagentaString(execute.Run),
-				)
+				p.printServerExec(server, execute.Run)
 				err = serverRunner.PipeExec(execute.Run)
 				if err != nil {
 					err = fmt.Errorf("server execute error: %s", err)
@@ -131,12 +144,15 @@ func (p TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 			}
 		}
 	}
-
+	
 	return
 }
 
 func (p TaskRunner) execute(step *protocol.Step) (err error) {
-	logger.PrintStep("执行命令", step.Run)
+	if step.Run == "" {
+		return
+	}
+	p.printExec(step.Run)
 	runner := _exec.NewRunner()
 	runner.AddCommand(step.Run)
 	runner.SetEnviron(p.prepareEnviron())
@@ -149,4 +165,46 @@ func (p TaskRunner) execute(step *protocol.Step) (err error) {
 		return
 	}
 	return
+}
+
+func (p TaskRunner) printStart() {
+	logger.Step(p.key, p.task.Comment, "🕘", "start")
+}
+
+func (p TaskRunner) printSuccess() {
+	logger.Step(p.key, p.task.Comment, "🎉", _color.New(_color.FgHiGreen).Sprint("success"))
+}
+
+func (p TaskRunner) printFailed() {
+	logger.Step(p.key, p.task.Comment, "❌️", _color.New(_color.FgHiRed).Sprint("failed"))
+}
+
+func (p TaskRunner) printExecUseStart(key, comment string) {
+	if comment != "" {
+		key = comment
+	}
+	logger.Step(p.key, p.task.Comment, "👉", key)
+}
+
+func (p TaskRunner) printExecUseEnd() {
+	logger.Step(p.key, p.task.Comment, "👈")
+}
+
+func (p TaskRunner) printServerExec(server *protocol.Server, command string) {
+	logger.Step(
+		p.key,
+		p.task.Comment,
+		"🏃",
+		_color.New(_color.FgCyan).Sprintf("[%s]", server.Name()),
+		_color.New(_color.FgWhite).Sprintf("%s", command),
+	)
+}
+
+func (p TaskRunner) printExec(command string) {
+	logger.Step(
+		p.key,
+		p.task.Comment,
+		"🏃",
+		_color.New(_color.FgWhite).Sprintf("%s", command),
+	)
 }
