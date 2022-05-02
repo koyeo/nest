@@ -30,19 +30,19 @@ nest init
 ```yml
 version: 1.0
 servers:
-  test-server:
-    name: 测试服务器信息
+  server-1:
+    comment: 示例服务器
     host: 192.168.1.10
     user: root                                 # 默认使用 ~/.ssh/id_rsa 私钥进行认证
 tasks:
-  first:                                       # 任务名称
-    comment: 第一个工作流                        # 任务注释
+  task-1:                                      # 任务名称
+    comment: 示例任务                           # 任务注释
     steps:
       - run: go build -o foo foo.go            # 本地执行构建
       - deploy:
           servers:
-            - use: test-server                 # 使用测试服务器
-          mappers:                             # 文件上传映射
+            - use: server-1                    # 部署服务器
+          mappers:                             
             - source: ./foo                    # 本地文件路径
               target: /app/foo/bin/foo         # 服务器存放位置
           executes:

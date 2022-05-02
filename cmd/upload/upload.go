@@ -2,15 +2,12 @@ package upload
 
 import (
 	"fmt"
-	"github.com/koyeo/nest/execer"
 	"github.com/koyeo/nest/logger"
-	"github.com/koyeo/nest/storage"
 	"github.com/pkg/sftp"
 	"github.com/spf13/cobra"
 	"github.com/ttacon/chalk"
 	"golang.org/x/crypto/ssh"
 	"os"
-	"path"
 	"strings"
 )
 
@@ -103,7 +100,7 @@ func Upload(server *Server) (err error) {
 			server.Host,
 		))
 	}()
-	
+
 	// 构造 Sftp 对象用以服务器操作
 	sshClient, sftpClient, err := PrepareSftpClient(server)
 	if err != nil {
@@ -113,7 +110,7 @@ func Upload(server *Server) (err error) {
 		_ = sftpClient.Close()
 		_ = sshClient.Close()
 	}()
-	
+
 	// 测试服务器连通性
 	logger.Print(chalk.Cyan.Color("[上传中] 测试服务器连通性... "))
 	err = ping(sshClient)
@@ -121,35 +118,35 @@ func Upload(server *Server) (err error) {
 		return
 	}
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	logger.Print(chalk.Cyan.Color("[上传中] 检查远程目录是否存在... "))
 	err = checkDistDir(sshClient, uploadDist)
 	if err != nil {
 		return
 	}
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	logger.Print(chalk.Cyan.Color("[上传中] 检查远程目录下同名文件或目录是否存在... "))
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	logger.Print(chalk.Cyan.Color("[上传中] 压缩本地源文件... "))
 	err = compressSrc(uploadSrc)
 	if err != nil {
 		return
 	}
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	logger.Print(chalk.Cyan.Color("[上传中] 开始上传... "))
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	logger.Print(chalk.Cyan.Color("[上传中] 解压远程文件... "))
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	logger.Print(chalk.Cyan.Color("[上传中] 清理临时文件... "))
 	fmt.Printf(chalk.Cyan.Color("ok\n"))
-	
+
 	// 打印上传信息
-	
+
 	return
 }
 
@@ -207,17 +204,17 @@ func exec(sshClient *ssh.Client) {
 }
 
 func checkDistDir(sshClient *ssh.Client, dist string) (err error) {
-	
+
 	return
 }
 
 // 压缩本地源文件
 func compressSrc(src string) (err error) {
-	target := fmt.Sprintf("%s/%s.tar.gz", PrepareGetNestTempDir(), path.Base(src))
-	err = execer.RunCommand("", "", fmt.Sprintf("tar -czf %s %s", target, src))
-	if err != nil {
-		return
-	}
+	//target := fmt.Sprintf("%s/%s.tar.gz", PrepareGetNestTempDir(), path.Base(src))
+	//err = execer.RunCommand("", "", fmt.Sprintf("tar -czf %s %s", target, src))
+	//if err != nil {
+	//	return
+	//}
 	return
 }
 
@@ -230,12 +227,12 @@ func GetNestTempDir() string {
 }
 func PrepareGetNestTempDir() string {
 	dir := GetNestTempDir()
-	if !storage.Exist(dir) {
-		storage.MakeDir(dir)
-	}
+	//if !storage.Exist(dir) {
+	//	storage.MakeDir(dir)
+	//}
 	return dir
 }
 
 func CleanNestTempDir() {
-	_ = storage.Remove(GetNestTempDir())
+	//_ = storage.Remove(GetNestTempDir())
 }

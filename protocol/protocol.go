@@ -1,5 +1,9 @@
 package protocol
 
+const (
+	Version = "1.0"
+)
+
 type Config struct {
 	Version string             `yaml:"version"`
 	Servers map[string]*Server `yaml:"servers"`
@@ -9,6 +13,7 @@ type Config struct {
 
 type Server struct {
 	Alias        string `yaml:"alias"`
+	Comment      string `yaml:"comment"`
 	Use          string `yaml:"use"`
 	Host         string `yaml:"host"`
 	Port         int    `yaml:"port"`
