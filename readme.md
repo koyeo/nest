@@ -1,33 +1,67 @@
-# Nest2
+# Nest
 
-轻量自动构建集成工具。
+适用于快速交付的本地集成部署工具。
 
-## 1. 安装
+## 安装
 
 ```bash
-$ go get github.com/koyeo/yo
+go install github.com/koyeo/nest
 ```
 
-## TODO
+## 项目初始化
+
+```bash
+nest init
+```
+
+1. 如果目录下不存在 `nest.yml` 文件，则创建该文件。
+2. 在 `.gitignore` 添加 `.nest` 行，以忽略 Nest 临时工作目录。
+
+## 第一个工作流
+
+通过一些配置示例，实现如下功能：
+
+1. 本地完成构建。
+2. 将构建结果发布到服务器指定位置。
+3. 在服务器执行重启。
+
+**编辑 nest.yml：**
+
+```yml
+version: 1.0
+servers:
+  test-server:
+    name: 测试服务器信息
+    host: 192.168.1.10
+    user: root                                 # 默认使用 ~/.ssh/id_rsa 私钥进行认证
+tasks:
+  first:                                       # 任务名称
+    comment: 第一个工作流                        # 任务注释
+    steps:
+      - run: go build -o foo foo.go            # 本地执行构建
+      - deploy:
+          servers:
+            - use: test-server                 # 使用测试服务器
+          mappers:                             # 文件上传映射
+            - source: ./foo                    # 本地文件路径
+              target: /app/foo/bin/foo         # 服务器存放位置
+          executes:
+            - run: supervisorctl restart foo   # 服务器重启服务
+      - run: rm foo                            # 本地清理
+```
+
+**执行工作流：**
 
 ```
-// tcp-listen  netstat -nat | grep LISTEN
-// yo server ping
-// yo server upload --host
-// yo server download --host
-// yo server install
-// yo server uninstall
-// yo server init
-
-// yo make github actions
-// yo run
-// yo daemon
-// yo watch
- 
-// yo port ls
-// yo git init 
-// yo request --url --data  
-// yo mail send 
-// yo dingding send 
-// yo feishu send 
+nest run first
 ```
+
+更多用法参见文档：[https://nest.kozilla.io](https://nest.kozilla.io)。
+
+## 贡献
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+Please make sure to update tests as appropriate.
+
+## License
+[MIT](https://choosealicense.com/licenses/mit/)

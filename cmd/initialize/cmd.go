@@ -1,12 +1,6 @@
 package initialize
 
 import (
-	"github.com/koyeo/nest/config"
-	"github.com/koyeo/nest/constant"
-	"github.com/koyeo/nest/core"
-	"os"
-	"path/filepath"
-	
 	"github.com/spf13/cobra"
 )
 
@@ -27,18 +21,18 @@ func initConfig(cmd *cobra.Command) error {
 	//}
 	//// TODO 指定项目
 	//// TODO 指定配置文件
-	pwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	err = config.Load(filepath.Join(pwd, constant.NEST_TOML))
-	if err != nil {
-		return err
-	}
-	
-	err = core.Project.LoadConfig()
-	if err != nil {
-		return err
-	}
+	//pwd, err := os.Getwd()
+	//if err != nil {
+	//	return err
+	//}
+	//err = config.Load(filepath.Join(pwd, constant.NEST_TOML))
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//err = core.Project.LoadConfig()
+	//if err != nil {
+	//	return err
+	//}
 	return nil
 }
