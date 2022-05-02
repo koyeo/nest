@@ -42,18 +42,22 @@ tasks:
       - deploy:
           servers:
             - use: server-1                    # 部署服务器
-          mappers:                             
+          mappers:
             - source: ./foo                    # 本地文件路径
               target: /app/foo/bin/foo         # 服务器存放位置
           executes:
             - run: supervisorctl restart foo   # 服务器重启服务
       - run: rm foo                            # 本地清理
+  hi:
+    comment: 打个招呼
+    steps:
+      - run: echo "Hi! this is from nest~" 
 ```
 
 **执行工作流：**
 
 ```
-nest run first
+nest run task-1
 ```
 
 更多用法参见文档：[https://nest.kozilla.io](https://nest.kozilla.io)。
