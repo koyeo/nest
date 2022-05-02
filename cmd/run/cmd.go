@@ -2,6 +2,7 @@ package run
 
 import (
 	"fmt"
+	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/protocol"
 	"github.com/koyeo/nest/runner"
 	"github.com/spf13/cobra"
@@ -37,6 +38,7 @@ func exec(cmd *cobra.Command, args []string) (err error) {
 			return
 		}
 		taskRunner := runner.NewTaskRunner(conf, task, v)
+		logger.PrintStep("执行任务", v)
 		err = taskRunner.Exec()
 		if err != nil {
 			return

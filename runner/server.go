@@ -2,8 +2,10 @@ package runner
 
 import (
 	"fmt"
+	"github.com/gozelle/_color"
 	"github.com/gozelle/_exec"
 	"github.com/gozelle/_fs"
+	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/protocol"
 	"github.com/koyeo/nest/utils/unit"
 	"os"
@@ -128,7 +130,6 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 	}
 	bundleName := fmt.Sprintf("%s.tar.gz", sourceName)
 	bundleLocalPath := fmt.Sprintf("%s/%s", NestTmpDir(), bundleName)
-	fmt.Println("bundle local", bundleName, bundleLocalPath)
 	defer func() {
 		cleanNestTempDir()
 	}()
@@ -183,7 +184,12 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 	buf := make([]byte, 1024*1024)
 	total := unit.ByteSize(bundleLocalInfo.Size())
 	uploaded := int64(0)
-	fmt.Printf("uploading: %s ==> %s \n", source, filepath.Join(targetDir, targetName))
+	logger.PrintStep(
+		"上传文件",
+		p.server.Comment,
+		_color.CyanString(p.server.Host),
+		_color.HiYellowString(fmt.Sprintf("%s => %s", source, filepath.Join(targetDir, targetName))),
+	)
 	for {
 		n, _ := bundleLocalFile.Read(buf)
 		if n == 0 {
@@ -199,7 +205,7 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 			err = fmt.Errorf("uplaod write remote bundle error:%s", err)
 			return
 		}
-		fmt.Printf("\rtotal: %s uploaded: %s", total, unit.ByteSize(uploaded))
+		fmt.Printf("\r总大小: %s 已上传: %s", total, unit.ByteSize(uploaded))
 	}
 	fmt.Printf("\n")
 

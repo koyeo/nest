@@ -2,7 +2,9 @@ package runner
 
 import (
 	"fmt"
+	"github.com/gozelle/_color"
 	"github.com/gozelle/_exec"
+	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/protocol"
 )
 
@@ -70,6 +72,9 @@ func (p TaskRunner) use(key string) error {
 	taskRunner.parents = map[string]bool{
 		p.key: true,
 	}
+
+	logger.PrintStep("引用任务", _color.HiBlueString(key))
+
 	return taskRunner.Exec()
 }
 
@@ -112,6 +117,12 @@ func (p TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		runners = append(runners, serverRunner)
 		for _, execute := range deploy.Executes {
 			if execute.Run != "" {
+				logger.PrintStep(
+					"执行命令",
+					server.Comment,
+					_color.CyanString(server.Host),
+					_color.MagentaString(execute.Run),
+				)
 				err = serverRunner.PipeExec(execute.Run)
 				if err != nil {
 					err = fmt.Errorf("server execute error: %s", err)
@@ -125,7 +136,7 @@ func (p TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 }
 
 func (p TaskRunner) execute(step *protocol.Step) (err error) {
-	//logger.Print(fmt.Sprintf("执行命令: %s\n", step.Run))
+	logger.PrintStep("执行命令", step.Run)
 	runner := _exec.NewRunner()
 	runner.AddCommand(step.Run)
 	runner.SetEnviron(p.prepareEnviron())
