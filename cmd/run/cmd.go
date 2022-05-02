@@ -29,9 +29,6 @@ func exec(cmd *cobra.Command, args []string) (err error) {
 		err = fmt.Errorf("miss task name, at least pass 1")
 		return
 	}
-	//fmt.Println(args)
-	//d, _ := json.MarshalIndent(conf, "", "\t")
-	//fmt.Println(string(d))
 
 	for _, v := range args {
 		task, ok := conf.Tasks[v]

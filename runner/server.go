@@ -111,6 +111,7 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 		err = fmt.Errorf("upload source: %s not exists", source)
 		return
 	}
+	isDirSource, _ := _fs.IsDir(source)
 
 	// prepare paths
 	targetDir, err := p.prepareTargetDir(target)
@@ -127,6 +128,7 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 	}
 	bundleName := fmt.Sprintf("%s.tar.gz", sourceName)
 	bundleLocalPath := fmt.Sprintf("%s/%s", NestTmpDir(), bundleName)
+	fmt.Println("bundle local", bundleName, bundleLocalPath)
 	defer func() {
 		cleanNestTempDir()
 	}()
@@ -135,7 +137,14 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 	bundleRemoteTmpPath := fmt.Sprintf("%s/%s", targetDir, bundleRemoteTmpName)
 
 	// compress source
-	_, err = _exec.NewRunner().AddCommand(fmt.Sprintf("tar -czf %s %s", bundleLocalPath, source)).CombinedOutput()
+	bundleTarget := source
+	if isDirSource {
+		bundleTarget = fmt.Sprintf("%s", source)
+	}
+	_ = bundleTarget
+	cmd := fmt.Sprintf("tar -czf %s -C %s %s", bundleLocalPath, filepath.Join(source, "../"), path.Base(source))
+	//fmt.Println(cmd)
+	_, err = _exec.NewRunner().AddCommand(cmd).CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("compress source error: %s", err)
 	}
@@ -195,7 +204,7 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 	fmt.Printf("\n")
 
 	// recover upload bundle
-	cmd := fmt.Sprintf("cd %s && rm -rf .nest && mkdir .nest && tar -xzf %s -C .nest", targetDir, bundleRemoteTmpName)
+	cmd = fmt.Sprintf("cd %s && rm -rf .nest && mkdir .nest && tar -xzf %s -C .nest", targetDir, bundleRemoteTmpName)
 	//fmt.Println(cmd)
 	err = p.CombinedExec(cmd)
 	if err != nil {
