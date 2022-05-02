@@ -12,7 +12,7 @@ func Load(path string) (config *Config, err error) {
 		return
 	}
 	if !ok {
-		err = fmt.Errorf("path: %s not exist", path)
+		err = fmt.Errorf("%s not exist", path)
 		return
 	}
 

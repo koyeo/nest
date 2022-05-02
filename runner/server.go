@@ -101,12 +101,12 @@ func (p *ServerRunner) checkTargetPath(target string) (err error) {
 }
 
 func (p *ServerRunner) Upload(source, target string) (err error) {
-	
+
 	err = p.checkTargetPath(target)
 	if err != nil {
 		return
 	}
-	
+
 	ok, err := _fs.Exists(source)
 	if err != nil {
 		err = fmt.Errorf("detect upload source eroor: %s", source)
@@ -116,13 +116,13 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 		return
 	}
 	isDirSource, _ := _fs.IsDir(source)
-	
+
 	// prepare paths
 	targetDir, err := p.prepareTargetDir(target)
 	if err != nil {
 		return
 	}
-	
+
 	sourceName := path.Base(source)
 	var targetName string
 	if strings.HasSuffix(target, "/") {
@@ -135,10 +135,10 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 	defer func() {
 		cleanNestTempDir()
 	}()
-	
+
 	bundleRemoteTmpName := fmt.Sprintf("bundle-%s~", bundleName)
 	bundleRemoteTmpPath := fmt.Sprintf("%s/%s", targetDir, bundleRemoteTmpName)
-	
+
 	// compress source
 	bundleTarget := source
 	if isDirSource {
@@ -151,7 +151,7 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 	if err != nil {
 		err = fmt.Errorf("compress source error: %s", err)
 	}
-	
+
 	// upload
 	bundleLocalFile, err := os.Open(bundleLocalPath)
 	if err != nil {
@@ -166,7 +166,7 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 		err = fmt.Errorf("stat local bundle error: %s", err)
 		return
 	}
-	
+
 	server, err := p.newExecServer()
 	if err != nil {
 		return
@@ -180,7 +180,7 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 		_ = bundleRemoteTmpFile.Close()
 		_ = server.SFTPClient().Remove(bundleRemoteTmpPath)
 	}()
-	
+
 	// print upload progress
 	size := 1 * 1024 * 1024
 	buf := make([]byte, 1024*1024)
@@ -202,10 +202,10 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 			err = fmt.Errorf("uplaod write remote bundle error:%s", err)
 			return
 		}
-		fmt.Printf("\r总大小: %s 已上传: %s", total, unit.ByteSize(uploaded))
+		fmt.Printf("\rTotal: %s Uploaded: %s", total, unit.ByteSize(uploaded))
 	}
 	fmt.Printf("\n")
-	
+
 	// recover upload bundle
 	cmd = fmt.Sprintf("cd %s && rm -rf .nest && mkdir .nest && tar -xzf %s -C .nest", targetDir, bundleRemoteTmpName)
 	//fmt.Println(cmd)
@@ -229,7 +229,7 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 		err = fmt.Errorf("mv upload bunle to target error: %s", err)
 		return
 	}
-	
+
 	return
 }
 

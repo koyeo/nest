@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+func timestamp() string {
+	return time.Now().Format("2006-01-02 15:04:05")
+}
+
 func Step(taskKey, taskComment, emoji string, args ...string) {
 	for i := 0; i < len(args); i++ {
 		if args[i] == "" {
@@ -17,7 +21,7 @@ func Step(taskKey, taskComment, emoji string, args ...string) {
 		taskKey = taskComment
 	}
 	fmt.Printf("%s %s %s %s\n",
-		_color.WhiteString(time.Now().Format("2006-01-02 15:04:05")),
+		_color.WhiteString(timestamp()),
 		_color.New(_color.FgBlack, _color.BgWhite).Sprintf("[%s]", taskKey),
 		emoji,
 		strings.Join([]string{
@@ -27,5 +31,12 @@ func Step(taskKey, taskComment, emoji string, args ...string) {
 }
 
 func Print(msg string) {
-	fmt.Printf(fmt.Sprintf("%s %s", _color.RedString(time.Now().Format("2006-01-02 15:04:05")), msg))
+	fmt.Printf(fmt.Sprintf("%s %s", _color.RedString(timestamp()), msg))
+}
+
+func Error(err error) {
+	fmt.Printf("%s %s\n",
+		_color.WhiteString(timestamp()),
+		_color.New(_color.FgRed).Sprintf("%s", err),
+	)
 }

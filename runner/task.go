@@ -35,14 +35,6 @@ func (p TaskRunner) prepareEnviron() []string {
 }
 
 func (p TaskRunner) Exec() (err error) {
-	p.printStart()
-	defer func() {
-		if err == nil {
-			p.printSuccess()
-		} else {
-			p.printFailed()
-		}
-	}()
 	for _, step := range p.task.Steps {
 		if step.Use != "" {
 			if err = p.use(step.Use); err != nil {
@@ -62,13 +54,13 @@ func (p TaskRunner) Exec() (err error) {
 }
 
 func (p TaskRunner) use(key string) (err error) {
-	
+
 	defer func() {
 		if err == nil {
 			p.printExecUseEnd()
 		}
 	}()
-	
+
 	// check  circle dependency
 	if p.parents != nil {
 		if _, ok := p.parents[key]; ok {
@@ -76,14 +68,14 @@ func (p TaskRunner) use(key string) (err error) {
 			return
 		}
 	}
-	
+
 	task, ok := p.conf.Tasks[key]
 	if !ok {
 		err = fmt.Errorf("use task: '%s' not found", key)
 		return
 	}
 	taskRunner := NewTaskRunner(p.conf, task, key)
-	
+
 	// store parent task key to avoid circle dependency
 	taskRunner.parents = map[string]bool{
 		p.key: true,
@@ -144,7 +136,7 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 			}
 		}
 	}
-	
+
 	return
 }
 
@@ -167,15 +159,15 @@ func (p TaskRunner) execute(step *protocol.Step) (err error) {
 	return
 }
 
-func (p TaskRunner) printStart() {
+func (p TaskRunner) PrintStart() {
 	logger.Step(p.key, p.task.Comment, "🕘", "start")
 }
 
-func (p TaskRunner) printSuccess() {
+func (p TaskRunner) PrintSuccess() {
 	logger.Step(p.key, p.task.Comment, "🎉", _color.New(_color.FgHiGreen).Sprint("success"))
 }
 
-func (p TaskRunner) printFailed() {
+func (p TaskRunner) PrintFailed() {
 	logger.Step(p.key, p.task.Comment, "❌️", _color.New(_color.FgHiRed).Sprint("failed"))
 }
 
