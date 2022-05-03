@@ -16,7 +16,7 @@ var Cmd = &cobra.Command{
 }
 
 func initialize(cmd *cobra.Command, args []string) (err error) {
-	
+
 	configFile := common.DefaultConfigFile
 	l := len(args)
 	if l > 1 {
@@ -25,7 +25,7 @@ func initialize(cmd *cobra.Command, args []string) (err error) {
 	} else if l == 1 {
 		configFile = args[0]
 	}
-	
+
 	ok, err := _fs.Exists(configFile)
 	if err != nil {
 		return
@@ -39,12 +39,12 @@ func initialize(cmd *cobra.Command, args []string) (err error) {
 	} else {
 		fmt.Printf("%s already exists\n", configFile)
 	}
-	
+
 	err = injectGitIgnore()
 	if err != nil {
 		return
 	}
-	
+
 	return
 }
 
@@ -57,31 +57,43 @@ const tpl = `
 version: 1.0
 servers:
   server-1:
-    comment: 示例服务器
+    comment: 第一个服务器
     host: 192.168.1.10
-    user: root                                 # 默认使用 ~/.ssh/id_rsa 私钥进行认证
+    # 默认使用 ~/.ssh/id_rsa 私钥进行认证
+    user: root                                 
 tasks:
-  task-1:                                      # 任务名称
-    comment: 示例任务                           # 任务注释
+  task-1:
+    comment: 第一个任务
     steps:
-      - run: go build -o foo foo.go            # 本地执行构建
+      - run: echo "Hi! this is from first task!"
+  # 任务名称 nest run 执行标识
+  task-2:                                      
+    # 任务注释
+    comment: 第二个任务                       
+    steps:
+        # 引用其它任务的全部 steps
+      - use: task-1
+        # 在本地执行命令
+      - run: echo second            
+        # 部署服务器
       - deploy:
           servers:
-            - use: server-1                    # 部署服务器
+              # 引用服务器
+            - use: server-1                    
           mappers:                             
-            - source: ./foo                    # 本地文件路径
-              target: /app/foo/bin/foo         # 服务器存放位置
+              # 本地文件路径
+            - source: ./foo                    
+			  # 服务器存放位置		
+              target: /app/foo/bin/foo         
           executes:
-            - run: supervisorctl restart foo   # 服务器重启服务
-      - run: rm foo                            # 本地清理
-  hi:
-    comment: 打个招呼
-    steps:
-      - run: echo "Hi! this is from nest~"
+              # 在服务器执行命令
+            - run: echo 'Hi! this is from server-1'
+        # 在本地执行命令
+      - run: echo 'Hi! this is from local!'
 `
 
 func injectGitIgnore() (err error) {
-	
+
 	const gitignore = ".gitignore"
 	ok, err := _fs.Exists(gitignore)
 	if err != nil {
@@ -95,7 +107,7 @@ func injectGitIgnore() (err error) {
 		fmt.Printf("create %s\n", gitignore)
 		return
 	}
-	
+
 	content, err := _fs.Read(gitignore)
 	if err != nil {
 		return
@@ -117,6 +129,6 @@ func injectGitIgnore() (err error) {
 		fmt.Printf("update %s\n", gitignore)
 		return
 	}
-	
+
 	return
 }
