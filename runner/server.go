@@ -7,6 +7,7 @@ import (
 	"github.com/gozelle/_fs"
 	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/protocol"
+	"github.com/koyeo/nest/utils/_tar"
 	"github.com/koyeo/nest/utils/unit"
 	"os"
 	"path"
@@ -115,7 +116,6 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 		err = fmt.Errorf("upload source: %s not exists", source)
 		return
 	}
-	isDirSource, _ := _fs.IsDir(source)
 
 	// prepare paths
 	targetDir, err := p.prepareTargetDir(target)
@@ -138,18 +138,29 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 
 	bundleRemoteTmpName := fmt.Sprintf("bundle-%s~", bundleName)
 	bundleRemoteTmpPath := fmt.Sprintf("%s/%s", targetDir, bundleRemoteTmpName)
+	var cmd string
 
 	// compress source
-	bundleTarget := source
-	if isDirSource {
-		bundleTarget = fmt.Sprintf("%s", source)
-	}
-	_ = bundleTarget
-	cmd := fmt.Sprintf("tar -czf %s -C %s %s", bundleLocalPath, filepath.Join(source, "../"), path.Base(source))
+	//cmd = fmt.Sprintf("tar -czf %s -C %s %s", bundleLocalPath, filepath.Join(source, "../"), path.Base(source))
 	//fmt.Println(cmd)
-	_, err = _exec.NewRunner().AddCommand(cmd).CombinedOutput()
+	//_, err = _exec.NewRunner().AddCommand(cmd).CombinedOutput()
+	//if err != nil {
+	//	err = fmt.Errorf("compress source error: %s", err)
+	//}
+	// 通过 golang 的 tar 包压缩文件，解决向 linux 和 mac 的不兼容问题，此处还需要多加测试
+	sourceFile, err := os.Open(source)
+	if err != nil {
+		err = fmt.Errorf("open source error: %s", err)
+		return
+	}
+	defer func() {
+		_ = sourceFile.Close()
+	}()
+
+	err = _tar.Compress([]*os.File{sourceFile}, bundleLocalPath)
 	if err != nil {
 		err = fmt.Errorf("compress source error: %s", err)
+		return
 	}
 
 	// upload
@@ -216,13 +227,16 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 	}
 	_, err = server.SFTPClient().Stat(filepath.Join(targetDir, targetName))
 	if err == nil {
-		err = p.CombinedExec(fmt.Sprintf("cd %s && rm -rf ./%s", targetDir, targetName))
+		cmd = fmt.Sprintf("cd %s && rm -rf ./%s", targetDir, targetName)
+		//fmt.Println(cmd)
+		err = p.CombinedExec(cmd)
 		if err != nil {
 			err = fmt.Errorf("create target backup error: %s", err)
 			return
 		}
 	}
-	cmd = fmt.Sprintf("cd %s && mv .nest/%s ./%s && rm -rf .nest", targetDir, sourceName, targetName)
+	//cmd = fmt.Sprintf("cd %s && mv .nest/%s ./%s && rm -rf .nest", targetDir, sourceName, targetName)
+	cmd = fmt.Sprintf("cd %s && mv .nest/%s ./%s", targetDir, sourceName, targetName)
 	//fmt.Println(cmd)
 	err = p.CombinedExec(cmd)
 	if err != nil {
