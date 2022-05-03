@@ -71,24 +71,24 @@ tasks:
     # 任务注释
     comment: 第二个任务                       
     steps:
-        # 引用其它任务的全部 steps
+      # 引用其它任务的全部 steps
       - use: task-1
-        # 在本地执行命令
+      # 在本地执行命令
       - run: echo second            
-        # 部署服务器
+      # 部署服务器
       - deploy:
           servers:
-              # 引用服务器
+            # 引用服务器
             - use: server-1                    
           mappers:                             
-              # 本地文件路径
+            # 本地文件路径
             - source: ./foo                    
 			  # 服务器存放位置		
               target: /app/foo/bin/foo         
           executes:
-              # 在服务器执行命令
+            # 在服务器执行命令
             - run: echo 'Hi! this is from server-1'
-        # 在本地执行命令
+      # 在本地执行命令
       - run: echo 'Hi! this is from local!'
 `
 
