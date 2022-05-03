@@ -235,8 +235,7 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 			return
 		}
 	}
-	//cmd = fmt.Sprintf("cd %s && mv .nest/%s ./%s && rm -rf .nest", targetDir, sourceName, targetName)
-	cmd = fmt.Sprintf("cd %s && mv .nest/%s ./%s", targetDir, sourceName, targetName)
+	cmd = fmt.Sprintf("cd %s && mv .nest/%s ./%s && rm -rf .nest", targetDir, sourceName, targetName)
 	//fmt.Println(cmd)
 	err = p.CombinedExec(cmd)
 	if err != nil {
