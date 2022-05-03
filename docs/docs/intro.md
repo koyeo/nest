@@ -8,7 +8,7 @@ sidebar_position: 1
 
 简单来说，Nest CI 是命令行工具，通过在配置项目的构建部署任务，即可快速将项目发布到多个不同的服务器环境中。
 
-## 为什么再遭一个轮子？
+## 为什么再造一个轮子？
 
 CI/CD 的工具很多，比如 Jenkins、Github Actions、Makefile、Ansible、Travis CI ... 等，为什么还要再弄一个呢？
 

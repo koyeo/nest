@@ -14,13 +14,14 @@ nest init
 1. 如果目录下不存在 `nest.yml` 文件，则创建该文件。
 2. 在 `.gitignore` 添加 `.nest` 行，以忽略 Nest 临时工作目录。
 
+
+## 编辑 nest.yml
 通过一些配置示例，实现如下功能：
 
 1. 本地完成构建。
 2. 将构建结果发布到服务器指定位置。
 3. 在服务器执行重启。
 
-**编辑 nest.yml：**
 
 ```yml
 version: 1.0
@@ -50,7 +51,7 @@ tasks:
       - run: echo "Hi! this is from nest~" 
 ```
 
-**执行工作流：**
+## 执行任务
 
 ```
 nest run task-1
