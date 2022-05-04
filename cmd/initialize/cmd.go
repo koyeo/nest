@@ -58,9 +58,11 @@ version: 1.0
 servers:
   server-1:
     comment: 第一个服务器
-    host: 192.168.1.10
+    host: 192.168.1.10 
+    user: root         
     # 默认使用 ~/.ssh/id_rsa 私钥进行认证
-    user: root                                 
+    # identity_file: ~/.ssh/id_rsa
+    # password: 123456
 tasks:
   task-1:
     comment: 第一个任务
