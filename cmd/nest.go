@@ -3,6 +3,7 @@ package cmd
 import (
 	"github.com/koyeo/nest/cmd/initialize"
 	"github.com/koyeo/nest/cmd/list"
+	"github.com/koyeo/nest/cmd/publish"
 	"github.com/koyeo/nest/cmd/run"
 	"github.com/koyeo/nest/cmd/upload"
 	"github.com/spf13/cobra"
@@ -27,6 +28,7 @@ func Execute() {
 		run.Cmd,
 		list.Cmd,
 		upload.Cmd,
+		publish.Cmd,
 	)
 	err := rootCmd.Execute()
 	if err != nil {

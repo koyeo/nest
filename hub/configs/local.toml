@@ -1,0 +1,3 @@
+dsn = "postgres://postgres:ShenNiu.001@192.168.1.118:5432/nest?connect_timeout=100&sslmode=disable&TimeZone=Asia/Shanghai&application_name=nest"
+listen = ":8333"
+stoage = "./stoage"
