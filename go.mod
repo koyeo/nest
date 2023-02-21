@@ -8,10 +8,12 @@ require (
 	github.com/gen2brain/beeep v0.0.0-20190719094215-ece0cb67ca77
 	github.com/google/wire v0.5.0
 	github.com/gozelle/_color v1.13.1-0.20220502122405-71af4360acea
+	github.com/gozelle/_exec v0.0.0-20220502065043-c0bc3c581457
 	github.com/gozelle/_fs v0.0.0-20220502065325-0247f9f3079f
 	github.com/gozelle/exit v0.0.0-20230114153616-af7f0e0ffc30
 	github.com/gozelle/fs v0.0.0-20230129091741-b3e90646e96c
 	github.com/gozelle/gin v0.0.0-20230118140921-403d0ca81bc9
+	github.com/gozelle/logging v0.0.0-20230111081457-6f16f4dd5a46
 	github.com/gozelle/mix v0.2.4
 	github.com/gozelle/toml v0.0.0-20230114155416-da089ee3724d
 	github.com/ipfs/go-log/v2 v2.5.1
@@ -38,15 +40,12 @@ require (
 	github.com/goccy/go-json v0.10.0 // indirect
 	github.com/godbus/dbus v4.1.0+incompatible // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/google/subcommands v1.0.1 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20190915194858-d3ddacdb130f // indirect
 	github.com/gopherjs/gopherwasm v1.1.0 // indirect
-	github.com/gozelle/_exec v0.0.0-20220502065043-c0bc3c581457 // indirect
 	github.com/gozelle/atomic v1.10.10 // indirect
 	github.com/gozelle/fastjson v1.6.5 // indirect
 	github.com/gozelle/isatty v0.0.17 // indirect
 	github.com/gozelle/jsonrpc v0.2.2 // indirect
-	github.com/gozelle/logging v0.0.0-20230111081457-6f16f4dd5a46 // indirect
 	github.com/gozelle/multierr v1.9.10 // indirect
 	github.com/gozelle/opencensus v0.24.1 // indirect
 	github.com/gozelle/websocket v1.5.0 // indirect
@@ -68,7 +67,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
@@ -77,10 +75,8 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/zap v1.19.1 // indirect
 	golang.org/x/arch v0.0.0-20220412001346-fc48f9fe4c15 // indirect
-	golang.org/x/mod v0.7.0 // indirect
 	golang.org/x/sys v0.4.0 // indirect
 	golang.org/x/text v0.6.0 // indirect
-	golang.org/x/tools v0.5.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/toast.v1 v1.0.0-20180812000517-0a84660828b2 // indirect

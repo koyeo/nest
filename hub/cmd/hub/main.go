@@ -10,7 +10,7 @@ import (
 	logging "github.com/ipfs/go-log/v2"
 	hub "github.com/koyeo/nest/hub/internal/api"
 	"github.com/koyeo/nest/hub/internal/config"
-	"github.com/koyeo/nest/hub/internal/services/publish"
+	"github.com/koyeo/nest/hub/internal/services/publisher"
 	"github.com/spf13/cobra"
 	_ "go.uber.org/automaxprocs"
 	"gorm.io/gorm"
@@ -50,16 +50,22 @@ func init() {
 	_ = rootCmd.MarkFlagRequired("config")
 }
 
-func newApp(conf *config.Config, db *gorm.DB, public hub.PublicAPI, private hub.PrivateAPI) *gin.Engine {
+func newApp(conf *config.Config, db *gorm.DB, public hub.PublicAPI, private hub.PrivateAPI, publisher *publisher.Publisher) *gin.Engine {
+	
+	go func() {
+		err := publisher.Serve(*conf.PublisherListen)
+		if err != nil {
+			panic(err)
+			return
+		}
+	}()
 	
 	s := mix.NewServer()
-	
 	// 注册公开接口
 	s.RegisterAPI(s.Group("/api/v1/public"), hub.Namespace, public)
 	
 	// 注册受保护的接口
 	pg := s.Group("/api/v1")
-	pg.POST("/publish", publish.Publish)
 	s.RegisterAPI(pg, hub.Namespace, private)
 	
 	return s.Engine
@@ -86,7 +92,7 @@ func runCmd(_ *cobra.Command, _ []string) {
 	
 	go func() {
 		// start and wait for stop signal
-		if e := app.Run(*conf.Listen); e != nil {
+		if e := app.Run(*conf.APIListen); e != nil {
 			panic(e)
 		}
 	}()

@@ -8,7 +8,7 @@ package main
 
 import (
 	"github.com/gozelle/gin"
-	"github.com/koyeo/nest/hub/cmd/injector"
+	"github.com/koyeo/nest/hub/injector"
 	"github.com/koyeo/nest/hub/internal/config"
 )
 
@@ -25,7 +25,8 @@ func wireApp(config2 *config.Config) (*gin.Engine, func(), error) {
 	}
 	publicAPI := injector.NewPublicAPI(db)
 	privateAPI := injector.NewPrivateAPI(db)
-	engine := newApp(config2, db, publicAPI, privateAPI)
+	publisher := injector.NewPublisher(config2)
+	engine := newApp(config2, db, publicAPI, privateAPI, publisher)
 	return engine, func() {
 		cleanup()
 	}, nil

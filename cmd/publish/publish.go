@@ -1,16 +1,12 @@
 package publish
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/ttacon/chalk"
 	"io"
-	"io/ioutil"
-	"mime/multipart"
-	"net/http"
+	"net"
 	"os"
-	"time"
 )
 
 var (
@@ -51,7 +47,7 @@ func init() {
 }
 
 // 执行上传
-func publish(cmd *cobra.Command) error {
+func publish(cmd *cobra.Command) (err error) {
 	file, err := os.Open("nest.json")
 	if err != nil {
 		
@@ -60,61 +56,57 @@ func publish(cmd *cobra.Command) error {
 	defer func() {
 		_ = file.Close()
 	}()
-	r, err := UploadFile("http://127.0.0.1:8333/api/v1/publish", nil, "uploadfile", "uploadfile", file)
+	
+	conn, err := net.Dial("tcp", "127.0.0.1:8332")
 	if err != nil {
-		return err
+		fmt.Println("net.Dialt err", err)
+		return
 	}
-	fmt.Println(string(r))
-	return nil
+	//发送文件名到接收端
+	_, err = conn.Write([]byte("nest.json"))
+	if err != nil {
+		fmt.Println("conn.Write err", err)
+		return
+	}
+	buf := make([]byte, 4096)
+	//接收服务器返还的指令
+	n, err := conn.Read(buf)
+	if err != nil {
+		fmt.Println("conn.Read err", err)
+		return
+	}
+	//返回ok，可以传输文件
+	if string(buf[:n]) == "ok" {
+		sendFile(conn, "nest.json")
+	}
+	return
 }
 
-//注意client 本身是连接池，不要每次请求时创建client
-var (
-	HttpClient = &http.Client{
-		Timeout: 3 * time.Second,
-	}
-)
-
-func UploadFile(url string, params map[string]string, nameField, fileName string, file io.Reader) ([]byte, error) {
-	body := new(bytes.Buffer)
-	
-	writer := multipart.NewWriter(body)
-	
-	formFile, err := writer.CreateFormFile(nameField, fileName)
+func sendFile(conn net.Conn, filepath string) {
+	//打开要传输的文件
+	file, err := os.Open(filepath)
 	if err != nil {
-		return nil, err
+		fmt.Println("os.Open err", err)
+		return
 	}
-	
-	_, err = io.Copy(formFile, file)
-	if err != nil {
-		return nil, err
+	buf := make([]byte, 4096)
+	//循环读取文件内容，写入远程连接
+	for {
+		n, err := file.Read(buf)
+		if err == io.EOF {
+			fmt.Println("文件读取完毕")
+			fmt.Println("文件传输完毕")
+			return
+		}
+		if err != nil {
+			fmt.Println("file.Read err:", err)
+			return
+		}
+		_, err = conn.Write(buf[:n])
+		if err != nil {
+			fmt.Println("conn.Write err:", err)
+			return
+		}
+		fmt.Println("写入文件")
 	}
-	
-	for key, val := range params {
-		_ = writer.WriteField(key, val)
-	}
-	
-	err = writer.Close()
-	if err != nil {
-		return nil, err
-	}
-	
-	req, err := http.NewRequest("POST", url, body)
-	if err != nil {
-		return nil, err
-	}
-	//req.Header.Set("Content-Type","multipart/form-data")
-	req.Header.Add("Content-Type", writer.FormDataContentType())
-	
-	resp, err := HttpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	
-	content, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	return content, nil
 }
