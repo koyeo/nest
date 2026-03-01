@@ -107,12 +107,12 @@ func (p TaskRunner) use(key string) (err error) {
 // upload compresses the local source and uploads it to cloud storage.
 func (p *TaskRunner) upload(u *protocol.Upload) error {
 	cfg := config.Load()
-	cred, err := cfg.DecryptBucket(u.Bucket)
+	cred, err := cfg.DecryptStorage(u.Storage)
 	if err != nil {
-		return fmt.Errorf("bucket '%s': %s", u.Bucket, err)
+		return fmt.Errorf("storage '%s': %s", u.Storage, err)
 	}
 
-	store, err := storage.NewFromBucket(cred)
+	store, err := storage.NewFromCredential(cred)
 	if err != nil {
 		return fmt.Errorf("create storage client error: %s", err)
 	}
@@ -164,13 +164,13 @@ func (p *TaskRunner) upload(u *protocol.Upload) error {
 
 	info, _ := bundleFile.Stat()
 	logger.Step(p.key, p.task.Comment, "☁️",
-		_color.New(_color.FgCyan).Sprintf("[%s]", u.Bucket),
+		_color.New(_color.FgCyan).Sprintf("[%s]", u.Storage),
 		_color.New(_color.FgMagenta).Sprintf("%s → %s (%s)", u.Source, objectKey, unit.ByteSize(info.Size())),
 	)
 
 	ctx := context.Background()
 	if err = store.Upload(ctx, objectKey, bundleFile, info.Size()); err != nil {
-		return fmt.Errorf("upload to bucket error: %s", err)
+		return fmt.Errorf("upload to storage error: %s", err)
 	}
 
 	// Track for deploy via
@@ -204,9 +204,9 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		}
 	}
 
-	// Check if deploying via bucket
+	// Check if deploying via cloud storage
 	if deploy.Via != "" {
-		return p.deployViaBucket(deploy, servers)
+		return p.deployViaStorage(deploy, servers)
 	}
 
 	// Original SFTP upload path
@@ -242,15 +242,15 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	return
 }
 
-// deployViaBucket downloads artifacts from cloud storage on the remote server.
-func (p *TaskRunner) deployViaBucket(deploy *protocol.Deploy, servers map[string]*protocol.Server) error {
+// deployViaStorage downloads artifacts from cloud storage on the remote server.
+func (p *TaskRunner) deployViaStorage(deploy *protocol.Deploy, servers map[string]*protocol.Server) error {
 	cfg := config.Load()
-	cred, err := cfg.DecryptBucket(deploy.Via)
+	cred, err := cfg.DecryptStorage(deploy.Via)
 	if err != nil {
-		return fmt.Errorf("bucket '%s': %s", deploy.Via, err)
+		return fmt.Errorf("storage '%s': %s", deploy.Via, err)
 	}
 
-	store, err := storage.NewFromBucket(cred)
+	store, err := storage.NewFromCredential(cred)
 	if err != nil {
 		return fmt.Errorf("create storage client error: %s", err)
 	}

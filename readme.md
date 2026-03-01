@@ -228,14 +228,14 @@ This makes it easy to maintain isolated configs per environment while sharing th
 
 ## Cloud Storage (OSS / S3)
 
-When deploying to overseas servers via VPN, direct uploads can be very slow. Nest supports **cloud storage relay** — upload build artifacts to an OSS/S3 bucket, then have the remote server download from the bucket using a pre-signed URL.
+When deploying to overseas servers via VPN, direct uploads can be very slow. Nest supports **cloud storage relay** — upload build artifacts to an OSS/S3 bucket, then have the remote server download from the cloud using a pre-signed URL.
 
-### 1. Add a Bucket
+### 1. Add a Storage Config
 
 **Interactive mode** (guided):
 
 ```bash
-nest bucket add
+nest storage add
 ```
 
 Follows a step-by-step guide: provider → endpoint/region → bucket name → credentials. All credentials are **AES-256 encrypted** and stored in `~/.nest/config.json`.
@@ -243,7 +243,7 @@ Follows a step-by-step guide: provider → endpoint/region → bucket name → c
 **Non-interactive mode** (for scripts / AI):
 
 ```bash
-nest bucket add oss-prod \
+nest storage add oss-prod \
   --provider oss \
   --endpoint oss-cn-hangzhou.aliyuncs.com \
   --bucket my-deploy-bucket \
@@ -251,11 +251,11 @@ nest bucket add oss-prod \
   --access-key-secret xxxxxxxx
 ```
 
-### 2. Manage Buckets
+### 2. Manage Storages
 
 ```bash
-nest bucket list       # List configured buckets
-nest bucket remove oss-prod   # Remove a bucket
+nest storage list       # List configured storages
+nest storage remove oss-prod   # Remove a storage config
 ```
 
 ### 3. Use in `nest.yaml`
@@ -263,17 +263,17 @@ nest bucket remove oss-prod   # Remove a bucket
 ```yaml
 tasks:
   deploy-overseas:
-    comment: Build, upload to OSS, deploy via bucket
+    comment: Build, upload to OSS, deploy via cloud storage
     steps:
       # Build locally
       - run: CGO_ENABLED=0 GOOS=linux go build -o myapp .
 
       # Upload artifact to cloud storage
       - upload:
-          bucket: oss-prod         # references global config
+          storage: oss-prod         # references global config
           source: ./myapp
 
-      # Deploy via bucket (server downloads from OSS, not SFTP)
+      # Deploy via cloud storage (server downloads from OSS, not SFTP)
       - deploy:
           via: oss-prod            # download relay
           servers:
@@ -296,9 +296,9 @@ tasks:
 | `nest init [file]` | Initialize config file and update `.gitignore` |
 | `nest run <task...>` | Execute one or more tasks by name |
 | `nest list` | List all configured resources |
-| `nest bucket add [name]` | Add a cloud storage bucket (interactive or via flags) |
-| `nest bucket list` | List configured buckets |
-| `nest bucket remove <name>` | Remove a bucket config |
+| `nest storage add [name]` | Add a cloud storage config (interactive or via flags) |
+| `nest storage list` | List configured storages |
+| `nest storage remove <name>` | Remove a storage config |
 
 ### Global Flags
 

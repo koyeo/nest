@@ -12,8 +12,8 @@ const (
 	configFile = "config.json"
 )
 
-// BucketCredential holds cloud storage credentials (access keys are AES-encrypted).
-type BucketCredential struct {
+// StorageCredential holds cloud storage credentials (access keys are AES-encrypted).
+type StorageCredential struct {
 	Provider        string `json:"provider"` // "oss" or "s3"
 	Endpoint        string `json:"endpoint,omitempty"`
 	Region          string `json:"region,omitempty"`
@@ -24,9 +24,9 @@ type BucketCredential struct {
 
 // UserConfig holds user-level preferences stored at ~/.nest/config.json.
 type UserConfig struct {
-	Lang       string                       `json:"lang"`                  // "zh" or "en"
-	EncryptKey string                       `json:"encrypt_key,omitempty"` // base64 AES-256 key
-	Buckets    map[string]*BucketCredential `json:"buckets,omitempty"`
+	Lang       string                        `json:"lang"`                  // "zh" or "en"
+	EncryptKey string                        `json:"encrypt_key,omitempty"` // base64 AES-256 key
+	Storages   map[string]*StorageCredential `json:"storages,omitempty"`
 }
 
 func defaultConfig() *UserConfig {
@@ -58,7 +58,22 @@ func Load() *UserConfig {
 	if cfg.Lang != "zh" && cfg.Lang != "en" {
 		cfg.Lang = "zh"
 	}
+	// Backward compatibility: migrate "buckets" → "storages"
+	if cfg.Storages == nil {
+		cfg.Storages = migrateOldBuckets(data)
+	}
 	return cfg
+}
+
+// migrateOldBuckets reads the legacy "buckets" key from raw JSON if present.
+func migrateOldBuckets(data []byte) map[string]*StorageCredential {
+	var legacy struct {
+		Buckets map[string]*StorageCredential `json:"buckets"`
+	}
+	if err := json.Unmarshal(data, &legacy); err == nil && len(legacy.Buckets) > 0 {
+		return legacy.Buckets
+	}
+	return nil
 }
 
 // Save writes the config to ~/.nest/config.json.
@@ -91,8 +106,8 @@ func (c *UserConfig) EnsureEncryptKey() error {
 	return nil
 }
 
-// AddBucket encrypts credentials and stores a bucket config.
-func (c *UserConfig) AddBucket(name, provider, endpoint, region, bucketName, accessKeyID, accessKeySecret string) error {
+// AddStorage encrypts credentials and stores a storage config.
+func (c *UserConfig) AddStorage(name, provider, endpoint, region, bucketName, accessKeyID, accessKeySecret string) error {
 	if err := c.EnsureEncryptKey(); err != nil {
 		return err
 	}
@@ -106,10 +121,10 @@ func (c *UserConfig) AddBucket(name, provider, endpoint, region, bucketName, acc
 		return fmt.Errorf("encrypt access_key_secret error: %s", err)
 	}
 
-	if c.Buckets == nil {
-		c.Buckets = make(map[string]*BucketCredential)
+	if c.Storages == nil {
+		c.Storages = make(map[string]*StorageCredential)
 	}
-	c.Buckets[name] = &BucketCredential{
+	c.Storages[name] = &StorageCredential{
 		Provider:        provider,
 		Endpoint:        endpoint,
 		Region:          region,
@@ -120,26 +135,26 @@ func (c *UserConfig) AddBucket(name, provider, endpoint, region, bucketName, acc
 	return nil
 }
 
-// RemoveBucket deletes a bucket config by name.
-func (c *UserConfig) RemoveBucket(name string) error {
-	if c.Buckets == nil {
-		return fmt.Errorf("bucket '%s' not found", name)
+// RemoveStorage deletes a storage config by name.
+func (c *UserConfig) RemoveStorage(name string) error {
+	if c.Storages == nil {
+		return fmt.Errorf("storage '%s' not found", name)
 	}
-	if _, ok := c.Buckets[name]; !ok {
-		return fmt.Errorf("bucket '%s' not found", name)
+	if _, ok := c.Storages[name]; !ok {
+		return fmt.Errorf("storage '%s' not found", name)
 	}
-	delete(c.Buckets, name)
+	delete(c.Storages, name)
 	return nil
 }
 
-// DecryptBucket returns a copy of BucketCredential with plaintext access keys.
-func (c *UserConfig) DecryptBucket(name string) (*BucketCredential, error) {
-	if c.Buckets == nil {
-		return nil, fmt.Errorf("bucket '%s' not found", name)
+// DecryptStorage returns a copy of StorageCredential with plaintext access keys.
+func (c *UserConfig) DecryptStorage(name string) (*StorageCredential, error) {
+	if c.Storages == nil {
+		return nil, fmt.Errorf("storage '%s' not found", name)
 	}
-	b, ok := c.Buckets[name]
+	b, ok := c.Storages[name]
 	if !ok {
-		return nil, fmt.Errorf("bucket '%s' not found", name)
+		return nil, fmt.Errorf("storage '%s' not found", name)
 	}
 	if c.EncryptKey == "" {
 		return nil, fmt.Errorf("encrypt_key not set")
@@ -154,7 +169,7 @@ func (c *UserConfig) DecryptBucket(name string) (*BucketCredential, error) {
 		return nil, fmt.Errorf("decrypt access_key_secret error: %s", err)
 	}
 
-	return &BucketCredential{
+	return &StorageCredential{
 		Provider:        b.Provider,
 		Endpoint:        b.Endpoint,
 		Region:          b.Region,

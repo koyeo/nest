@@ -228,14 +228,14 @@ nest list -c nest.production.yml          # 查看生产环境配置
 
 ## 云存储（OSS / S3）
 
-通过 VPN 向海外服务器部署时，直接上传往往很慢。Nest 支持**云存储中继** —— 先将构建产物上传到 OSS/S3，然后让远程服务器通过预签名链接从 Bucket 下载。
+通过 VPN 向海外服务器部署时，直接上传往往很慢。Nest 支持**云存储中继** —— 先将构建产物上传到 OSS/S3，然后让远程服务器通过预签名链接从云存储下载。
 
-### 1. 添加 Bucket
+### 1. 添加云存储配置
 
 **交互引导模式**（用户使用）：
 
 ```bash
-nest bucket add
+nest storage add
 ```
 
 按步骤引导：选择云服务商 → 输入 endpoint/region → 输入 bucket 名称 → 输入凭证。所有凭证**使用 AES-256 加密**存储在 `~/.nest/config.json` 中。
@@ -243,7 +243,7 @@ nest bucket add
 **命令行模式**（脚本 / AI 使用）：
 
 ```bash
-nest bucket add oss-prod \
+nest storage add oss-prod \
   --provider oss \
   --endpoint oss-cn-hangzhou.aliyuncs.com \
   --bucket my-deploy-bucket \
@@ -251,11 +251,11 @@ nest bucket add oss-prod \
   --access-key-secret xxxxxxxx
 ```
 
-### 2. 管理 Bucket
+### 2. 管理云存储
 
 ```bash
-nest bucket list              # 列出已配置的 bucket
-nest bucket remove oss-prod   # 删除 bucket 配置
+nest storage list              # 列出已配置的云存储
+nest storage remove oss-prod   # 删除云存储配置
 ```
 
 ### 3. 在 `nest.yaml` 中使用
@@ -263,17 +263,17 @@ nest bucket remove oss-prod   # 删除 bucket 配置
 ```yaml
 tasks:
   deploy-overseas:
-    comment: 构建、上传到 OSS、通过 bucket 部署
+    comment: 构建、上传到 OSS、通过云存储部署
     steps:
       # 本地构建
       - run: CGO_ENABLED=0 GOOS=linux go build -o myapp .
 
       # 上传构建产物到云存储
       - upload:
-          bucket: oss-prod         # 引用全局配置中的 bucket
+          storage: oss-prod         # 引用全局配置中的云存储
           source: ./myapp
 
-      # 通过 bucket 部署（服务器从 OSS 下载，而非 SFTP）
+      # 通过云存储部署（服务器从 OSS 下载，而非 SFTP）
       - deploy:
           via: oss-prod            # 下载中继
           servers:
@@ -296,9 +296,9 @@ tasks:
 | `nest init [file]` | 初始化配置文件并更新 `.gitignore` |
 | `nest run <task...>` | 执行一个或多个任务 |
 | `nest list` | 列出配置文件里的资源项 |
-| `nest bucket add [name]` | 添加云存储配置（交互式或通过参数） |
-| `nest bucket list` | 列出已配置的 bucket |
-| `nest bucket remove <name>` | 删除 bucket 配置 |
+| `nest storage add [name]` | 添加云存储配置（交互式或通过参数） |
+| `nest storage list` | 列出已配置的云存储 |
+| `nest storage remove <name>` | 删除云存储配置 |
 
 ### 全局参数
 

@@ -6,8 +6,8 @@ import (
 	"github.com/koyeo/nest/config"
 )
 
-// NewFromBucket creates an ObjectStorage from a decrypted BucketCredential.
-func NewFromBucket(cred *config.BucketCredential) (ObjectStorage, error) {
+// NewFromCredential creates an ObjectStorage from a decrypted StorageCredential.
+func NewFromCredential(cred *config.StorageCredential) (ObjectStorage, error) {
 	switch cred.Provider {
 	case "oss":
 		if cred.Endpoint == "" {

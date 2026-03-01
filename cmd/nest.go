@@ -3,10 +3,10 @@ package cmd
 import (
 	"os"
 
-	"github.com/koyeo/nest/cmd/bucket"
 	"github.com/koyeo/nest/cmd/initialize"
 	"github.com/koyeo/nest/cmd/list"
 	"github.com/koyeo/nest/cmd/run"
+	"github.com/koyeo/nest/cmd/storagecmd"
 	"github.com/koyeo/nest/common"
 	"github.com/spf13/cobra"
 )
@@ -31,7 +31,7 @@ func Execute() {
 		initialize.Cmd,
 		run.Cmd,
 		list.Cmd,
-		bucket.Cmd,
+		storagecmd.Cmd,
 		//upload.Cmd,
 	)
 	err := rootCmd.Execute()

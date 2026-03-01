@@ -1,4 +1,4 @@
-package bucket
+package storagecmd
 
 import (
 	"bufio"
@@ -19,10 +19,10 @@ var (
 	flagAccessKeySecret string
 )
 
-// Cmd is the root bucket command group.
+// Cmd is the root storage command group.
 var Cmd = &cobra.Command{
-	Use:   "bucket",
-	Short: "Manage cloud storage buckets / 管理云存储配置",
+	Use:   "storage",
+	Short: "Manage cloud storage configs / 管理云存储配置",
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
@@ -30,14 +30,14 @@ var Cmd = &cobra.Command{
 
 var addCmd = &cobra.Command{
 	Use:   "add [name]",
-	Short: "Add a bucket config / 添加云存储配置",
-	Long: `Add a cloud storage bucket configuration.
+	Short: "Add a storage config / 添加云存储配置",
+	Long: `Add a cloud storage configuration.
 
 Interactive mode (guided):
-  nest bucket add
+  nest storage add
 
 Non-interactive mode (for scripts / AI):
-  nest bucket add my-oss \
+  nest storage add my-oss \
     --provider oss \
     --endpoint oss-cn-hangzhou.aliyuncs.com \
     --bucket my-deploy-bucket \
@@ -49,13 +49,13 @@ Non-interactive mode (for scripts / AI):
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List bucket configs / 列出云存储配置",
+	Short: "List storage configs / 列出云存储配置",
 	RunE:  runList,
 }
 
 var removeCmd = &cobra.Command{
 	Use:   "remove <name>",
-	Short: "Remove a bucket config / 删除云存储配置",
+	Short: "Remove a storage config / 删除云存储配置",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runRemove,
 }
@@ -87,7 +87,7 @@ func prompt(reader *bufio.Reader, label, defaultVal string) string {
 func runAdd(cmd *cobra.Command, args []string) error {
 	reader := bufio.NewReader(os.Stdin)
 
-	// Step 1: Bucket config name
+	// Step 1: Storage config name
 	var name string
 	if len(args) > 0 {
 		name = args[0]
@@ -95,7 +95,7 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		// Non-interactive but no name — derive from bucket
 		name = flagBucket
 	} else {
-		fmt.Println("🪣 Add Cloud Storage Bucket")
+		fmt.Println("☁️  Add Cloud Storage")
 		fmt.Println("──────────────────────────")
 		fmt.Println()
 		name = prompt(reader, "Config name (e.g. oss-prod, s3-us)", "")
@@ -171,7 +171,7 @@ func runAdd(cmd *cobra.Command, args []string) error {
 
 	// Save
 	cfg := config.Load()
-	if err := cfg.AddBucket(name, flagProvider, flagEndpoint, flagRegion, flagBucket, flagAccessKeyID, flagAccessKeySecret); err != nil {
+	if err := cfg.AddStorage(name, flagProvider, flagEndpoint, flagRegion, flagBucket, flagAccessKeyID, flagAccessKeySecret); err != nil {
 		return err
 	}
 	if err := config.Save(cfg); err != nil {
@@ -179,23 +179,23 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println()
-	fmt.Printf("✅ Bucket '%s' saved (credentials encrypted in ~/.nest/config.json)\n", name)
+	fmt.Printf("✅ Storage '%s' saved (credentials encrypted in ~/.nest/config.json)\n", name)
 	return nil
 }
 
 func runList(cmd *cobra.Command, args []string) error {
 	cfg := config.Load()
-	if len(cfg.Buckets) == 0 {
-		fmt.Println("No buckets configured.")
+	if len(cfg.Storages) == 0 {
+		fmt.Println("No storage configs found.")
 		fmt.Println()
 		fmt.Println("Add one with:")
-		fmt.Println("  nest bucket add")
+		fmt.Println("  nest storage add")
 		return nil
 	}
 
-	fmt.Println("Configured buckets:")
+	fmt.Println("Configured storages:")
 	fmt.Println()
-	for name, b := range cfg.Buckets {
+	for name, b := range cfg.Storages {
 		fmt.Printf("  📦 %s\n", name)
 		fmt.Printf("     provider : %s\n", b.Provider)
 		fmt.Printf("     bucket   : %s\n", b.BucketName)
@@ -214,13 +214,13 @@ func runList(cmd *cobra.Command, args []string) error {
 func runRemove(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	cfg := config.Load()
-	if err := cfg.RemoveBucket(name); err != nil {
+	if err := cfg.RemoveStorage(name); err != nil {
 		return err
 	}
 	if err := config.Save(cfg); err != nil {
 		return err
 	}
-	fmt.Printf("✅ Bucket '%s' removed\n", name)
+	fmt.Printf("✅ Storage '%s' removed\n", name)
 	return nil
 }
 
