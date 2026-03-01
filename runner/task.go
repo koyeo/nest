@@ -32,14 +32,25 @@ type TaskRunner struct {
 }
 
 func (p TaskRunner) prepareEnviron() []string {
-	environ := make([]string, 0)
 	envs := map[string]string{}
+	// Start with the current process environment so PATH etc. are preserved
+	for _, entry := range os.Environ() {
+		for i := 0; i < len(entry); i++ {
+			if entry[i] == '=' {
+				envs[entry[:i]] = entry[i+1:]
+				break
+			}
+		}
+	}
+	// Overlay global config envs
 	for k, v := range p.conf.Envs {
 		envs[k] = v
 	}
+	// Overlay task-specific envs (highest priority)
 	for k, v := range p.task.Envs {
 		envs[k] = v
 	}
+	environ := make([]string, 0, len(envs))
 	for k, v := range envs {
 		environ = append(environ, fmt.Sprintf("%s=%s", k, v))
 	}
