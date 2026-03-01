@@ -36,7 +36,7 @@ Nest solves these pain points with a **single YAML config** and a **single CLI c
 Auto-detects your OS and architecture:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/koyeo/nest/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/koyeo/nest/master/scripts/install.sh | bash
 ```
 
 To **update**, run the same command again.
