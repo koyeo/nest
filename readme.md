@@ -33,23 +33,13 @@ Nest solves these pain points with a **single YAML config** and a **single CLI c
 
 ### Quick Install (Recommended)
 
-Download the latest binary for your platform:
+Auto-detects your OS and architecture:
 
 ```bash
-# macOS (Apple Silicon)
-curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-darwin-arm64 -o /usr/local/bin/nest && chmod +x /usr/local/bin/nest
-
-# macOS (Intel)
-curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-darwin-amd64 -o /usr/local/bin/nest && chmod +x /usr/local/bin/nest
-
-# Linux (x86_64)
-curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-linux-amd64 -o /usr/local/bin/nest && chmod +x /usr/local/bin/nest
-
-# Linux (ARM64)
-curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-linux-arm64 -o /usr/local/bin/nest && chmod +x /usr/local/bin/nest
+curl -fsSL https://raw.githubusercontent.com/koyeo/nest/main/scripts/install.sh | bash
 ```
 
-To **update** to the latest version, run the same command again.
+To **update**, run the same command again.
 
 ### Install via Go
 
@@ -236,6 +226,69 @@ nest list -c nest.production.yml          # List production config
 
 This makes it easy to maintain isolated configs per environment while sharing the same task definitions.
 
+## Cloud Storage (OSS / S3)
+
+When deploying to overseas servers via VPN, direct uploads can be very slow. Nest supports **cloud storage relay** — upload build artifacts to an OSS/S3 bucket, then have the remote server download from the bucket using a pre-signed URL.
+
+### 1. Add a Bucket
+
+**Interactive mode** (guided):
+
+```bash
+nest bucket add
+```
+
+Follows a step-by-step guide: provider → endpoint/region → bucket name → credentials. All credentials are **AES-256 encrypted** and stored in `~/.nest/config.json`.
+
+**Non-interactive mode** (for scripts / AI):
+
+```bash
+nest bucket add oss-prod \
+  --provider oss \
+  --endpoint oss-cn-hangzhou.aliyuncs.com \
+  --bucket my-deploy-bucket \
+  --access-key-id LTAI5t... \
+  --access-key-secret xxxxxxxx
+```
+
+### 2. Manage Buckets
+
+```bash
+nest bucket list       # List configured buckets
+nest bucket remove oss-prod   # Remove a bucket
+```
+
+### 3. Use in `nest.yaml`
+
+```yaml
+tasks:
+  deploy-overseas:
+    comment: Build, upload to OSS, deploy via bucket
+    steps:
+      # Build locally
+      - run: CGO_ENABLED=0 GOOS=linux go build -o myapp .
+
+      # Upload artifact to cloud storage
+      - upload:
+          bucket: oss-prod         # references global config
+          source: ./myapp
+
+      # Deploy via bucket (server downloads from OSS, not SFTP)
+      - deploy:
+          via: oss-prod            # download relay
+          servers:
+            - use: prod-us
+          mappers:
+            - source: ./myapp
+              target: /opt/myapp/bin/myapp
+          executes:
+            - run: systemctl restart myapp
+```
+
+**How it works:**
+1. `upload` step: compress → SHA1 hash → upload to `nest/{project_hash}/{file}.tar.gz`
+2. `deploy` with `via`: generate pre-signed URL (1h) → remote server `curl` downloads → extract → deploy
+
 ## CLI Reference
 
 | Command | Description |
@@ -243,6 +296,9 @@ This makes it easy to maintain isolated configs per environment while sharing th
 | `nest init [file]` | Initialize config file and update `.gitignore` |
 | `nest run <task...>` | Execute one or more tasks by name |
 | `nest list` | List all configured resources |
+| `nest bucket add [name]` | Add a cloud storage bucket (interactive or via flags) |
+| `nest bucket list` | List configured buckets |
+| `nest bucket remove <name>` | Remove a bucket config |
 
 ### Global Flags
 
@@ -302,6 +358,9 @@ Automate certificate renewal and Nginx reload.
 
 ### 🔄 Multi-Environment
 Maintain dev / staging / production configs separately, deploy with `-c` flag.
+
+### ☁️ Cloud Storage Relay
+Upload artifacts to OSS/S3, have remote servers download via pre-signed URL — bypass slow VPN connections.
 
 ### 📦 Release Pipeline
 Chain tasks: test → build → deploy → health check — a complete CI/CD in one YAML.
