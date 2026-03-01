@@ -3,6 +3,11 @@ package runner
 import (
 	"crypto/sha256"
 	"fmt"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+
 	"github.com/gozelle/_color"
 	"github.com/gozelle/_exec"
 	"github.com/gozelle/_fs"
@@ -13,10 +18,6 @@ import (
 	"github.com/koyeo/nest/protocol"
 	"github.com/koyeo/nest/utils/_tar"
 	"github.com/koyeo/nest/utils/unit"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
 )
 
 func NewServerRunner(conf *protocol.Config, task *TaskRunner, server *protocol.Server, key string) *ServerRunner {
@@ -135,14 +136,13 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 		targetName = path.Base(target)
 	}
 	bundleName := fmt.Sprintf("%s.tar.gz", sourceName)
-	bundleLocalPath := fmt.Sprintf("%s/%s", CastTmpDir(), bundleName)
+	bundleLocalPath := fmt.Sprintf("%s/%s", NestTmpDir(), bundleName)
 	defer func() {
-		cleanCastTempDir()
+		cleanNestTempDir()
 	}()
 
 	bundleRemoteTmpName := fmt.Sprintf("bundle-%s~", bundleName)
 	bundleRemoteTmpPath := fmt.Sprintf("%s/%s", targetDir, bundleRemoteTmpName)
-
 
 	// compress source using Go tar (cross-platform compatible)
 	sourceFile, err := os.Open(source)
@@ -268,12 +268,12 @@ func (p *ServerRunner) PipeExec(command string) error {
 	return server.PipeExec(command)
 }
 
-func GetCastTempDir() string {
+func getNestTempDir() string {
 	return "./.nest/tmp"
 }
 
-func CastTmpDir() string {
-	dir := GetCastTempDir()
+func NestTmpDir() string {
+	dir := getNestTempDir()
 	ok, err := _fs.Exists(dir)
 	if err == nil && !ok {
 		_ = _fs.MakeDir(dir)
@@ -281,7 +281,6 @@ func CastTmpDir() string {
 	return dir
 }
 
-func cleanCastTempDir() {
-	_ = _fs.Remove(GetCastTempDir())
+func cleanNestTempDir() {
+	_ = _fs.Remove(getNestTempDir())
 }
-

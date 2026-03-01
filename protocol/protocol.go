@@ -45,6 +45,13 @@ type Step struct {
 	Use     string  `yaml:"use"`
 	Run     string  `yaml:"run"`
 	Deploy  *Deploy `yaml:"deploy"`
+	Upload  *Upload `yaml:"upload"`
+}
+
+// Upload defines a step that compresses and uploads artifacts to cloud storage.
+type Upload struct {
+	Bucket string `yaml:"bucket"` // reference key to global bucket config
+	Source string `yaml:"source"` // local file or directory to upload
 }
 
 type Execute struct {
@@ -54,6 +61,7 @@ type Execute struct {
 }
 
 type Deploy struct {
+	Via      string     `yaml:"via"` // bucket key: download from cloud instead of SFTP
 	Servers  []*Server  `yaml:"servers"`
 	Mappers  []*Mapper  `yaml:"mappers"`
 	Executes []*Execute `yaml:"executes"`

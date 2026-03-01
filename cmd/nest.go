@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 
+	"github.com/koyeo/nest/cmd/bucket"
 	"github.com/koyeo/nest/cmd/initialize"
 	"github.com/koyeo/nest/cmd/list"
 	"github.com/koyeo/nest/cmd/run"
@@ -30,6 +31,7 @@ func Execute() {
 		initialize.Cmd,
 		run.Cmd,
 		list.Cmd,
+		bucket.Cmd,
 		//upload.Cmd,
 	)
 	err := rootCmd.Execute()

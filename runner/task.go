@@ -1,22 +1,34 @@
 package runner
 
 import (
+	"context"
+	"crypto/sha1"
 	"fmt"
+	"os"
+	"path"
+	"time"
+
 	"github.com/gozelle/_color"
 	"github.com/gozelle/_exec"
+	"github.com/gozelle/_fs"
+	"github.com/koyeo/nest/config"
 	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/protocol"
+	"github.com/koyeo/nest/storage"
+	"github.com/koyeo/nest/utils/_tar"
+	"github.com/koyeo/nest/utils/unit"
 )
 
 func NewTaskRunner(conf *protocol.Config, task *protocol.Task, key string) *TaskRunner {
-	return &TaskRunner{conf: conf, task: task, key: key}
+	return &TaskRunner{conf: conf, task: task, key: key, uploadedKeys: map[string]string{}}
 }
 
 type TaskRunner struct {
-	key     string
-	conf    *protocol.Config
-	task    *protocol.Task
-	parents map[string]bool
+	key          string
+	conf         *protocol.Config
+	task         *protocol.Task
+	parents      map[string]bool
+	uploadedKeys map[string]string // source basename → object key
 }
 
 func (p TaskRunner) prepareEnviron() []string {
@@ -38,6 +50,10 @@ func (p TaskRunner) Exec() (err error) {
 	for _, step := range p.task.Steps {
 		if step.Use != "" {
 			if err = p.use(step.Use); err != nil {
+				return
+			}
+		} else if step.Upload != nil {
+			if err = p.upload(step.Upload); err != nil {
 				return
 			}
 		} else if step.Deploy != nil {
@@ -88,6 +104,85 @@ func (p TaskRunner) use(key string) (err error) {
 	return
 }
 
+// upload compresses the local source and uploads it to cloud storage.
+func (p *TaskRunner) upload(u *protocol.Upload) error {
+	cfg := config.Load()
+	cred, err := cfg.DecryptBucket(u.Bucket)
+	if err != nil {
+		return fmt.Errorf("bucket '%s': %s", u.Bucket, err)
+	}
+
+	store, err := storage.NewFromBucket(cred)
+	if err != nil {
+		return fmt.Errorf("create storage client error: %s", err)
+	}
+
+	// Verify source exists
+	ok, err := _fs.Exists(u.Source)
+	if err != nil {
+		return fmt.Errorf("check source error: %s", err)
+	}
+	if !ok {
+		return fmt.Errorf("upload source not found: %s", u.Source)
+	}
+
+	// Compress source
+	sourceName := path.Base(u.Source)
+	bundleName := fmt.Sprintf("%s.tar.gz", sourceName)
+	tmpDir := NestTmpDir()
+	bundlePath := fmt.Sprintf("%s/%s", tmpDir, bundleName)
+	defer cleanNestTempDir()
+
+	sourceFile, err := os.Open(u.Source)
+	if err != nil {
+		return fmt.Errorf("open source error: %s", err)
+	}
+	defer func() { _ = sourceFile.Close() }()
+
+	if err = _tar.Compress([]*os.File{sourceFile}, bundlePath); err != nil {
+		return fmt.Errorf("compress error: %s", err)
+	}
+
+	// Compute SHA1 for object key
+	bundleData, err := os.ReadFile(bundlePath)
+	if err != nil {
+		return fmt.Errorf("read bundle error: %s", err)
+	}
+	sha := fmt.Sprintf("%x", sha1.Sum(bundleData))
+
+	// Build object key: nest/{sha1(cwd)}/{basename}.tar.gz
+	cwd, _ := os.Getwd()
+	cwdHash := fmt.Sprintf("%x", sha1.Sum([]byte(cwd)))[:8]
+	objectKey := fmt.Sprintf("nest/%s/%s", cwdHash, bundleName)
+
+	// Upload
+	bundleFile, err := os.Open(bundlePath)
+	if err != nil {
+		return fmt.Errorf("open bundle error: %s", err)
+	}
+	defer func() { _ = bundleFile.Close() }()
+
+	info, _ := bundleFile.Stat()
+	logger.Step(p.key, p.task.Comment, "☁️",
+		_color.New(_color.FgCyan).Sprintf("[%s]", u.Bucket),
+		_color.New(_color.FgMagenta).Sprintf("%s → %s (%s)", u.Source, objectKey, unit.ByteSize(info.Size())),
+	)
+
+	ctx := context.Background()
+	if err = store.Upload(ctx, objectKey, bundleFile, info.Size()); err != nil {
+		return fmt.Errorf("upload to bucket error: %s", err)
+	}
+
+	// Track for deploy via
+	p.uploadedKeys[sourceName] = objectKey
+	_ = sha // sha available for logging
+
+	logger.Step(p.key, p.task.Comment, "✅",
+		_color.New(_color.FgHiGreen).Sprint("uploaded"),
+	)
+	return nil
+}
+
 func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	servers := map[string]*protocol.Server{}
 	runners := make([]*ServerRunner, 0)
@@ -108,6 +203,13 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 			servers[v.Host] = v
 		}
 	}
+
+	// Check if deploying via bucket
+	if deploy.Via != "" {
+		return p.deployViaBucket(deploy, servers)
+	}
+
+	// Original SFTP upload path
 	for key, server := range servers {
 		if server.Host == "" {
 			err = fmt.Errorf("deploy server host is empty")
@@ -138,6 +240,97 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	}
 
 	return
+}
+
+// deployViaBucket downloads artifacts from cloud storage on the remote server.
+func (p *TaskRunner) deployViaBucket(deploy *protocol.Deploy, servers map[string]*protocol.Server) error {
+	cfg := config.Load()
+	cred, err := cfg.DecryptBucket(deploy.Via)
+	if err != nil {
+		return fmt.Errorf("bucket '%s': %s", deploy.Via, err)
+	}
+
+	store, err := storage.NewFromBucket(cred)
+	if err != nil {
+		return fmt.Errorf("create storage client error: %s", err)
+	}
+
+	runners := make([]*ServerRunner, 0)
+	defer func() {
+		for _, v := range runners {
+			v.Close()
+		}
+	}()
+
+	ctx := context.Background()
+
+	for key, server := range servers {
+		if server.Host == "" {
+			return fmt.Errorf("deploy server host is empty")
+		}
+		serverRunner := NewServerRunner(p.conf, p, server, key)
+		runners = append(runners, serverRunner)
+
+		for _, mapper := range deploy.Mappers {
+			sourceName := path.Base(mapper.Source)
+			objectKey, ok := p.uploadedKeys[sourceName]
+			if !ok {
+				// Fallback: construct key from convention
+				cwd, _ := os.Getwd()
+				cwdHash := fmt.Sprintf("%x", sha1.Sum([]byte(cwd)))[:8]
+				objectKey = fmt.Sprintf("nest/%s/%s.tar.gz", cwdHash, sourceName)
+			}
+
+			// Generate pre-signed URL (1 hour)
+			url, err := store.PresignedURL(ctx, objectKey, 1*time.Hour)
+			if err != nil {
+				return fmt.Errorf("generate download URL error: %s", err)
+			}
+
+			logger.Step(p.key, p.task.Comment, "⬇️",
+				_color.New(_color.FgCyan).Sprintf("[%s]", server.Name()),
+				_color.New(_color.FgMagenta).Sprintf("downloading %s via %s", sourceName, deploy.Via),
+			)
+
+			// Prepare target directory and download on remote server
+			targetDir := mapper.Target
+			bundleName := fmt.Sprintf("%s.tar.gz", sourceName)
+			bundleRemotePath := fmt.Sprintf("/tmp/nest-%s", bundleName)
+
+			// Download via curl on remote server
+			downloadCmd := fmt.Sprintf("curl -fsSL '%s' -o %s", url, bundleRemotePath)
+			if err = serverRunner.PipeExec(downloadCmd); err != nil {
+				return fmt.Errorf("remote download error: %s", err)
+			}
+
+			// Extract and deploy using the same flow as SFTP
+			extractCmd := fmt.Sprintf("mkdir -p %s && tar -xzf %s -C %s && rm -f %s",
+				targetDir, bundleRemotePath, targetDir, bundleRemotePath)
+			if err = serverRunner.PipeExec(extractCmd); err != nil {
+				return fmt.Errorf("remote extract error: %s", err)
+			}
+
+			logger.Step(p.key, p.task.Comment, "✅",
+				_color.New(_color.FgHiGreen).Sprintf("deployed %s → %s", sourceName, targetDir),
+			)
+		}
+	}
+
+	// Execute post-deploy commands
+	for key, server := range servers {
+		serverRunner := NewServerRunner(p.conf, p, server, key)
+		runners = append(runners, serverRunner)
+		for _, execute := range deploy.Executes {
+			if execute.Run != "" {
+				p.printServerExec(server, execute.Run)
+				if err := serverRunner.PipeExec(execute.Run); err != nil {
+					return fmt.Errorf("server execute error: %s", err)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (p TaskRunner) execute(step *protocol.Step) (err error) {
