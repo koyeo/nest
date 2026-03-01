@@ -6,26 +6,28 @@
 
 [中文文档](./README_zh.md)
 
-A lightweight local CI/CD tool for rapid integration and deployment.
+A lightweight local CI/CD tool for rapid integration and deployment. For small to mid-sized projects, Nest can fully replace traditional DevOps tools — handling builds, deployments, server management, and operational tasks all from your local machine.
 
 ## Why Nest?
 
 There are many CI/CD tools out there — Jenkins, GitHub Actions, Makefile, Ansible, Travis CI, etc. But they're often too heavy for quick delivery:
 
 - **Jenkins** requires a full server deployment and web UI.
-- **GitHub Actions / Travis CI** are platform-specific.
+- **GitHub Actions / Travis CI** are platform-specific and require pushing code to trigger.
 - **Ansible + Makefile** need to be configured together every time.
 
-Nest solves these pain points with a single config file and CLI.
+Nest solves these pain points with a **single YAML config** and a **single CLI command**.
 
 ### Best For
 
-- Solo full-stack developers who want fast feedback loops.
+- Solo or small-team full-stack developers who want fast feedback loops.
 - Quick deployments of frontend/backend projects to servers.
+- Lightweight server ops: log checks, service restarts, DB backups, cert renewals.
+- Multi-environment management (dev / staging / production) with separate config files.
 
 ### Not Ideal For
 
-- Multi-person production environments requiring strict release management.
+- Large-scale production environments requiring strict release management and approval workflows.
 
 ## Installation
 
@@ -51,13 +53,11 @@ To **update** to the latest version, run the same command again.
 
 ### Install via Go
 
-If you have Go installed:
-
 ```bash
 go install github.com/koyeo/nest@latest
 ```
 
-> **Note:** `go install` compiles and installs the `nest` binary to `$GOPATH/bin`. Make sure `$GOPATH/bin` is in your `$PATH`.
+> **Note:** Make sure `$GOPATH/bin` is in your `$PATH`.
 
 ## Quick Start
 
@@ -67,73 +67,188 @@ go install github.com/koyeo/nest@latest
 nest init
 ```
 
-This will:
-1. Create a `nest.yaml` file if it doesn't exist.
-2. Add `.nest` to `.gitignore` to ignore the temporary workspace.
-
-You can also specify a custom config file name:
-
-```bash
-nest init nest.production.yml
-```
+This creates a `nest.yaml` and adds `.nest` to `.gitignore`.
 
 ### 2. Edit `nest.yaml`
 
-Here's an example that builds locally, deploys to a server, and restarts the service:
+Here's a practical example — build a Go backend, deploy to server, and restart the service:
 
 ```yaml
 version: 1.0
+
 servers:
-  server-1:
-    comment: Example server
+  prod:
+    comment: Production server
     host: 192.168.1.10
-    user: root                                 # Uses ~/.ssh/id_rsa by default
+    user: root
+    # identity_file: ~/.ssh/id_rsa    # Default SSH key
+  staging:
+    comment: Staging server
+    host: 192.168.1.20
+    user: deploy
+    port: 2222
+
+envs:
+  APP_NAME: myapp
+  REMOTE_DIR: /opt/myapp
+
 tasks:
-  task-1:                                      # Task name
-    comment: Example task                      # Task description
+  # ── Build & Deploy ────────────────────────────────────
+  deploy:
+    comment: Build and deploy to production
     steps:
-      - use: hi                                # Inherit steps from "hi" task
-      - run: go build -o foo foo.go            # Build locally
+      - run: echo "🔨 Building..."
+      - run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o myapp .
       - deploy:
           servers:
-            - use: server-1                    # Target server
+            - use: prod
           mappers:
-            - source: ./foo                    # Local file
-              target: /app/foo/bin/foo         # Remote destination
+            - source: ./myapp
+              target: /opt/myapp/bin/myapp
+            - source: ./configs/prod.yaml
+              target: /opt/myapp/configs/app.yaml
           executes:
-            - run: supervisorctl restart foo   # Restart service on server
-      - run: rm foo                            # Local cleanup
-  hi:
-    comment: Say hello
+            - run: chmod +x /opt/myapp/bin/myapp
+            - run: systemctl restart myapp
+      - run: rm -f myapp
+      - run: echo "✅ Deployed!"
+
+  # ── Frontend Deploy ───────────────────────────────────
+  deploy-web:
+    comment: Build frontend and deploy static files
     steps:
-      - run: echo "Hi! this is from nest~"
+      - run: cd frontend && npm ci && npm run build
+      - deploy:
+          servers:
+            - use: prod
+          mappers:
+            - source: ./frontend/dist/
+              target: /var/www/myapp/
+          executes:
+            - run: nginx -s reload
+
+  # ── Server Operations ────────────────────────────────
+  logs:
+    comment: Tail production logs
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+          executes:
+            - run: journalctl -u myapp -f --lines=100
+
+  status:
+    comment: Check service status on all servers
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+            - use: staging
+          executes:
+            - run: systemctl status myapp && df -h && free -m
+
+  restart:
+    comment: Restart service
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+          executes:
+            - run: systemctl restart myapp
+            - run: echo "✅ Service restarted"
+
+  # ── Database ──────────────────────────────────────────
+  db-backup:
+    comment: Backup production database
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+          executes:
+            - run: |
+                TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                pg_dump -U postgres myapp_db > /opt/backups/myapp_${TIMESTAMP}.sql
+                echo "✅ Backup saved: myapp_${TIMESTAMP}.sql"
+
+  db-migrate:
+    comment: Run database migrations
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+          mappers:
+            - source: ./migrations/
+              target: /opt/myapp/migrations/
+          executes:
+            - run: cd /opt/myapp && ./bin/myapp migrate up
+
+  # ── SSL Certificate ───────────────────────────────────
+  cert-renew:
+    comment: Renew SSL certificates
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+          executes:
+            - run: certbot renew --quiet && nginx -s reload
+
+  # ── Full Pipeline ─────────────────────────────────────
+  release:
+    comment: Full release pipeline — test, build, deploy, verify
+    steps:
+      - run: go test ./...
+      - use: deploy
+      - deploy:
+          servers:
+            - use: prod
+          executes:
+            - run: curl -sf http://localhost:8080/health || exit 1
+            - run: echo "✅ Health check passed"
 ```
 
-### 3. Run a Task
+### 3. Run Tasks
 
 ```bash
-nest run task-1
+nest run deploy            # Build & deploy
+nest run logs              # Tail server logs
+nest run status            # Check server status
+nest run db-backup         # Backup database
+nest run release           # Full release pipeline
+nest run deploy deploy-web # Run multiple tasks
 ```
 
-Run multiple tasks:
+## Multi-Environment with `--config`
+
+Use the `-c` / `--config` flag to manage different environments with separate config files:
 
 ```bash
-nest run task-1 hi
+nest init                          # Creates nest.yaml (default)
+nest init nest.staging.yml         # Create staging config
+nest init nest.production.yml      # Create production config
 ```
+
+```bash
+nest run deploy                    # Uses nest.yaml (default / dev)
+nest run deploy -c nest.staging.yml       # Deploy to staging
+nest run deploy -c nest.production.yml    # Deploy to production
+nest list -c nest.production.yml          # List production config
+```
+
+This makes it easy to maintain isolated configs per environment while sharing the same task definitions.
 
 ## CLI Reference
 
-### `nest init`
+| Command | Description |
+|:--------|:------------|
+| `nest init [file]` | Initialize config file and update `.gitignore` |
+| `nest run <task...>` | Execute one or more tasks by name |
+| `nest list` | List all configured resources |
 
-Initialize the `nest.yaml` config file and update `.gitignore`.
+### Global Flags
 
-### `nest run <task...>`
-
-Execute one or more tasks by name.
-
-### `nest list`
-
-List all configured resources including tasks, servers, and environment variables.
+| Flag | Short | Description |
+|:-----|:------|:------------|
+| `--config <file>` | `-c` | Specify config file (default: `nest.yaml`) |
 
 ## Configuration Reference
 
@@ -141,21 +256,21 @@ List all configured resources including tasks, servers, and environment variable
 
 ```yaml
 servers:
-  server_1:                         # Server identifier (used in deploy tasks)
-    comment: My server              # Description
-    host: 192.168.1.5               # Server address
-    port: 2222                      # Port (default: 22)
-    user: root                      # Username
-    password: 123456                # Password (alternative to identity_file)
-    identity_file: ~/.ssh/id_rsa    # Private key file (default: ~/.ssh/id_rsa)
+  my_server:
+    comment: My server                # Description
+    host: 192.168.1.5                 # Server address
+    port: 2222                        # Port (default: 22)
+    user: root                        # Username
+    password: 123456                  # Password auth
+    identity_file: ~/.ssh/id_rsa      # Key auth (default)
 ```
 
 ### Environment Variables
 
 ```yaml
 envs:
-  k1: v1                            # Global key-value environment variables
-  k2: v2
+  APP_NAME: myapp
+  VERSION: "1.0.0"
 ```
 
 ### Deploy File Mapping
@@ -171,23 +286,41 @@ envs:
 | `dir1`  | `/app/test/`      | `/app/test/dir1`          |
 | `dir1`  | `/app/test`       | `/app/test`               |
 
-## Release
+## Use Cases
 
-To create a new release:
+### 🚀 Full-Stack Deploy
+Build backend + frontend, deploy to server, restart services — all in one command.
+
+### 📊 Server Monitoring
+Check disk usage, memory, service status across multiple servers instantly.
+
+### 🗄️ Database Ops
+Run backups, execute migrations, restore data — without SSH-ing manually.
+
+### 🔒 SSL Management
+Automate certificate renewal and Nginx reload.
+
+### 🔄 Multi-Environment
+Maintain dev / staging / production configs separately, deploy with `-c` flag.
+
+### 📦 Release Pipeline
+Chain tasks: test → build → deploy → health check — a complete CI/CD in one YAML.
+
+## Release
 
 ```bash
 ./scripts/release.sh v0.1.0
 ```
 
-This will run tests, cross-compile for all platforms (macOS/Linux/Windows × amd64/arm64), generate checksums, and publish a GitHub release.
+Cross-compiles for all platforms and publishes a GitHub release.
 
 ## Feedback
 
-For questions, contributions, or more information, reach out via email: koyeo@qq.com.
+Questions or contributions: koyeo@qq.com
 
 ## Contributing
 
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+Pull requests are welcome. For major changes, please open an issue first.
 
 ## License
 

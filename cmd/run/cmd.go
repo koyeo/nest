@@ -2,12 +2,13 @@ package run
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/koyeo/nest/common"
 	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/protocol"
 	"github.com/koyeo/nest/runner"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var Cmd = &cobra.Command{
@@ -24,7 +25,7 @@ func run(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 	}()
-	conf, err := protocol.Load(common.DefaultConfigFile)
+	conf, err := protocol.Load(common.ConfigFile)
 	if err != nil {
 		return
 	}

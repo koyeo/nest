@@ -6,27 +6,28 @@
 
 [English](./README.md)
 
-适用于快速交付的本地集成和部署工具。
+适用于快速交付的本地集成和部署工具。对于中小型项目，Nest 可以完全替代传统运维工具 —— 构建、部署、服务器管理、运维操作，全部在本地一行命令搞定。
 
 ## 为什么选择 Nest？
 
 CI/CD 的工具很多，比如 Jenkins、GitHub Actions、Makefile、Ansible、Travis CI 等，但它们太重了，不方便快速交付：
 
 - **Jenkins** 要部署软件，通过网页使用。
-- **GitHub Actions / Travis CI** 等平台性工具限定了使用场景。
-- **Ansible + Makefile** 二者要相互搭配才能做到构建到部署工作流执行，但是每次都要配一遍，很麻烦。
+- **GitHub Actions / Travis CI** 等平台性工具限定了使用场景，必须推送代码才能触发。
+- **Ansible + Makefile** 二者要相互搭配，每次都要配一遍，很麻烦。
 
-Nest 通过一个配置文件和命令行工具解决这些痛点。
+Nest 通过**一个 YAML 配置文件**和**一个命令行**解决这些痛点。
 
 ### 适用场景
 
-- 特别适合独立的全栈开发工程师。
-- 想快速将项目发布到服务器上，得到效果的反馈。
-- 快速发布前端项目。
+- 独立或小团队全栈开发工程师，追求快速反馈。
+- 快速将前后端项目发布到服务器上。
+- 轻量级服务器运维：查日志、重启服务、数据库备份、SSL 证书续期。
+- 多环境管理（dev / staging / production），通过不同配置文件隔离。
 
 ### 更优的选择
 
-在多人协作的生产环境，可能需要严格的发版管理，此时不建议使用 Nest。
+在多人协作的大型生产环境，可能需要严格的发版管理和审批流程，此时不建议使用 Nest。
 
 ## 安装
 
@@ -52,13 +53,11 @@ curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-linux-arm
 
 ### 通过 Go 安装
 
-如果你已安装 Go：
-
 ```bash
 go install github.com/koyeo/nest@latest
 ```
 
-> **注：** `go install` 将会把 `nest` 编译安装在 `$GOPATH/bin` 目录下，安装前请检查 `$GOPATH` 指向位置，且是否添加到 `$PATH` 路径下。
+> **注：** 请确保 `$GOPATH/bin` 已添加到 `$PATH` 路径下。
 
 ## 快速上手
 
@@ -68,73 +67,188 @@ go install github.com/koyeo/nest@latest
 nest init
 ```
 
-执行后将：
-1. 如果目录下不存在 `nest.yaml` 文件，则创建该文件。
-2. 在 `.gitignore` 添加 `.nest` 行，以忽略 Nest 临时工作目录。
-
-也可以指定自定义配置文件名：
-
-```bash
-nest init nest.production.yml
-```
+执行后将创建 `nest.yaml` 并在 `.gitignore` 中添加 `.nest`。
 
 ### 2. 编辑 `nest.yaml`
 
-通过一些配置示例，实现本地构建、部署到服务器、重启服务：
+以下是一个实战示例 —— 构建 Go 后端、部署到服务器、重启服务：
 
 ```yaml
 version: 1.0
+
 servers:
-  server-1:
-    comment: 示例服务器
+  prod:
+    comment: 生产服务器
     host: 192.168.1.10
-    user: root                                 # 默认使用 ~/.ssh/id_rsa 私钥进行认证
+    user: root
+    # identity_file: ~/.ssh/id_rsa    # 默认 SSH 密钥
+  staging:
+    comment: 预发布服务器
+    host: 192.168.1.20
+    user: deploy
+    port: 2222
+
+envs:
+  APP_NAME: myapp
+  REMOTE_DIR: /opt/myapp
+
 tasks:
-  task-1:                                      # 任务名称
-    comment: 示例任务                           # 任务注释
+  # ── 构建 & 部署 ──────────────────────────────────────
+  deploy:
+    comment: 构建并部署到生产环境
     steps:
-      - use: hi                                # 继承 hi 任务的 steps
-      - run: go build -o foo foo.go            # 本地执行构建
+      - run: echo "🔨 正在构建..."
+      - run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o myapp .
       - deploy:
           servers:
-            - use: server-1                    # 部署服务器
+            - use: prod
           mappers:
-            - source: ./foo                    # 本地文件路径
-              target: /app/foo/bin/foo         # 服务器存放位置
+            - source: ./myapp
+              target: /opt/myapp/bin/myapp
+            - source: ./configs/prod.yaml
+              target: /opt/myapp/configs/app.yaml
           executes:
-            - run: supervisorctl restart foo   # 服务器重启服务
-      - run: rm foo                            # 本地清理
-  hi:
-    comment: 打个招呼
+            - run: chmod +x /opt/myapp/bin/myapp
+            - run: systemctl restart myapp
+      - run: rm -f myapp
+      - run: echo "✅ 部署完成！"
+
+  # ── 前端部署 ──────────────────────────────────────────
+  deploy-web:
+    comment: 构建前端并部署静态文件
     steps:
-      - run: echo "Hi! this is from nest~"
+      - run: cd frontend && npm ci && npm run build
+      - deploy:
+          servers:
+            - use: prod
+          mappers:
+            - source: ./frontend/dist/
+              target: /var/www/myapp/
+          executes:
+            - run: nginx -s reload
+
+  # ── 服务器运维 ────────────────────────────────────────
+  logs:
+    comment: 查看生产环境日志
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+          executes:
+            - run: journalctl -u myapp -f --lines=100
+
+  status:
+    comment: 检查所有服务器状态
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+            - use: staging
+          executes:
+            - run: systemctl status myapp && df -h && free -m
+
+  restart:
+    comment: 重启服务
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+          executes:
+            - run: systemctl restart myapp
+            - run: echo "✅ 服务已重启"
+
+  # ── 数据库 ────────────────────────────────────────────
+  db-backup:
+    comment: 备份生产数据库
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+          executes:
+            - run: |
+                TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                pg_dump -U postgres myapp_db > /opt/backups/myapp_${TIMESTAMP}.sql
+                echo "✅ 备份完成: myapp_${TIMESTAMP}.sql"
+
+  db-migrate:
+    comment: 执行数据库迁移
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+          mappers:
+            - source: ./migrations/
+              target: /opt/myapp/migrations/
+          executes:
+            - run: cd /opt/myapp && ./bin/myapp migrate up
+
+  # ── SSL 证书 ──────────────────────────────────────────
+  cert-renew:
+    comment: 续期 SSL 证书
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+          executes:
+            - run: certbot renew --quiet && nginx -s reload
+
+  # ── 完整发布流水线 ────────────────────────────────────
+  release:
+    comment: 完整发布流程 — 测试、构建、部署、验证
+    steps:
+      - run: go test ./...
+      - use: deploy
+      - deploy:
+          servers:
+            - use: prod
+          executes:
+            - run: curl -sf http://localhost:8080/health || exit 1
+            - run: echo "✅ 健康检查通过"
 ```
 
 ### 3. 执行任务
 
 ```bash
-nest run task-1
+nest run deploy            # 构建 & 部署
+nest run logs              # 查看服务器日志
+nest run status            # 检查服务器状态
+nest run db-backup         # 备份数据库
+nest run release           # 完整发布流水线
+nest run deploy deploy-web # 执行多个任务
 ```
 
-执行多个任务：
+## 多环境管理 `--config`
+
+通过 `-c` / `--config` 参数，使用不同的配置文件管理多个环境：
 
 ```bash
-nest run task-1 hi
+nest init                          # 创建 nest.yaml（默认 / 开发环境）
+nest init nest.staging.yml         # 创建预发布配置
+nest init nest.production.yml      # 创建生产配置
 ```
+
+```bash
+nest run deploy                    # 使用 nest.yaml（默认 / 开发环境）
+nest run deploy -c nest.staging.yml       # 部署到预发布环境
+nest run deploy -c nest.production.yml    # 部署到生产环境
+nest list -c nest.production.yml          # 查看生产环境配置
+```
+
+通过不同的配置文件隔离环境，同时共享相同的任务定义。
 
 ## CLI 参考
 
-### `nest init`
+| 命令 | 说明 |
+|:-----|:-----|
+| `nest init [file]` | 初始化配置文件并更新 `.gitignore` |
+| `nest run <task...>` | 执行一个或多个任务 |
+| `nest list` | 列出配置文件里的资源项 |
 
-初始化 `nest.yaml` 配置文件，并自动更新 `.gitignore` 文件。
+### 全局参数
 
-### `nest run <task...>`
-
-执行一个或多个任务。
-
-### `nest list`
-
-列出配置文件里的资源项，包括任务、服务器、环境变量等。
+| 参数 | 简写 | 说明 |
+|:-----|:-----|:-----|
+| `--config <file>` | `-c` | 指定配置文件路径（默认：`nest.yaml`） |
 
 ## 配置参考
 
@@ -142,21 +256,21 @@ nest run task-1 hi
 
 ```yaml
 servers:
-  server_1:                         # 服务器标识，可以在 deploy 任务中通过 use 引用
-    comment: 第一台服务器             # 备注
-    host: 192.168.1.5               # 服务器地址
-    port: 2222                      # 端口，默认使用 22
-    user: root                      # 服务器用户名
-    password: 123456                # 服务器密码，可以由 identity_file 选项替代
-    identity_file: ~/.ssh/id_rsa    # 服务私钥认证文件，默认使用 ~/.ssh/id_rsa
+  my_server:
+    comment: 我的服务器                # 备注
+    host: 192.168.1.5                 # 服务器地址
+    port: 2222                        # 端口（默认 22）
+    user: root                        # 用户名
+    password: 123456                  # 密码认证
+    identity_file: ~/.ssh/id_rsa      # 密钥认证（默认）
 ```
 
 ### 环境变量
 
 ```yaml
 envs:
-  k1: v1                            # 通过键值对配置全局变量
-  k2: v2
+  APP_NAME: myapp
+  VERSION: "1.0.0"
 ```
 
 ### 部署文件映射
@@ -172,19 +286,37 @@ envs:
 | `dir1`  | `/app/test/`      | `/app/test/dir1`      |
 | `dir1`  | `/app/test`       | `/app/test`           |
 
-## 发版
+## 使用场景
 
-创建新的发布版本：
+### 🚀 全栈部署
+构建后端 + 前端，部署到服务器，重启服务 —— 一条命令搞定。
+
+### 📊 服务器监控
+即时检查多台服务器的磁盘、内存、服务状态。
+
+### 🗄️ 数据库运维
+执行备份、跑迁移、恢复数据 —— 无需手动 SSH 登录。
+
+### 🔒 SSL 管理
+自动化证书续期和 Nginx 热加载。
+
+### 🔄 多环境隔离
+维护 dev / staging / production 独立配置，通过 `-c` 参数切换。
+
+### 📦 发布流水线
+串联任务：测试 → 构建 → 部署 → 健康检查 —— 一个 YAML 实现完整 CI/CD。
+
+## 发版
 
 ```bash
 ./scripts/release.sh v0.1.0
 ```
 
-该脚本会自动运行测试、交叉编译所有平台（macOS/Linux/Windows × amd64/arm64）、生成校验和、并发布 GitHub Release。
+交叉编译所有平台并发布 GitHub Release。
 
 ## 反馈
 
-如果你有使用上的问题，或想参与项目的开发，可以通过邮箱联系：koyeo@qq.com。
+如果你有使用上的问题，或想参与项目的开发：koyeo@qq.com
 
 ## 贡献
 

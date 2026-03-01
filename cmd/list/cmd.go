@@ -2,11 +2,12 @@ package list
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/gozelle/_color"
 	"github.com/koyeo/nest/common"
 	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/protocol"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -26,7 +27,7 @@ func run(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 	}()
-	conf, err := protocol.Load(common.DefaultConfigFile)
+	conf, err := protocol.Load(common.ConfigFile)
 	if err != nil {
 		return
 	}
