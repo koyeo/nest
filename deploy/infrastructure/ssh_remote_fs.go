@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gozelle/_exec"
-	"github.com/koyeo/cast/deploy/domain"
+	"github.com/koyeo/nest/deploy/domain"
 )
 
 // sftpFileInfo wraps os.FileInfo to implement domain.FileInfo.
@@ -61,8 +61,8 @@ func (r *SSHRemoteFS) ReadDir(path string) ([]string, error) {
 	var names []string
 	for _, e := range entries {
 		name := e.Name()
-		// Skip .cast metadata directory
-		if strings.HasPrefix(name, ".cast") {
+		// Skip .nest metadata directory
+		if strings.HasPrefix(name, ".nest") {
 			continue
 		}
 		names = append(names, name)

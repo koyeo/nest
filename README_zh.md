@@ -1,14 +1,14 @@
 <p align="center">
-  <img src="./logo.png" alt="Cast" width="200" />
+  <img src="./logo.png" alt="Nest" width="200" />
 </p>
 
-# Cast
+# Nest
 
 [English](./README.md)
 
 适用于快速交付的本地集成和部署工具。
 
-## 为什么选择 Cast？
+## 为什么选择 Nest？
 
 CI/CD 的工具很多，比如 Jenkins、GitHub Actions、Makefile、Ansible、Travis CI 等，但它们太重了，不方便快速交付：
 
@@ -16,7 +16,7 @@ CI/CD 的工具很多，比如 Jenkins、GitHub Actions、Makefile、Ansible、T
 - **GitHub Actions / Travis CI** 等平台性工具限定了使用场景。
 - **Ansible + Makefile** 二者要相互搭配才能做到构建到部署工作流执行，但是每次都要配一遍，很麻烦。
 
-Cast 通过一个配置文件和命令行工具解决这些痛点。
+Nest 通过一个配置文件和命令行工具解决这些痛点。
 
 ### 适用场景
 
@@ -26,35 +26,59 @@ Cast 通过一个配置文件和命令行工具解决这些痛点。
 
 ### 更优的选择
 
-在多人协作的生产环境，可能需要严格的发版管理，此时不建议使用 Cast。
+在多人协作的生产环境，可能需要严格的发版管理，此时不建议使用 Nest。
 
 ## 安装
 
+### 快速安装（推荐）
+
+下载对应平台的二进制文件：
+
 ```bash
-go install github.com/koyeo/cast@latest
+# macOS (Apple Silicon)
+curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-darwin-arm64 -o /usr/local/bin/nest && chmod +x /usr/local/bin/nest
+
+# macOS (Intel)
+curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-darwin-amd64 -o /usr/local/bin/nest && chmod +x /usr/local/bin/nest
+
+# Linux (x86_64)
+curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-linux-amd64 -o /usr/local/bin/nest && chmod +x /usr/local/bin/nest
+
+# Linux (ARM64)
+curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-linux-arm64 -o /usr/local/bin/nest && chmod +x /usr/local/bin/nest
 ```
 
-> **注：** `go install` 将会把 `cast` 编译安装在 `$GOPATH/bin` 目录下，安装前请检查 `$GOPATH` 指向位置，且是否添加到 `$PATH` 路径下。
+如需**更新**到最新版本，重新执行上述命令即可。
+
+### 通过 Go 安装
+
+如果你已安装 Go：
+
+```bash
+go install github.com/koyeo/nest@latest
+```
+
+> **注：** `go install` 将会把 `nest` 编译安装在 `$GOPATH/bin` 目录下，安装前请检查 `$GOPATH` 指向位置，且是否添加到 `$PATH` 路径下。
 
 ## 快速上手
 
 ### 1. 初始化配置
 
 ```bash
-cast init
+nest init
 ```
 
 执行后将：
-1. 如果目录下不存在 `cast.yaml` 文件，则创建该文件。
-2. 在 `.gitignore` 添加 `.cast` 行，以忽略 Cast 临时工作目录。
+1. 如果目录下不存在 `nest.yaml` 文件，则创建该文件。
+2. 在 `.gitignore` 添加 `.nest` 行，以忽略 Nest 临时工作目录。
 
 也可以指定自定义配置文件名：
 
 ```bash
-cast init cast.production.yml
+nest init nest.production.yml
 ```
 
-### 2. 编辑 `cast.yaml`
+### 2. 编辑 `nest.yaml`
 
 通过一些配置示例，实现本地构建、部署到服务器、重启服务：
 
@@ -83,32 +107,32 @@ tasks:
   hi:
     comment: 打个招呼
     steps:
-      - run: echo "Hi! this is from cast~"
+      - run: echo "Hi! this is from nest~"
 ```
 
 ### 3. 执行任务
 
 ```bash
-cast run task-1
+nest run task-1
 ```
 
 执行多个任务：
 
 ```bash
-cast run task-1 hi
+nest run task-1 hi
 ```
 
 ## CLI 参考
 
-### `cast init`
+### `nest init`
 
-初始化 `cast.yaml` 配置文件，并自动更新 `.gitignore` 文件。
+初始化 `nest.yaml` 配置文件，并自动更新 `.gitignore` 文件。
 
-### `cast run <task...>`
+### `nest run <task...>`
 
 执行一个或多个任务。
 
-### `cast list`
+### `nest list`
 
 列出配置文件里的资源项，包括任务、服务器、环境变量等。
 
@@ -147,6 +171,16 @@ envs:
 | `dir1`  | `/app/test/dir2/` | `/app/test/dir1/dir2` |
 | `dir1`  | `/app/test/`      | `/app/test/dir1`      |
 | `dir1`  | `/app/test`       | `/app/test`           |
+
+## 发版
+
+创建新的发布版本：
+
+```bash
+./scripts/release.sh v0.1.0
+```
+
+该脚本会自动运行测试、交叉编译所有平台（macOS/Linux/Windows × amd64/arm64）、生成校验和、并发布 GitHub Release。
 
 ## 反馈
 

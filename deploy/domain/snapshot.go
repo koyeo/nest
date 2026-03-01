@@ -3,7 +3,7 @@ package domain
 import "time"
 
 // Snapshot is the aggregate root representing deployment metadata
-// stored at .cast/snapshot.json on the remote server.
+// stored at .nest/snapshot.json on the remote server.
 type Snapshot struct {
 	Entries []SnapshotEntry `json:"entries"`
 }

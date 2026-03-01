@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/koyeo/cast/deploy/domain"
-	"github.com/koyeo/cast/i18n"
+	"github.com/koyeo/nest/deploy/domain"
+	"github.com/koyeo/nest/i18n"
 )
 
 // StdinPrompter implements domain.UserPrompter using stdin/stdout.

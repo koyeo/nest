@@ -1,11 +1,11 @@
-# Cast - Makefile
+# Nest - Makefile
 # ============================================================================
 
-APP_NAME    := cast
-MODULE      := github.com/koyeo/cast
+APP_NAME    := nest
+MODULE      := github.com/koyeo/nest
 GO          := go
 GOFLAGS     ?=
-LDFLAGS     ?=
+GO_LDFLAGS  :=
 
 # Build output
 BUILD_DIR   := build
@@ -15,7 +15,7 @@ BINARY      := $(BUILD_DIR)/$(APP_NAME)
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME  := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
-LDFLAGS     += -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)
+GO_LDFLAGS  += -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)
 
 # Cross-compilation targets
 PLATFORMS   := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
@@ -30,11 +30,11 @@ all: tidy lint build ## Default: tidy, lint, build
 .PHONY: build
 build: ## Build binary for current platform
 	@mkdir -p $(BUILD_DIR)
-	$(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BINARY) .
+	$(GO) build $(GOFLAGS) -ldflags "$(GO_LDFLAGS)" -o $(BINARY) .
 
 .PHONY: install
 install: ## Install binary to $GOPATH/bin
-	$(GO) install $(GOFLAGS) -ldflags "$(LDFLAGS)" .
+	$(GO) install $(GOFLAGS) -ldflags "$(GO_LDFLAGS)" .
 
 .PHONY: run
 run: build ## Build and run
@@ -95,7 +95,7 @@ build-all: ## Build for all platforms
 		output=$(BUILD_DIR)/$(APP_NAME)-$${os}-$${arch}; \
 		if [ "$${os}" = "windows" ]; then output=$${output}.exe; fi; \
 		echo "Building $${os}/$${arch} -> $${output}"; \
-		GOOS=$${os} GOARCH=$${arch} $(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $${output} . || exit 1; \
+		GOOS=$${os} GOARCH=$${arch} $(GO) build $(GOFLAGS) -ldflags "$(GO_LDFLAGS)" -o $${output} . || exit 1; \
 	done
 
 .PHONY: checksums

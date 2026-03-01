@@ -1,7 +1,7 @@
 .DS_Store
 .idea
 /tmp
-.cast
+.nest
 
 .agent/*
 !.agent/rules

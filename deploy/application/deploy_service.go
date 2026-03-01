@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/koyeo/cast/deploy/domain"
-	"github.com/koyeo/cast/i18n"
+	"github.com/koyeo/nest/deploy/domain"
+	"github.com/koyeo/nest/i18n"
 )
 
 // DeployService orchestrates the deploy conflict resolution flow.
@@ -42,19 +42,19 @@ func NewDeployService(
 //   - bundleName: name of the bundle (e.g., "app.tar.gz")
 //   - bundleHash: SHA256 hash of the bundle
 func (s *DeployService) Deploy(bundleRemotePath, targetDir, bundleName, bundleHash string) error {
-	castDir := fmt.Sprintf("%s/.cast", targetDir)
-	tmpDir := fmt.Sprintf("%s/.cast/tmp", targetDir)
+	nestDir := fmt.Sprintf("%s/.nest", targetDir)
+	tmpDir := fmt.Sprintf("%s/.nest/tmp", targetDir)
 
-	// Ensure .cast directory exists
-	_ = s.fs.MkdirAll(castDir)
+	// Ensure .nest directory exists
+	_ = s.fs.MkdirAll(nestDir)
 
-	// Extract to .cast/tmp/
+	// Extract to .nest/tmp/
 	cmd := fmt.Sprintf("rm -rf %s && mkdir -p %s && tar -xzf %s -C %s", tmpDir, tmpDir, bundleRemotePath, tmpDir)
 	if err := s.exec.Exec(cmd); err != nil {
 		return fmt.Errorf("extract bundle error: %s", err)
 	}
 	defer func() {
-		// Clean up .cast/tmp/
+		// Clean up .nest/tmp/
 		_ = s.exec.Exec(fmt.Sprintf("rm -rf %s", tmpDir))
 	}()
 
@@ -86,7 +86,7 @@ func (s *DeployService) Deploy(bundleRemotePath, targetDir, bundleName, bundleHa
 		}
 	}
 
-	// Move files from .cast/tmp/ to target directory
+	// Move files from .nest/tmp/ to target directory
 	for _, f := range extractedFiles {
 		src := fmt.Sprintf("%s/%s", tmpDir, f)
 		dst := fmt.Sprintf("%s/%s", targetDir, f)
@@ -135,7 +135,7 @@ func (s *DeployService) Deploy(bundleRemotePath, targetDir, bundleName, bundleHa
 func (s *DeployService) resolveConflicts(targetDir string, conflictFiles []string, snap *domain.Snapshot) error {
 	result := domain.ClassifyConflicts(conflictFiles, snap)
 
-	// Remove Cast-managed files silently
+	// Remove Nest-managed files silently
 	for _, f := range result.ManagedFiles {
 		if err := s.fs.Remove(fmt.Sprintf("%s/%s", targetDir, f)); err != nil {
 			return fmt.Errorf("remove managed file error: %s", err)

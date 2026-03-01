@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	castDir    = ".cast"
+	nestDir    = ".nest"
 	configFile = "config.json"
 )
 
-// UserConfig holds user-level preferences stored at ~/.cast/config.json.
+// UserConfig holds user-level preferences stored at ~/.nest/config.json.
 type UserConfig struct {
 	Lang string `json:"lang"` // "zh" or "en"
 }
@@ -26,10 +26,10 @@ func configPath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("get home dir error: %s", err)
 	}
-	return filepath.Join(home, castDir, configFile), nil
+	return filepath.Join(home, nestDir, configFile), nil
 }
 
-// Load reads ~/.cast/config.json. Falls back to defaults on any error.
+// Load reads ~/.nest/config.json. Falls back to defaults on any error.
 func Load() *UserConfig {
 	p, err := configPath()
 	if err != nil {
@@ -49,7 +49,7 @@ func Load() *UserConfig {
 	return cfg
 }
 
-// Save writes the config to ~/.cast/config.json.
+// Save writes the config to ~/.nest/config.json.
 func Save(cfg *UserConfig) error {
 	p, err := configPath()
 	if err != nil {

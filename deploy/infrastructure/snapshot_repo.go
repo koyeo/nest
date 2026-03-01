@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/koyeo/cast/deploy/domain"
+	"github.com/koyeo/nest/deploy/domain"
 )
 
 const (
-	castMetaDir      = ".cast"
-	snapshotFileName = ".cast/snapshot.json"
+	nestMetaDir      = ".nest"
+	snapshotFileName = ".nest/snapshot.json"
 )
 
 // SnapshotRepo implements domain.SnapshotRepository using RemoteFS.
@@ -45,11 +45,11 @@ func (r *SnapshotRepo) Read(targetDir string) (*domain.Snapshot, error) {
 }
 
 func (r *SnapshotRepo) Write(targetDir string, snapshot *domain.Snapshot) error {
-	metaDir := fmt.Sprintf("%s/%s", targetDir, castMetaDir)
+	metaDir := fmt.Sprintf("%s/%s", targetDir, nestMetaDir)
 
-	// Ensure .cast directory exists
+	// Ensure .nest directory exists
 	if err := r.fs.MkdirAll(metaDir); err != nil {
-		return fmt.Errorf("create .cast dir error: %s", err)
+		return fmt.Errorf("create .nest dir error: %s", err)
 	}
 
 	data, err := json.MarshalIndent(snapshot, "", "  ")

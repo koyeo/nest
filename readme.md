@@ -1,14 +1,14 @@
 <p align="center">
-  <img src="./logo.png" alt="Cast" width="200" />
+  <img src="./logo.png" alt="Nest" width="200" />
 </p>
 
-# Cast
+# Nest
 
 [中文文档](./README_zh.md)
 
 A lightweight local CI/CD tool for rapid integration and deployment.
 
-## Why Cast?
+## Why Nest?
 
 There are many CI/CD tools out there — Jenkins, GitHub Actions, Makefile, Ansible, Travis CI, etc. But they're often too heavy for quick delivery:
 
@@ -16,7 +16,7 @@ There are many CI/CD tools out there — Jenkins, GitHub Actions, Makefile, Ansi
 - **GitHub Actions / Travis CI** are platform-specific.
 - **Ansible + Makefile** need to be configured together every time.
 
-Cast solves these pain points with a single config file and CLI.
+Nest solves these pain points with a single config file and CLI.
 
 ### Best For
 
@@ -29,31 +29,55 @@ Cast solves these pain points with a single config file and CLI.
 
 ## Installation
 
+### Quick Install (Recommended)
+
+Download the latest binary for your platform:
+
 ```bash
-go install github.com/koyeo/cast@latest
+# macOS (Apple Silicon)
+curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-darwin-arm64 -o /usr/local/bin/nest && chmod +x /usr/local/bin/nest
+
+# macOS (Intel)
+curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-darwin-amd64 -o /usr/local/bin/nest && chmod +x /usr/local/bin/nest
+
+# Linux (x86_64)
+curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-linux-amd64 -o /usr/local/bin/nest && chmod +x /usr/local/bin/nest
+
+# Linux (ARM64)
+curl -fsSL https://github.com/koyeo/nest/releases/latest/download/nest-linux-arm64 -o /usr/local/bin/nest && chmod +x /usr/local/bin/nest
 ```
 
-> **Note:** `go install` compiles and installs the `cast` binary to `$GOPATH/bin`. Make sure `$GOPATH/bin` is in your `$PATH`.
+To **update** to the latest version, run the same command again.
+
+### Install via Go
+
+If you have Go installed:
+
+```bash
+go install github.com/koyeo/nest@latest
+```
+
+> **Note:** `go install` compiles and installs the `nest` binary to `$GOPATH/bin`. Make sure `$GOPATH/bin` is in your `$PATH`.
 
 ## Quick Start
 
 ### 1. Initialize Configuration
 
 ```bash
-cast init
+nest init
 ```
 
 This will:
-1. Create a `cast.yaml` file if it doesn't exist.
-2. Add `.cast` to `.gitignore` to ignore the temporary workspace.
+1. Create a `nest.yaml` file if it doesn't exist.
+2. Add `.nest` to `.gitignore` to ignore the temporary workspace.
 
 You can also specify a custom config file name:
 
 ```bash
-cast init cast.production.yml
+nest init nest.production.yml
 ```
 
-### 2. Edit `cast.yaml`
+### 2. Edit `nest.yaml`
 
 Here's an example that builds locally, deploys to a server, and restarts the service:
 
@@ -82,32 +106,32 @@ tasks:
   hi:
     comment: Say hello
     steps:
-      - run: echo "Hi! this is from cast~"
+      - run: echo "Hi! this is from nest~"
 ```
 
 ### 3. Run a Task
 
 ```bash
-cast run task-1
+nest run task-1
 ```
 
 Run multiple tasks:
 
 ```bash
-cast run task-1 hi
+nest run task-1 hi
 ```
 
 ## CLI Reference
 
-### `cast init`
+### `nest init`
 
-Initialize the `cast.yaml` config file and update `.gitignore`.
+Initialize the `nest.yaml` config file and update `.gitignore`.
 
-### `cast run <task...>`
+### `nest run <task...>`
 
 Execute one or more tasks by name.
 
-### `cast list`
+### `nest list`
 
 List all configured resources including tasks, servers, and environment variables.
 
@@ -146,6 +170,16 @@ envs:
 | `dir1`  | `/app/test/dir2/` | `/app/test/dir1/dir2`     |
 | `dir1`  | `/app/test/`      | `/app/test/dir1`          |
 | `dir1`  | `/app/test`       | `/app/test`               |
+
+## Release
+
+To create a new release:
+
+```bash
+./scripts/release.sh v0.1.0
+```
+
+This will run tests, cross-compile for all platforms (macOS/Linux/Windows × amd64/arm64), generate checksums, and publish a GitHub release.
 
 ## Feedback
 

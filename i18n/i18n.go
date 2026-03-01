@@ -40,12 +40,12 @@ var messages = map[string]map[string]string{
 		"en": "  ✅ Deploy complete",
 	},
 	MsgSnapshotCreated: {
-		"zh": "  📝 创建 snapshot: .cast/snapshot.json",
-		"en": "  📝 Created snapshot: .cast/snapshot.json",
+		"zh": "  📝 创建 snapshot: .nest/snapshot.json",
+		"en": "  📝 Created snapshot: .nest/snapshot.json",
 	},
 	MsgSnapshotUpdated: {
-		"zh": "  📝 更新 snapshot: .cast/snapshot.json",
-		"en": "  📝 Updated snapshot: .cast/snapshot.json",
+		"zh": "  📝 更新 snapshot: .nest/snapshot.json",
+		"en": "  📝 Updated snapshot: .nest/snapshot.json",
 	},
 }
 

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/gozelle/_color"
 	"github.com/gozelle/_exec"
-	"github.com/koyeo/cast/logger"
-	"github.com/koyeo/cast/protocol"
+	"github.com/koyeo/nest/logger"
+	"github.com/koyeo/nest/protocol"
 )
 
 func NewTaskRunner(conf *protocol.Config, task *protocol.Task, key string) *TaskRunner {

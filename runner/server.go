@@ -6,13 +6,13 @@ import (
 	"github.com/gozelle/_color"
 	"github.com/gozelle/_exec"
 	"github.com/gozelle/_fs"
-	"github.com/koyeo/cast/config"
-	application "github.com/koyeo/cast/deploy/application"
-	infra "github.com/koyeo/cast/deploy/infrastructure"
-	"github.com/koyeo/cast/logger"
-	"github.com/koyeo/cast/protocol"
-	"github.com/koyeo/cast/utils/_tar"
-	"github.com/koyeo/cast/utils/unit"
+	"github.com/koyeo/nest/config"
+	application "github.com/koyeo/nest/deploy/application"
+	infra "github.com/koyeo/nest/deploy/infrastructure"
+	"github.com/koyeo/nest/logger"
+	"github.com/koyeo/nest/protocol"
+	"github.com/koyeo/nest/utils/_tar"
+	"github.com/koyeo/nest/utils/unit"
 	"os"
 	"path"
 	"path/filepath"
@@ -269,7 +269,7 @@ func (p *ServerRunner) PipeExec(command string) error {
 }
 
 func GetCastTempDir() string {
-	return "./.cast/tmp"
+	return "./.nest/tmp"
 }
 
 func CastTmpDir() string {

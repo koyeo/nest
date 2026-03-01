@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/koyeo/cast/deploy/domain"
+	"github.com/koyeo/nest/deploy/domain"
 )
 
 // --- Mock RemoteFS for snapshot repo tests ---
@@ -104,7 +104,7 @@ func TestRead_ValidJSON(t *testing.T) {
 		},
 	}
 	data, _ := json.Marshal(snap)
-	mockfs.files["/target/.cast/snapshot.json"] = data
+	mockfs.files["/target/.nest/snapshot.json"] = data
 
 	repo := NewSnapshotRepo(mockfs)
 	result, err := repo.Read("/target")
@@ -124,7 +124,7 @@ func TestRead_ValidJSON(t *testing.T) {
 
 func TestRead_InvalidJSON(t *testing.T) {
 	mockfs := newMockFS()
-	mockfs.files["/target/.cast/snapshot.json"] = []byte("{invalid json")
+	mockfs.files["/target/.nest/snapshot.json"] = []byte("{invalid json")
 
 	repo := NewSnapshotRepo(mockfs)
 	_, err := repo.Read("/target")
@@ -142,8 +142,8 @@ func TestWrite_CreatesDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if !mockfs.dirs["/target/.cast"] {
-		t.Error("expected .cast directory to be created")
+	if !mockfs.dirs["/target/.nest"] {
+		t.Error("expected .nest directory to be created")
 	}
 }
 

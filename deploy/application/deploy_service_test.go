@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/koyeo/cast/deploy/domain"
+	"github.com/koyeo/nest/deploy/domain"
 )
 
 // --- Mocks ---
@@ -178,8 +178,8 @@ func TestDeploy_EmptyDir(t *testing.T) {
 	mockRepo := newMockSnapshotRepo()
 	prompter := &mockPrompter{action: domain.ActionBackup, suffix: ".bak"}
 
-	// Simulate extracted files in .cast/tmp/
-	mockFS.files["/target/.cast/tmp/app.js"] = []byte("content")
+	// Simulate extracted files in .nest/tmp/
+	mockFS.files["/target/.nest/tmp/app.js"] = []byte("content")
 
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
 	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123")
@@ -212,7 +212,7 @@ func TestDeploy_HasSnapshotManagedFiles(t *testing.T) {
 	}
 
 	// New file to deploy
-	mockFS.files["/target/.cast/tmp/app.js"] = []byte("new")
+	mockFS.files["/target/.nest/tmp/app.js"] = []byte("new")
 
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
 	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123")
@@ -241,7 +241,7 @@ func TestDeploy_HasSnapshotUnmanagedFiles(t *testing.T) {
 	}
 
 	// New file to deploy with same name
-	mockFS.files["/target/.cast/tmp/config.yml"] = []byte("new config")
+	mockFS.files["/target/.nest/tmp/config.yml"] = []byte("new config")
 
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
 	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123")
@@ -263,7 +263,7 @@ func TestDeploy_NoSnapshotWithConflict(t *testing.T) {
 
 	// Existing file, no snapshot
 	mockFS.files["/target/app.js"] = []byte("old")
-	mockFS.files["/target/.cast/tmp/app.js"] = []byte("new")
+	mockFS.files["/target/.nest/tmp/app.js"] = []byte("new")
 
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
 	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123")
@@ -285,7 +285,7 @@ func TestDeploy_UserChoosesRemove(t *testing.T) {
 
 	// Existing file, no snapshot
 	mockFS.files["/target/old.txt"] = []byte("data")
-	mockFS.files["/target/.cast/tmp/old.txt"] = []byte("new data")
+	mockFS.files["/target/.nest/tmp/old.txt"] = []byte("new data")
 
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
 	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123")
@@ -305,7 +305,7 @@ func TestDeploy_SnapshotWrittenAfterDeploy(t *testing.T) {
 	mockRepo := newMockSnapshotRepo()
 	prompter := &mockPrompter{action: domain.ActionBackup, suffix: ".bak"}
 
-	mockFS.files["/target/.cast/tmp/index.html"] = []byte("<html>")
+	mockFS.files["/target/.nest/tmp/index.html"] = []byte("<html>")
 
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
 	err := svc.Deploy("/target/bundle.tar.gz", "/target", "bundle.tar.gz", "hash999")
@@ -332,12 +332,12 @@ func TestDeploy_SnapshotPreservesHistory(t *testing.T) {
 	prompter := &mockPrompter{action: domain.ActionBackup, suffix: ".bak"}
 
 	// First deploy
-	mockFS.files["/target/.cast/tmp/v1.js"] = []byte("v1")
+	mockFS.files["/target/.nest/tmp/v1.js"] = []byte("v1")
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
 	_ = svc.Deploy("/target/bundle.tar.gz", "/target", "v1.tar.gz", "hash1")
 
 	// Second deploy — existing file is now managed
-	mockFS.files["/target/.cast/tmp/v2.js"] = []byte("v2")
+	mockFS.files["/target/.nest/tmp/v2.js"] = []byte("v2")
 	_ = svc.Deploy("/target/bundle2.tar.gz", "/target", "v2.tar.gz", "hash2")
 
 	snap := mockRepo.snapshots["/target"]
