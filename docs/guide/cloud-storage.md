@@ -12,8 +12,10 @@ Local Machine                    Cloud Storage (OSS/S3)              Remote Serv
 └──────────┘                     └──────────────────┘    URL (1h)    └──────────┘
 ```
 
-1. **Upload** step: compress → compute SHA1 → upload to `nest/{project_hash}/{file}.tar.gz`
-2. **Deploy** with `via`: generate pre-signed URL (1-hour expiry) → remote server downloads via `curl` → extract → deploy
+1. Nest detects the `<storage>://` prefix in a file mapping's `source`
+2. Compresses the local path → computes SHA1 hash → uploads to `nest/{hash}.tar.gz`
+3. Generates a pre-signed URL (1-hour expiry)
+4. Remote server downloads via `curl` → extracts to target directory
 
 ## Setup
 
@@ -38,7 +40,16 @@ nest storage add oss-prod \
   --access-key-secret xxxxxxxx
 ```
 
-### 2. Manage Storages
+### 2. Declare in `nest.yaml`
+
+Map a storage alias to the global config name:
+
+```yaml
+storage:
+  oss: oss-prod          # "oss" is the alias, "oss-prod" is the global config name
+```
+
+### 3. Manage Storages
 
 ```bash
 nest storage list              # List configured storages
@@ -47,30 +58,42 @@ nest storage remove oss-prod   # Remove a storage config
 
 ## Usage in `nest.yaml`
 
+Use the **storage alias as a protocol prefix** in `deploy.files` source paths:
+
 ```yaml
+storage:
+  oss: oss-prod
+
 tasks:
-  deploy-overseas:
-    comment: Build, upload to OSS, deploy via cloud storage
+  deploy:
+    comment: Build and deploy via cloud storage
     steps:
-      # Build locally
-      - run: CGO_ENABLED=0 GOOS=linux go build -o myapp .
+      - run: pnpm run build
 
-      # Upload artifact to cloud storage
-      - upload:
-          storage: oss-prod         # references global config
-          source: ./myapp
-
-      # Deploy via cloud storage (server downloads from OSS, not SFTP)
       - deploy:
-          via: oss-prod             # download relay
           servers:
-            - use: prod-us
-          mappers:
-            - source: ./myapp
-              target: /opt/myapp/bin/myapp
+            - use: prod
+          files:
+            # oss:// prefix → upload to OSS, remote downloads via pre-signed URL
+            - source: oss://apps/web/.next/standalone/
+              target: /root/app/
+            - source: oss://apps/web/.next/static
+              target: /root/app/.next/static
+
+            # No prefix → direct SFTP upload (original behavior)
+            - source: deploy/prod.toml
+              target: /root/app/config.toml
           executes:
-            - run: systemctl restart myapp
+            - run: pm2 restart web
 ```
+
+::: tip Mixed Mode
+You can mix `oss://` prefixed and plain paths in the same deploy step. Storage-prefixed files go through cloud relay, others use direct SFTP.
+:::
+
+::: tip Automatic Dedup
+When deploying to multiple servers, Nest uploads each source to cloud storage only once. Subsequent servers reuse the same pre-signed URL.
+:::
 
 ## Supported Providers
 

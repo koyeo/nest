@@ -120,6 +120,43 @@
             color: var(--text-dim);
         }
 
+        /* ── Control buttons ── */
+        .controls {
+            display: flex;
+            gap: 4px;
+        }
+
+        .ctrl-btn {
+            font-size: 11px;
+            padding: 3px 10px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.12s;
+            font-family: inherit;
+        }
+
+        .ctrl-btn:hover:not(:disabled) {
+            background: var(--hover-bg);
+            border-color: var(--accent);
+        }
+
+        .ctrl-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .ctrl-btn.stop {
+            color: var(--red);
+            border-color: var(--red);
+        }
+
+        .ctrl-btn.stop:hover:not(:disabled) {
+            background: rgba(248, 113, 113, 0.1);
+        }
+
         /* ── Theme toggle ── */
         .theme-toggle {
             display: flex;
@@ -395,6 +432,10 @@
         <h1>🚀 <span id="projectName">Project</span></h1>
         <span class="project">/ <span id="taskName">Task</span></span>
         <span class="spacer"></span>
+        <div class="controls">
+            <button class="ctrl-btn stop" id="btnStop" disabled title="Stop">■ Stop</button>
+            <button class="ctrl-btn" id="btnRerun" disabled title="Rerun">↻ Rerun</button>
+        </div>
         <div class="theme-toggle">
             <button class="theme-btn" data-theme="system" title="System">🖥</button>
             <button class="theme-btn" data-theme="light" title="Light">☀</button>
@@ -426,6 +467,7 @@
         const outputHeader = $('outputHeader'), headerStatus = $('headerStatus');
         const statusBadge = $('statusBadge'), footerInfo = $('footerInfo');
         const taskNameEl = $('taskName'), projectNameEl = $('projectName'), projectPathEl = $('projectPath');
+        const btnStop = $('btnStop'), btnRerun = $('btnRerun');
 
         /* ── Theme ── */
         const savedTheme = localStorage.getItem('nest-theme') || 'system';
@@ -441,10 +483,40 @@
             document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === t));
         }
 
+        /* ── Control buttons ── */
+        btnStop.addEventListener('click', () => sendAction('stop'));
+        btnRerun.addEventListener('click', () => sendAction('rerun'));
+
+        function sendAction(action) {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'action', action }));
+            }
+        }
+
+        function updateButtons(isRunning) {
+            btnStop.disabled = !isRunning;
+            btnRerun.disabled = isRunning;
+        }
+
         /* ── State ── */
         let steps = [], currentStep = -1, autoScroll = true, logLength = 0;
         const MAX_DOM = 500000;
         let stepLogMarkers = {};
+
+        function resetUI() {
+            steps.forEach(s => { s.status = 'pending'; });
+            currentStep = -1;
+            outputInner.innerHTML = '';
+            logLength = 0;
+            stepLogMarkers = {};
+            outputHeader.textContent = '📺 Output';
+            footerInfo.textContent = '';
+            statusBadge.className = 'badge running';
+            statusBadge.textContent = 'Running';
+            headerStatus.textContent = 'Running';
+            autoScroll = true;
+            renderTree();
+        }
 
         outputContent.addEventListener('scroll', () => {
             autoScroll = outputContent.scrollTop + outputContent.clientHeight >= outputContent.scrollHeight - 40;
@@ -532,7 +604,7 @@
 
         /* ── WebSocket ── */
         const ws = new WebSocket('ws://' + location.host + '/ws');
-        ws.onopen = () => { headerStatus.textContent = 'Connected'; };
+        ws.onopen = () => { headerStatus.textContent = 'Connected'; updateButtons(true); };
         ws.onmessage = e => {
             const msg = JSON.parse(e.data);
             switch (msg.type) {
@@ -562,7 +634,6 @@
                     const idx = msg.index >= 0 ? msg.index : currentStep;
                     if (idx >= 0 && idx < steps.length) {
                         steps[idx].status = msg.error ? 'failed' : 'done';
-                        if (msg.error) appendError('❌ Error: ' + msg.error + '\n');
                     }
                     renderTree();
                     break;
@@ -576,11 +647,23 @@
                     footerInfo.textContent = msg.error || 'All steps completed';
                     if (msg.error) appendError('\n❌ Task Failed: ' + msg.error + '\n');
                     steps.forEach(s => { if (s.status === 'running') s.status = msg.error ? 'failed' : 'done'; });
+                    updateButtons(false);
                     renderTree();
+                    break;
+                case 'state':
+                    updateButtons(msg.state === 'running');
+                    if (msg.state === 'running') {
+                        headerStatus.textContent = 'Running';
+                        statusBadge.className = 'badge running';
+                        statusBadge.textContent = 'Running';
+                    }
+                    break;
+                case 'reset':
+                    resetUI();
                     break;
             }
         };
-        ws.onclose = () => { headerStatus.textContent = 'Disconnected'; };
+        ws.onclose = () => { headerStatus.textContent = 'Disconnected'; updateButtons(false); };
     </script>
 </body>
 

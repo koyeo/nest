@@ -2,6 +2,7 @@ package execer
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -24,6 +25,12 @@ type Server struct {
 	sftpClient   *sftp.Client
 	stdout       io.Writer
 	stderr       io.Writer
+	ctx          context.Context
+}
+
+// SetContext sets a context for cancellation support.
+func (p *Server) SetContext(ctx context.Context) {
+	p.ctx = ctx
 }
 
 func (p *Server) SSHClient() *ssh.Client {
@@ -162,6 +169,17 @@ func (p *Server) PipeExec(command string) (err error) {
 	defer func() {
 		_ = session.Close()
 	}()
+
+	// Watch for context cancellation — close session to interrupt remote command
+	if p.ctx != nil {
+		go func() {
+			select {
+			case <-p.ctx.Done():
+				_ = session.Close()
+			}
+		}()
+	}
+
 	stderr, err := session.StderrPipe()
 	if err != nil {
 		err = fmt.Errorf("fetch stderr pipe error: %s", err)
@@ -207,6 +225,13 @@ func (p *Server) PipeExec(command string) (err error) {
 	}()
 
 	err = session.Run(command)
+
+	// If context was cancelled, report a clean cancellation error
+	if p.ctx != nil && p.ctx.Err() != nil {
+		err = fmt.Errorf("cancelled")
+		return
+	}
+
 	if err != nil {
 		err = fmt.Errorf("session run command error: %s", err)
 		return

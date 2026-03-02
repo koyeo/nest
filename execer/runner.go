@@ -1,6 +1,7 @@
 package execer
 
 import (
+	"context"
 	"io"
 	"os"
 	"os/exec"
@@ -22,6 +23,13 @@ type Runner struct {
 	environ  []string
 	stdout   io.Writer
 	stderr   io.Writer
+	ctx      context.Context
+}
+
+// SetContext sets a context for cancellation support.
+func (p *Runner) SetContext(ctx context.Context) *Runner {
+	p.ctx = ctx
+	return p
 }
 
 // AddCommand sets execution commands.
@@ -90,7 +98,12 @@ func (p *Runner) wrapCmd(cmd *exec.Cmd) {
 }
 
 func (p *Runner) pipeExec(command string) (err error) {
-	c := exec.Command(p.shell, "-c", command)
+	var c *exec.Cmd
+	if p.ctx != nil {
+		c = exec.CommandContext(p.ctx, p.shell, "-c", command)
+	} else {
+		c = exec.Command(p.shell, "-c", command)
+	}
 	p.wrapCmd(c)
 
 	// Only connect stdin when NOT in TUI mode (TUI owns the terminal)

@@ -1,6 +1,6 @@
 # Configuration
 
-Nest uses a single YAML file (`nest.yaml` by default) to define everything: servers, environment variables, and tasks.
+Nest uses a single YAML file (`nest.yaml` by default) to define everything: servers, environment variables, storage, and tasks.
 
 ## Config File Structure
 
@@ -9,6 +9,9 @@ version: 1.0
 
 servers:
   # ... server definitions
+
+storage:
+  # ... storage alias mappings (optional)
 
 envs:
   # ... global environment variables
@@ -47,6 +50,18 @@ servers:
 ::: warning
 Avoid committing password credentials to version control. Use SSH key auth whenever possible.
 :::
+
+## Storage
+
+Map storage aliases to global config names for [cloud storage relay](./cloud-storage.md):
+
+```yaml
+storage:
+  oss: oss-prod        # "oss" alias → "oss-prod" global config
+  s3: s3-backup        # "s3" alias → "s3-backup" global config
+```
+
+The alias is used as a protocol prefix in `deploy.files` source paths (e.g. `oss://path/to/file`).
 
 ## Environment Variables
 
@@ -94,7 +109,6 @@ Each step in a task can be one of:
 |:-----|:------------|
 | `run` | Execute a local shell command |
 | `deploy` | Upload files and/or execute remote commands |
-| `upload` | Upload artifacts to cloud storage |
 | `use` | Reference another task (task composition) |
 
 ### Task Composition with `use`
@@ -115,7 +129,7 @@ tasks:
       - deploy:
           servers:
             - use: prod
-          mappers:
+          files:
             - source: ./myapp
               target: /opt/myapp/bin/myapp
 

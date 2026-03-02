@@ -1,6 +1,7 @@
 package webui
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -32,7 +33,7 @@ type StepDetail struct {
 // RunWithUI starts the webui server, opens a window/browser, executes the task,
 // and streams events in real-time via WebSocket.
 // On macOS, this function blocks on the webview window (main thread requirement).
-func RunWithUI(taskName string, stepNames []string, stepDetails []StepDetail, projectName, projectPath string, execFn func(h EventHandler)) {
+func RunWithUI(taskName string, stepNames []string, stepDetails []StepDetail, projectName, projectPath string, execFn func(h EventHandler, ctx context.Context)) {
 	srv := &uiServer{
 		taskName:    taskName,
 		stepNames:   stepNames,
@@ -42,6 +43,7 @@ func RunWithUI(taskName string, stepNames []string, stepDetails []StepDetail, pr
 		execFn:      execFn,
 		done:        make(chan struct{}),
 		clientReady: make(chan struct{}),
+		actionCh:    make(chan string, 10),
 	}
 	srv.run()
 }
@@ -52,13 +54,19 @@ type uiServer struct {
 	stepDetails []StepDetail
 	projectName string
 	projectPath string
-	execFn      func(h EventHandler)
+	execFn      func(h EventHandler, ctx context.Context)
 	done        chan struct{}
 	clientReady chan struct{}
 	readyOnce   sync.Once
+	actionCh    chan string // "stop", "rerun"
 
 	mu      sync.Mutex
 	clients []*websocket.Conn
+
+	// Execution state
+	execMu  sync.Mutex
+	running bool
+	cancel  context.CancelFunc // cancel current execution context
 }
 
 func (s *uiServer) run() {
@@ -82,23 +90,23 @@ func (s *uiServer) run() {
 		_ = httpServer.Serve(listener)
 	}()
 
-	// Start task execution in background (waits for client to connect first)
-	go s.startTaskExecution()
+	// Start action loop: handles run/rerun/stop commands
+	go s.actionLoop()
 
 	// Open UI — this BLOCKS on macOS (webview needs main thread)
-	// When the window closes, it returns and we shut down
 	if runtime.GOOS == "darwin" {
 		openWebview(url, s.taskName)
 	} else {
 		openBrowser(url)
-		<-s.done // Wait for task to complete
+		<-s.done
 	}
 
 	_ = httpServer.Close()
 }
 
-func (s *uiServer) startTaskExecution() {
-	// Wait for WebSocket client to connect
+// actionLoop handles start/stop/rerun lifecycle.
+func (s *uiServer) actionLoop() {
+	// Wait for WebSocket client to connect before first run
 	select {
 	case <-s.clientReady:
 	case <-time.After(10 * time.Second):
@@ -106,6 +114,77 @@ func (s *uiServer) startTaskExecution() {
 		close(s.done)
 		return
 	}
+
+	// Auto-run on connect
+	s.runTask()
+
+	// Listen for actions from WebSocket
+	for action := range s.actionCh {
+		switch action {
+		case "stop":
+			s.stopTask()
+		case "rerun":
+			s.stopTask()
+			// Small delay to let pipes flush
+			time.Sleep(300 * time.Millisecond)
+			// Broadcast reset to clear UI
+			s.broadcast(map[string]interface{}{
+				"type": "reset",
+			})
+			s.runTask()
+		}
+	}
+}
+
+func (s *uiServer) runTask() {
+	s.execMu.Lock()
+	if s.running {
+		s.execMu.Unlock()
+		return
+	}
+	s.running = true
+	s.execMu.Unlock()
+
+	// Broadcast state
+	s.broadcast(map[string]interface{}{
+		"type":  "state",
+		"state": "running",
+	})
+
+	go s.executeTask()
+}
+
+func (s *uiServer) stopTask() {
+	s.execMu.Lock()
+	if !s.running {
+		s.execMu.Unlock()
+		return
+	}
+	// Cancel context → sends SIGKILL to local subprocesses, closes SSH sessions
+	if s.cancel != nil {
+		s.cancel()
+	}
+	s.execMu.Unlock()
+
+	// Wait for execution to finish
+	for {
+		s.execMu.Lock()
+		r := s.running
+		s.execMu.Unlock()
+		if !r {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+func (s *uiServer) executeTask() {
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	s.execMu.Lock()
+	s.cancel = cancel
+	s.execMu.Unlock()
 
 	// Intercept os.Stdout and os.Stderr to capture ALL output
 	origStdout := os.Stdout
@@ -121,24 +200,28 @@ func (s *uiServer) startTaskExecution() {
 	go s.pumpPipe(stdoutR)
 	go s.pumpPipe(stderrR)
 
-	// Execute the task
-	s.execFn(handler)
+	// Execute the task with context
+	s.execFn(handler, ctx)
 
 	// Small delay to ensure final output is flushed
 	time.Sleep(200 * time.Millisecond)
 
 	// Restore stdout/stderr
-	stdoutW.Close()
-	stderrW.Close()
+	_ = stdoutW.Close()
+	_ = stderrW.Close()
 	os.Stdout = origStdout
 	os.Stderr = origStderr
 
-	// Signal done (for non-webview platforms)
-	select {
-	case <-s.done:
-	default:
-		close(s.done)
-	}
+	s.execMu.Lock()
+	s.running = false
+	s.cancel = nil
+	s.execMu.Unlock()
+
+	// Broadcast state
+	s.broadcast(map[string]interface{}{
+		"type":  "state",
+		"state": "stopped",
+	})
 }
 
 func (s *uiServer) handlePage(w http.ResponseWriter, r *http.Request) {
@@ -155,13 +238,9 @@ func (s *uiServer) handleWS(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	s.clients = append(s.clients, conn)
-	s.mu.Unlock()
 
-	// Signal that a client has connected
-	s.readyOnce.Do(func() { close(s.clientReady) })
-
-	// Send init message with task info
-	s.sendToConn(conn, map[string]interface{}{
+	// Send init message UNDER LOCK (before any broadcast can happen)
+	initData, _ := json.Marshal(map[string]interface{}{
 		"type":         "init",
 		"task_name":    s.taskName,
 		"steps":        s.stepNames,
@@ -169,12 +248,28 @@ func (s *uiServer) handleWS(w http.ResponseWriter, r *http.Request) {
 		"project_name": s.projectName,
 		"project_path": s.projectPath,
 	})
+	_ = conn.WriteMessage(websocket.TextMessage, initData)
+	s.mu.Unlock()
 
-	// Keep reading to detect close
+	// Signal AFTER init is sent
+	s.readyOnce.Do(func() { close(s.clientReady) })
+
+	// Read incoming messages (actions from client)
 	go func() {
 		for {
-			if _, _, err := conn.ReadMessage(); err != nil {
+			_, raw, err := conn.ReadMessage()
+			if err != nil {
 				break
+			}
+			var msg struct {
+				Type   string `json:"type"`
+				Action string `json:"action"`
+			}
+			if json.Unmarshal(raw, &msg) == nil && msg.Type == "action" {
+				select {
+				case s.actionCh <- msg.Action:
+				default:
+				}
 			}
 		}
 	}()
@@ -187,11 +282,6 @@ func (s *uiServer) broadcast(msg interface{}) {
 	for _, conn := range s.clients {
 		_ = conn.WriteMessage(websocket.TextMessage, data)
 	}
-}
-
-func (s *uiServer) sendToConn(conn *websocket.Conn, msg interface{}) {
-	data, _ := json.Marshal(msg)
-	_ = conn.WriteMessage(websocket.TextMessage, data)
 }
 
 func (s *uiServer) pumpPipe(r *os.File) {

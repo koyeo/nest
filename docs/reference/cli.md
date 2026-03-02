@@ -30,13 +30,21 @@ nest run <task...>
 nest run deploy              # Run single task
 nest run build deploy        # Run multiple tasks in order
 nest run deploy -c prod.yml  # Use specific config file
+nest run deploy --raw        # Use raw console output (no GUI)
 ```
+
+**Flags:**
+
+| Flag | Default | Description |
+|:-----|:--------|:------------|
+| `--raw` | `false` | Use raw console output instead of the visual webview |
+
+By default, `nest run` opens a **visual webview window** (macOS) or browser showing task progress, step status, and output in real-time. Use `--raw` for plain console output.
 
 **Step execution order:**
 1. `run` — local shell command
 2. `use` — invoke another task (supports circular dependency detection)
-3. `upload` — compress and upload to cloud storage
-4. `deploy` — upload files via SFTP and/or execute remote commands
+3. `deploy` — upload files via SFTP (or cloud storage relay) and/or execute remote commands
 
 ---
 
@@ -90,13 +98,6 @@ Print version information.
 
 ```bash
 nest version
-```
-
-**Output:**
-```
-nest v0.2.0
-  commit:  abc1234
-  built:   2026-03-01T00:00:00Z
 ```
 
 ## Global Flags

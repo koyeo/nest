@@ -62,6 +62,10 @@ func (p *ServerRunner) newExecServer() (*execer.Server, error) {
 		Password:     p.server.Password,
 		IdentityFile: p.server.IdentityFile,
 	})
+	// Propagate context for cancellation
+	if p.task != nil && p.task.ctx != nil {
+		server.SetContext(p.task.ctx)
+	}
 	err := server.InitSFTP()
 	if err != nil {
 		return nil, err

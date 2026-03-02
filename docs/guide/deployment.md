@@ -13,7 +13,7 @@ tasks:
       - deploy:
           servers:
             - use: prod             # Reference a named server
-          mappers:                   # File mappings (optional)
+          files:                     # File mappings (optional)
             - source: ./myapp
               target: /opt/myapp/bin/myapp
           executes:                  # Remote commands (optional)
@@ -30,7 +30,7 @@ steps:
       servers:
         - host: 192.168.1.10
           user: root
-      mappers:
+      files:
         - source: ./dist/
           target: /var/www/html/
 ```
@@ -54,6 +54,31 @@ The `source` → `target` mapping follows these rules:
 A trailing `/` on the target means "put the source **inside** this directory". No trailing `/` means "rename to this path".
 :::
 
+## Cloud Storage Relay
+
+When source paths use a **storage protocol prefix** (e.g. `oss://`), Nest uploads the local file to cloud storage first, then the remote server downloads via a pre-signed URL. This is much faster than SFTP for overseas servers.
+
+```yaml
+storage:
+  oss: oss-prod
+
+tasks:
+  deploy:
+    steps:
+      - deploy:
+          servers:
+            - use: prod
+          files:
+            # Cloud storage relay
+            - source: oss://apps/web/.next/standalone/
+              target: /root/app/
+            # Direct SFTP upload
+            - source: deploy/prod.toml
+              target: /root/app/config.toml
+```
+
+See [Cloud Storage Relay](./cloud-storage.md) for full setup instructions.
+
 ## Multi-Server Deploy
 
 Deploy to multiple servers at once:
@@ -66,7 +91,7 @@ tasks:
           servers:
             - use: prod
             - use: staging
-          mappers:
+          files:
             - source: ./myapp
               target: /opt/myapp/bin/myapp
           executes:
@@ -87,16 +112,6 @@ tasks:
             - use: prod
           executes:
             - run: journalctl -u myapp -f --lines=100
-
-  status:
-    comment: Check server health
-    steps:
-      - deploy:
-          servers:
-            - use: prod
-            - use: staging
-          executes:
-            - run: systemctl status myapp && df -h && free -m
 
   restart:
     comment: Restart service
@@ -123,7 +138,7 @@ tasks:
       - deploy:
           servers:
             - use: prod
-          mappers:
+          files:
             - source: ./myapp
               target: /opt/myapp/bin/myapp
             - source: ./frontend/dist/
@@ -148,18 +163,4 @@ tasks:
                 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
                 pg_dump -U postgres myapp_db > /opt/backups/myapp_${TIMESTAMP}.sql
                 echo "✅ Backup saved: myapp_${TIMESTAMP}.sql"
-```
-
-### SSL Certificate Renewal
-
-```yaml
-tasks:
-  cert-renew:
-    comment: Renew SSL certificates
-    steps:
-      - deploy:
-          servers:
-            - use: prod
-          executes:
-            - run: certbot renew --quiet && nginx -s reload
 ```

@@ -75,7 +75,6 @@ type Execute struct {
 }
 
 type Deploy struct {
-	Storage  string         `yaml:"storage"` // storage config name: download from cloud instead of SFTP
 	Servers  []*Server      `yaml:"servers"`
 	Files    []*FileMapping `yaml:"files"`
 	Executes []*Execute     `yaml:"executes"`

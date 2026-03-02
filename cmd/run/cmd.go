@@ -1,6 +1,7 @@
 package run
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -71,9 +72,10 @@ func run(cmd *cobra.Command, args []string) {
 			for i, d := range rd {
 				details[i] = webui.StepDetail{Name: d.Name, Depth: d.Depth, IsGroup: d.IsGroup}
 			}
-			webui.RunWithUI(v, taskRunner.StepNames(), details, projectName, projectPath, func(h webui.EventHandler) {
+			webui.RunWithUI(v, taskRunner.StepNames(), details, projectName, projectPath, func(h webui.EventHandler, ctx context.Context) {
 				// The handler implements the same interface as runner.StepEventHandler
 				taskRunner.SetEventHandler(h)
+				taskRunner.SetContext(ctx)
 				taskErr := taskRunner.Exec()
 				h.OnTaskDone(taskErr)
 				if taskErr != nil {

@@ -40,6 +40,12 @@ type TaskRunner struct {
 	uploadedKeys map[string]string // source basename → object key
 	handler      StepEventHandler  // event handler (nil = legacy output)
 	stepOffset   int               // global step index offset
+	ctx          context.Context
+}
+
+// SetContext sets a context for cancellation support.
+func (p *TaskRunner) SetContext(ctx context.Context) {
+	p.ctx = ctx
 }
 
 // SetEventHandler sets the event handler for visualization.
@@ -148,6 +154,14 @@ func (p TaskRunner) collectStepNames(task *protocol.Task, depth int) []string {
 func (p TaskRunner) Exec() (err error) {
 	globalIdx := p.stepOffset
 	for _, step := range p.task.Steps {
+		// Check for cancellation before each step
+		if p.ctx != nil {
+			select {
+			case <-p.ctx.Done():
+				return fmt.Errorf("cancelled")
+			default:
+			}
+		}
 		if step.Use != "" {
 			p.sendStepStart(globalIdx)
 			globalIdx++
@@ -258,8 +272,9 @@ func (p TaskRunner) use(key string, childOffset int) (err error) {
 	}
 	taskRunner := NewTaskRunner(p.conf, task, key)
 
-	// Propagate handler and step offset to child runner
+	// Propagate handler, context, and step offset to child runner
 	taskRunner.handler = p.handler
+	taskRunner.ctx = p.ctx
 	taskRunner.stepOffset = childOffset
 
 	// store parent task key to avoid circle dependency
@@ -384,12 +399,6 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		}
 	}
 
-	// Check if deploying via cloud storage
-	if deploy.Storage != "" {
-		return p.deployViaStorage(deploy, servers)
-	}
-
-	// Original SFTP upload path
 	for key, server := range servers {
 		if server.Host == "" {
 			err = fmt.Errorf("deploy server host is empty")
@@ -397,103 +406,20 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		}
 		serverRunner := NewServerRunner(p.conf, p, server, key)
 		runners = append(runners, serverRunner)
+
 		for _, file := range deploy.Files {
-			err = serverRunner.Upload(file.Source, file.Target)
-			if err != nil {
-				return
-			}
-		}
-	}
-	for key, server := range servers {
-		serverRunner := NewServerRunner(p.conf, p, server, key)
-		runners = append(runners, serverRunner)
-		for _, execute := range deploy.Executes {
-			if execute.Run != "" {
-				p.printServerExec(server, execute.Run)
-				err = serverRunner.PipeExec(execute.Run)
+			if storageAlias, localPath, ok := parseStorageSource(file.Source); ok {
+				// Storage-prefixed source: upload to cloud → curl download on remote
+				if err = p.deployFileViaStorage(serverRunner, server, storageAlias, localPath, file.Target); err != nil {
+					return
+				}
+			} else {
+				// No prefix: direct SFTP upload
+				err = serverRunner.Upload(file.Source, file.Target)
 				if err != nil {
-					err = fmt.Errorf("server execute error: %s", err)
 					return
 				}
 			}
-		}
-	}
-
-	return
-}
-
-// deployViaStorage downloads artifacts from cloud storage on the remote server.
-func (p *TaskRunner) deployViaStorage(deploy *protocol.Deploy, servers map[string]*protocol.Server) error {
-	// Resolve storage alias to global config name
-	globalName, err := p.conf.ResolveStorage(deploy.Storage)
-	if err != nil {
-		return err
-	}
-
-	cfg := config.Load()
-	cred, err := cfg.DecryptStorage(globalName)
-	if err != nil {
-		return fmt.Errorf("storage '%s' (config '%s'): %s", deploy.Storage, globalName, err)
-	}
-
-	store, err := storage.NewFromCredential(cred)
-	if err != nil {
-		return fmt.Errorf("create storage client error: %s", err)
-	}
-
-	runners := make([]*ServerRunner, 0)
-	defer func() {
-		for _, v := range runners {
-			v.Close()
-		}
-	}()
-
-	ctx := context.Background()
-
-	for key, server := range servers {
-		if server.Host == "" {
-			return fmt.Errorf("deploy server host is empty")
-		}
-		serverRunner := NewServerRunner(p.conf, p, server, key)
-		runners = append(runners, serverRunner)
-
-		for _, file := range deploy.Files {
-			sourceName := path.Base(file.Source)
-			objectKey, ok := p.uploadedKeys[sourceName]
-			if !ok {
-				return fmt.Errorf("no uploaded object key found for '%s', make sure the upload step runs before deploy", sourceName)
-			}
-
-			// Generate pre-signed URL (1 hour)
-			url, err := store.PresignedURL(ctx, objectKey, 1*time.Hour)
-			if err != nil {
-				return fmt.Errorf("generate download URL error: %s", err)
-			}
-
-			p.tuiLog("⬇️",
-				fmt.Sprintf("[%s]", server.Name()),
-				fmt.Sprintf("downloading %s via %s", sourceName, deploy.Storage),
-			)
-
-			// Prepare target directory and download on remote server
-			targetDir := file.Target
-			bundleName := fmt.Sprintf("%s.tar.gz", sourceName)
-			bundleRemotePath := fmt.Sprintf("/tmp/nest-%s", bundleName)
-
-			// Download via curl on remote server
-			downloadCmd := fmt.Sprintf("curl -fsSL '%s' -o %s", url, bundleRemotePath)
-			if err = serverRunner.PipeExec(downloadCmd); err != nil {
-				return fmt.Errorf("remote download error: %s", err)
-			}
-
-			// Extract and deploy using the same flow as SFTP
-			extractCmd := fmt.Sprintf("mkdir -p %s && tar -xzf %s -C %s && rm -f %s",
-				targetDir, bundleRemotePath, targetDir, bundleRemotePath)
-			if err = serverRunner.PipeExec(extractCmd); err != nil {
-				return fmt.Errorf("remote extract error: %s", err)
-			}
-
-			p.tuiLog("✅", fmt.Sprintf("deployed %s → %s", sourceName, targetDir))
 		}
 	}
 
@@ -504,14 +430,162 @@ func (p *TaskRunner) deployViaStorage(deploy *protocol.Deploy, servers map[strin
 		for _, execute := range deploy.Executes {
 			if execute.Run != "" {
 				p.printServerExec(server, execute.Run)
-				if err := serverRunner.PipeExec(execute.Run); err != nil {
-					return fmt.Errorf("server execute error: %s", err)
+				if err = serverRunner.PipeExec(execute.Run); err != nil {
+					err = fmt.Errorf("server execute error: %s", err)
+					return
 				}
 			}
 		}
 	}
 
+	return
+}
+
+// parseStorageSource checks if source has a "<alias>://" prefix.
+// Returns (alias, localPath, true) if found, ("", "", false) otherwise.
+func parseStorageSource(source string) (string, string, bool) {
+	idx := strings.Index(source, "://")
+	if idx <= 0 {
+		return "", "", false
+	}
+	return source[:idx], source[idx+3:], true
+}
+
+// deployFileViaStorage uploads a local file/dir to cloud storage, then downloads on remote.
+func (p *TaskRunner) deployFileViaStorage(
+	serverRunner *ServerRunner,
+	server *protocol.Server,
+	storageAlias, localPath, target string,
+) error {
+	// Resolve storage alias
+	globalName, err := p.conf.ResolveStorage(storageAlias)
+	if err != nil {
+		return err
+	}
+
+	cfg := config.Load()
+	cred, err := cfg.DecryptStorage(globalName)
+	if err != nil {
+		return fmt.Errorf("storage '%s' (config '%s'): %s", storageAlias, globalName, err)
+	}
+
+	store, err := storage.NewFromCredential(cred)
+	if err != nil {
+		return fmt.Errorf("create storage client error: %s", err)
+	}
+
+	// Upload local source to storage (compress + dedup)
+	objectKey, err := p.uploadToStorage(store, storageAlias, localPath)
+	if err != nil {
+		return err
+	}
+
+	// Generate pre-signed URL
+	ctx := context.Background()
+	url, err := store.PresignedURL(ctx, objectKey, 1*time.Hour)
+	if err != nil {
+		return fmt.Errorf("generate download URL error: %s", err)
+	}
+
+	sourceName := path.Base(localPath)
+	p.tuiLog("⬇️",
+		fmt.Sprintf("[%s]", server.Name()),
+		fmt.Sprintf("downloading %s via %s", sourceName, storageAlias),
+	)
+
+	// Download and extract on remote server
+	bundleName := fmt.Sprintf("%s.tar.gz", sourceName)
+	bundleRemotePath := fmt.Sprintf("/tmp/nest-%s", bundleName)
+
+	downloadCmd := fmt.Sprintf("curl -fsSL '%s' -o %s", url, bundleRemotePath)
+	if err = serverRunner.PipeExec(downloadCmd); err != nil {
+		return fmt.Errorf("remote download error: %s", err)
+	}
+
+	targetDir := target
+	extractCmd := fmt.Sprintf("mkdir -p %s && tar -xzf %s -C %s && rm -f %s",
+		targetDir, bundleRemotePath, targetDir, bundleRemotePath)
+	if err = serverRunner.PipeExec(extractCmd); err != nil {
+		return fmt.Errorf("remote extract error: %s", err)
+	}
+
+	p.tuiLog("✅", fmt.Sprintf("deployed %s → %s", sourceName, targetDir))
 	return nil
+}
+
+// uploadToStorage compresses and uploads a local path to cloud storage, with dedup.
+func (p *TaskRunner) uploadToStorage(store storage.ObjectStorage, alias, localPath string) (string, error) {
+	sourceName := path.Base(localPath)
+
+	// Check if already uploaded in this run (dedup across servers)
+	if key, ok := p.uploadedKeys[localPath]; ok {
+		p.tuiLog("⏭️", fmt.Sprintf("[%s] %s already uploaded", alias, sourceName))
+		return key, nil
+	}
+
+	ok, err := _fs.Exists(localPath)
+	if err != nil {
+		return "", fmt.Errorf("check source error: %s", err)
+	}
+	if !ok {
+		return "", fmt.Errorf("source not found: %s", localPath)
+	}
+
+	// Compress
+	tmpDir := NestTmpDir()
+	bundlePath := fmt.Sprintf("%s/%s.tar.gz", tmpDir, sourceName)
+	defer cleanNestTempDir()
+
+	sourceFile, err := os.Open(localPath)
+	if err != nil {
+		return "", fmt.Errorf("open source error: %s", err)
+	}
+	defer func() { _ = sourceFile.Close() }()
+
+	if err = _tar.Compress([]*os.File{sourceFile}, bundlePath); err != nil {
+		return "", fmt.Errorf("compress error: %s", err)
+	}
+
+	// Compute hash for dedup
+	bundleData, err := os.ReadFile(bundlePath)
+	if err != nil {
+		return "", fmt.Errorf("read bundle error: %s", err)
+	}
+	sha := fmt.Sprintf("%x", sha1.Sum(bundleData))
+	objectKey := fmt.Sprintf("nest/%s.tar.gz", sha)
+
+	bundleFile, err := os.Open(bundlePath)
+	if err != nil {
+		return "", fmt.Errorf("open bundle error: %s", err)
+	}
+	defer func() { _ = bundleFile.Close() }()
+
+	info, _ := bundleFile.Stat()
+	localSize := info.Size()
+
+	p.tuiLog("☁️",
+		fmt.Sprintf("[%s]", alias),
+		fmt.Sprintf("%s → %s (%s)", localPath, objectKey, unit.ByteSize(localSize)),
+	)
+
+	ctx := context.Background()
+	remoteSize, err := store.Head(ctx, objectKey)
+	if err != nil {
+		return "", fmt.Errorf("check remote object error: %s", err)
+	}
+
+	if remoteSize == localSize {
+		p.tuiLog("⏭️", "skipped (already exists)")
+	} else {
+		if err = store.Upload(ctx, objectKey, bundleFile, localSize); err != nil {
+			return "", fmt.Errorf("upload to storage error: %s", err)
+		}
+		p.tuiLog("✅", "uploaded")
+	}
+
+	// Track for dedup across multiple servers
+	p.uploadedKeys[localPath] = objectKey
+	return objectKey, nil
 }
 
 func (p TaskRunner) execute(step *protocol.Step) (err error) {
@@ -520,6 +594,9 @@ func (p TaskRunner) execute(step *protocol.Step) (err error) {
 	}
 	p.printExec(step.Run)
 	runner := execer.NewRunner()
+	if p.ctx != nil {
+		runner.SetContext(p.ctx)
+	}
 	runner.AddCommand(step.Run)
 	runner.SetEnviron(p.prepareEnviron())
 	if p.task.Workspace != "" {
@@ -527,6 +604,10 @@ func (p TaskRunner) execute(step *protocol.Step) (err error) {
 	}
 	err = runner.PipeOutput()
 	if err != nil {
+		// If cancelled, return clean error
+		if p.ctx != nil && p.ctx.Err() != nil {
+			return fmt.Errorf("cancelled")
+		}
 		err = fmt.Errorf("runner pipe exec error: %s", err)
 		return
 	}
