@@ -380,7 +380,7 @@ func (p *TaskRunner) upload(u *protocol.Upload) error {
 
 func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	servers := map[string]*protocol.Server{}
-	runners := make([]*ServerRunner, 0)
+	runners := map[string]*ServerRunner{} // key → runner, reused for files + executes
 	defer func() {
 		for _, v := range runners {
 			v.Close()
@@ -399,22 +399,26 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		}
 	}
 
+	// Create one ServerRunner per server (reused for files + executes)
 	for key, server := range servers {
 		if server.Host == "" {
 			err = fmt.Errorf("deploy server host is empty")
 			return
 		}
-		serverRunner := NewServerRunner(p.conf, p, server, key)
-		runners = append(runners, serverRunner)
+		runners[key] = NewServerRunner(p.conf, p, server, key)
+	}
+
+	// Upload files
+	for key, server := range servers {
+		serverRunner := runners[key]
+		_ = server // used for logging in deployFileViaStorage
 
 		for _, file := range deploy.Files {
 			if storageAlias, localPath, ok := parseStorageSource(file.Source); ok {
-				// Storage-prefixed source: upload to cloud → curl download on remote
 				if err = p.deployFileViaStorage(serverRunner, server, storageAlias, localPath, file.Target); err != nil {
 					return
 				}
 			} else {
-				// No prefix: direct SFTP upload
 				err = serverRunner.Upload(file.Source, file.Target)
 				if err != nil {
 					return
@@ -423,10 +427,9 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		}
 	}
 
-	// Execute post-deploy commands
+	// Execute post-deploy commands (reuse same runners)
 	for key, server := range servers {
-		serverRunner := NewServerRunner(p.conf, p, server, key)
-		runners = append(runners, serverRunner)
+		serverRunner := runners[key]
 		for _, execute := range deploy.Executes {
 			if execute.Run != "" {
 				p.printServerExec(server, execute.Run)
