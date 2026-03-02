@@ -26,6 +26,9 @@ type StepEventHandler interface {
 	OnStepDone(index int, err error)
 	OnOutput(content string)
 	OnTaskDone(err error)
+	// Prompt shows a message to the user and returns their text input.
+	// Used for interactive prompts (e.g., conflict resolution during deploy).
+	Prompt(message string) string
 }
 
 func NewTaskRunner(conf *protocol.Config, task *protocol.Task, key string) *TaskRunner {

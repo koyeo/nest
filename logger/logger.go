@@ -2,9 +2,10 @@ package logger
 
 import (
 	"fmt"
-	"github.com/gozelle/_color"
 	"strings"
 	"time"
+
+	"github.com/gozelle/_color"
 )
 
 func timestamp() string {
@@ -31,7 +32,7 @@ func Step(taskKey, taskComment, emoji string, args ...string) {
 }
 
 func Print(msg string) {
-	fmt.Printf(fmt.Sprintf("%s %s", _color.RedString(timestamp()), msg))
+	fmt.Printf("%s %s", _color.RedString(timestamp()), msg)
 }
 
 func Error(err error) {

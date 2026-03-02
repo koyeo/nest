@@ -10,7 +10,7 @@ const (
 	ActionRemove
 )
 
-// ConflictResult separates conflicting files into managed (Cast-tracked)
+// ConflictResult separates conflicting files into managed (Nest-tracked)
 // and unmanaged (external) categories.
 type ConflictResult struct {
 	// ManagedFiles are files tracked in the snapshot — safe to replace directly.

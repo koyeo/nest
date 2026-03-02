@@ -1,5 +1,7 @@
 package webui
 
+import "encoding/json"
+
 // EventHandler is the interface alias that runner.StepEventHandler implements.
 // We define it here to avoid import cycles.
 type EventHandler interface {
@@ -7,6 +9,8 @@ type EventHandler interface {
 	OnStepDone(index int, err error)
 	OnOutput(content string)
 	OnTaskDone(err error)
+	// Prompt shows a message to the user and returns their text input.
+	Prompt(message string) string
 }
 
 // wsHandler implements EventHandler by broadcasting events via WebSocket.
@@ -49,10 +53,47 @@ func (h *wsHandler) OnTaskDone(err error) {
 	}
 	h.server.broadcast(msg)
 
-	// Signal the server to shut down after a delay
+	// Keep server alive so browser can render final state
 	go func() {
-		// Keep server alive so browser can render final state
-		// Server will close when the process exits
 		select {}
 	}()
+}
+
+// Prompt sends a prompt message to the browser and blocks until the user responds.
+func (h *wsHandler) Prompt(message string) string {
+	// Create a response channel
+	ch := make(chan string, 1)
+	h.server.setPromptCh(ch)
+
+	// Broadcast the prompt request
+	h.server.broadcast(map[string]interface{}{
+		"type":    "prompt",
+		"message": message,
+	})
+
+	// Block until user responds
+	response := <-ch
+	return response
+}
+
+// handlePromptResponse is called when a prompt_response message arrives from the client.
+func (s *uiServer) handlePromptResponse(raw []byte) {
+	var msg struct {
+		Type     string `json:"type"`
+		Response string `json:"response"`
+	}
+	if json.Unmarshal(raw, &msg) == nil && msg.Type == "prompt_response" {
+		s.execMu.Lock()
+		ch := s.promptCh
+		s.execMu.Unlock()
+		if ch != nil {
+			ch <- msg.Response
+		}
+	}
+}
+
+func (s *uiServer) setPromptCh(ch chan string) {
+	s.execMu.Lock()
+	s.promptCh = ch
+	s.execMu.Unlock()
 }

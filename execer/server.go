@@ -151,7 +151,7 @@ func (p *Server) CombinedExec(command string) error {
 	}()
 	out, err := session.CombinedOutput(command)
 	if err != nil {
-		err = fmt.Errorf(strings.TrimSpace(string(out)))
+		err = fmt.Errorf("%s", strings.TrimSpace(string(out)))
 		return err
 	}
 	return nil
@@ -173,10 +173,8 @@ func (p *Server) PipeExec(command string) (err error) {
 	// Watch for context cancellation — close session to interrupt remote command
 	if p.ctx != nil {
 		go func() {
-			select {
-			case <-p.ctx.Done():
-				_ = session.Close()
-			}
+			<-p.ctx.Done()
+			_ = session.Close()
 		}()
 	}
 

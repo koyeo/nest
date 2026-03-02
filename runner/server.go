@@ -12,6 +12,7 @@ import (
 	"github.com/gozelle/_fs"
 	"github.com/koyeo/nest/config"
 	application "github.com/koyeo/nest/deploy/application"
+	"github.com/koyeo/nest/deploy/domain"
 	infra "github.com/koyeo/nest/deploy/infrastructure"
 	"github.com/koyeo/nest/execer"
 	"github.com/koyeo/nest/logger"
@@ -234,7 +235,14 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 	remoteFS := infra.NewSSHRemoteFS(server)
 	remoteExec := infra.NewSSHRemoteExec(server)
 	snapshotRepo := infra.NewSnapshotRepo(remoteFS)
-	prompter := infra.NewStdinPrompter()
+
+	// Use WebSocket prompter in webui mode, stdin in raw mode
+	var prompter domain.UserPrompter
+	if p.task.handler != nil {
+		prompter = &HandlerPrompter{Handler: p.task.handler}
+	} else {
+		prompter = infra.NewStdinPrompter()
+	}
 	deploySvc := application.NewDeployService(remoteFS, remoteExec, snapshotRepo, prompter, lang)
 
 	err = deploySvc.Deploy(bundleRemoteTmpPath, targetDir, bundleName, bundleHash)

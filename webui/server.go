@@ -64,9 +64,10 @@ type uiServer struct {
 	clients []*websocket.Conn
 
 	// Execution state
-	execMu  sync.Mutex
-	running bool
-	cancel  context.CancelFunc // cancel current execution context
+	execMu   sync.Mutex
+	running  bool
+	cancel   context.CancelFunc // cancel current execution context
+	promptCh chan string        // channel for prompt responses from browser
 }
 
 func (s *uiServer) run() {
@@ -254,7 +255,7 @@ func (s *uiServer) handleWS(w http.ResponseWriter, r *http.Request) {
 	// Signal AFTER init is sent
 	s.readyOnce.Do(func() { close(s.clientReady) })
 
-	// Read incoming messages (actions from client)
+	// Read incoming messages (actions and prompt responses from client)
 	go func() {
 		for {
 			_, raw, err := conn.ReadMessage()
@@ -265,10 +266,15 @@ func (s *uiServer) handleWS(w http.ResponseWriter, r *http.Request) {
 				Type   string `json:"type"`
 				Action string `json:"action"`
 			}
-			if json.Unmarshal(raw, &msg) == nil && msg.Type == "action" {
-				select {
-				case s.actionCh <- msg.Action:
-				default:
+			if json.Unmarshal(raw, &msg) == nil {
+				switch msg.Type {
+				case "action":
+					select {
+					case s.actionCh <- msg.Action:
+					default:
+					}
+				case "prompt_response":
+					s.handlePromptResponse(raw)
 				}
 			}
 		}

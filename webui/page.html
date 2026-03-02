@@ -424,6 +424,62 @@
             background: var(--scrollbar-thumb);
             border-radius: 3px;
         }
+
+        /* ── Prompt overlay ── */
+        .prompt-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .prompt-overlay.active {
+            display: flex;
+        }
+
+        .prompt-box {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            min-width: 360px;
+            max-width: 500px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .prompt-box .prompt-msg {
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+
+        .prompt-box input {
+            width: 100%;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .prompt-box input:focus {
+            border-color: var(--accent);
+        }
+
+        .prompt-box .prompt-hint {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 6px;
+        }
     </style>
 </head>
 
@@ -459,6 +515,13 @@
         <span style="flex:1"></span>
         <span class="path" id="projectPath"></span>
     </div>
+    <div class="prompt-overlay" id="promptOverlay">
+        <div class="prompt-box">
+            <div class="prompt-msg" id="promptMsg"></div>
+            <input type="text" id="promptInput" autocomplete="off" />
+            <div class="prompt-hint">Press Enter to confirm</div>
+        </div>
+    </div>
 
     <script>
         /* ── DOM refs ── */
@@ -468,6 +531,7 @@
         const statusBadge = $('statusBadge'), footerInfo = $('footerInfo');
         const taskNameEl = $('taskName'), projectNameEl = $('projectName'), projectPathEl = $('projectPath');
         const btnStop = $('btnStop'), btnRerun = $('btnRerun');
+        const promptOverlay = $('promptOverlay'), promptMsg = $('promptMsg'), promptInput = $('promptInput');
 
         /* ── Theme ── */
         const savedTheme = localStorage.getItem('nest-theme') || 'system';
@@ -497,6 +561,18 @@
             btnStop.disabled = !isRunning;
             btnRerun.disabled = isRunning;
         }
+
+        /* ── Prompt handling ── */
+        promptInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                const val = promptInput.value;
+                promptOverlay.classList.remove('active');
+                promptInput.value = '';
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'prompt_response', response: val }));
+                }
+            }
+        });
 
         /* ── State ── */
         let steps = [], currentStep = -1, autoScroll = true, logLength = 0;
@@ -660,6 +736,12 @@
                     break;
                 case 'reset':
                     resetUI();
+                    break;
+                case 'prompt':
+                    promptMsg.textContent = msg.message;
+                    promptInput.value = '';
+                    promptOverlay.classList.add('active');
+                    setTimeout(() => promptInput.focus(), 50);
                     break;
             }
         };

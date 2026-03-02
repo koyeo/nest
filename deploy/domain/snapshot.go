@@ -38,8 +38,15 @@ func (s *Snapshot) IsManaged(filename string) bool {
 	return false
 }
 
-// AddEntry appends a new deployment entry to the snapshot.
+// AddEntry upserts a deployment entry by BundleName.
+// If an entry with the same BundleName exists, it is replaced; otherwise appended.
 func (s *Snapshot) AddEntry(entry SnapshotEntry) {
+	for i, e := range s.Entries {
+		if e.BundleName == entry.BundleName {
+			s.Entries[i] = entry
+			return
+		}
+	}
 	s.Entries = append(s.Entries, entry)
 }
 

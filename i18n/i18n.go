@@ -16,35 +16,35 @@ const (
 
 var messages = map[string]map[string]string{
 	MsgConflictFound: {
-		"zh": "⚠ 目标目录发现非 Cast 管理的同名文件：%s",
-		"en": "⚠ Non-Cast-managed file conflicts: %s",
+		"zh": "⚠ Unmanaged file conflicts in target directory: %s",
+		"en": "⚠ Unmanaged file conflicts in target directory: %s",
 	},
 	MsgChooseAction: {
-		"zh": "  [1] 备份（默认）\n  [2] 移除\n请选择 [1]: ",
+		"zh": "  [1] Backup (default)\n  [2] Remove\nChoose [1]: ",
 		"en": "  [1] Backup (default)\n  [2] Remove\nChoose [1]: ",
 	},
 	MsgBackupSuffix: {
-		"zh": "备份后缀 [.bak]: ",
+		"zh": "Backup suffix [.bak]: ",
 		"en": "Backup suffix [.bak]: ",
 	},
 	MsgBackingUp: {
-		"zh": "  📦 备份: %s → %s",
+		"zh": "  📦 Backup: %s → %s",
 		"en": "  📦 Backup: %s → %s",
 	},
 	MsgRemoving: {
-		"zh": "  🗑  移除: %s",
+		"zh": "  🗑  Remove: %s",
 		"en": "  🗑  Remove: %s",
 	},
 	MsgDeployComplete: {
-		"zh": "  ✅ 部署完成",
+		"zh": "  ✅ Deploy complete",
 		"en": "  ✅ Deploy complete",
 	},
 	MsgSnapshotCreated: {
-		"zh": "  📝 创建 snapshot: .nest/snapshot.json",
+		"zh": "  📝 Created snapshot: .nest/snapshot.json",
 		"en": "  📝 Created snapshot: .nest/snapshot.json",
 	},
 	MsgSnapshotUpdated: {
-		"zh": "  📝 更新 snapshot: .nest/snapshot.json",
+		"zh": "  📝 Updated snapshot: .nest/snapshot.json",
 		"en": "  📝 Updated snapshot: .nest/snapshot.json",
 	},
 }

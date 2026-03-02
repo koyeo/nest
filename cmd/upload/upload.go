@@ -118,33 +118,33 @@ func Upload(server *Server) (err error) {
 	if err != nil {
 		return
 	}
-	fmt.Printf(chalk.Cyan.Color("ok\n"))
+	fmt.Print(chalk.Cyan.Color("ok\n"))
 
 	logger.Print(chalk.Cyan.Color("[上传中] 检查远程目录是否存在... "))
 	err = checkDistDir(sshClient, uploadDist)
 	if err != nil {
 		return
 	}
-	fmt.Printf(chalk.Cyan.Color("ok\n"))
+	fmt.Print(chalk.Cyan.Color("ok\n"))
 
 	logger.Print(chalk.Cyan.Color("[上传中] 检查远程目录下同名文件或目录是否存在... "))
-	fmt.Printf(chalk.Cyan.Color("ok\n"))
+	fmt.Print(chalk.Cyan.Color("ok\n"))
 
 	logger.Print(chalk.Cyan.Color("[上传中] 压缩本地源文件... "))
 	err = compressSrc(uploadSrc)
 	if err != nil {
 		return
 	}
-	fmt.Printf(chalk.Cyan.Color("ok\n"))
+	fmt.Print(chalk.Cyan.Color("ok\n"))
 
 	logger.Print(chalk.Cyan.Color("[上传中] 开始上传... "))
-	fmt.Printf(chalk.Cyan.Color("ok\n"))
+	fmt.Print(chalk.Cyan.Color("ok\n"))
 
 	logger.Print(chalk.Cyan.Color("[上传中] 解压远程文件... "))
-	fmt.Printf(chalk.Cyan.Color("ok\n"))
+	fmt.Print(chalk.Cyan.Color("ok\n"))
 
 	logger.Print(chalk.Cyan.Color("[上传中] 清理临时文件... "))
-	fmt.Printf(chalk.Cyan.Color("ok\n"))
+	fmt.Print(chalk.Cyan.Color("ok\n"))
 
 	// 打印上传信息
 
