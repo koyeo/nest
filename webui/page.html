@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="system">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nest Runner</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;600&display=swap');
+
+        /* ── Dark theme ── */
+        :root,
+        [data-theme="dark"] {
+            --bg: #0f1117;
+            --panel-bg: #161922;
+            --border: #2a2e3a;
+            --text: #c9cdd6;
+            --text-dim: #5a5f6e;
+            --accent: #6c8cff;
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --cyan: #22d3ee;
+            --hover-bg: rgba(108, 140, 255, 0.06);
+            --active-bg: rgba(108, 140, 255, 0.12);
+            --badge-run-bg: rgba(251, 191, 36, 0.15);
+            --badge-done-bg: rgba(74, 222, 128, 0.15);
+            --badge-fail-bg: rgba(248, 113, 113, 0.15);
+            --scrollbar-thumb: #2a2e3a;
+        }
+
+        /* ── Light theme ── */
+        [data-theme="light"] {
+            --bg: #f5f6f8;
+            --panel-bg: #ffffff;
+            --border: #e2e5ea;
+            --text: #2c3040;
+            --text-dim: #8c91a0;
+            --accent: #4a6cf7;
+            --green: #16a34a;
+            --red: #dc2626;
+            --yellow: #ca8a04;
+            --cyan: #0891b2;
+            --hover-bg: rgba(74, 108, 247, 0.05);
+            --active-bg: rgba(74, 108, 247, 0.1);
+            --badge-run-bg: rgba(202, 138, 4, 0.1);
+            --badge-done-bg: rgba(22, 163, 74, 0.1);
+            --badge-fail-bg: rgba(220, 38, 38, 0.1);
+            --scrollbar-thumb: #d0d3da;
+        }
+
+        /* ── System theme ── */
+        @media (prefers-color-scheme: light) {
+            [data-theme="system"] {
+                --bg: #f5f6f8;
+                --panel-bg: #ffffff;
+                --border: #e2e5ea;
+                --text: #2c3040;
+                --text-dim: #8c91a0;
+                --accent: #4a6cf7;
+                --green: #16a34a;
+                --red: #dc2626;
+                --yellow: #ca8a04;
+                --cyan: #0891b2;
+                --hover-bg: rgba(74, 108, 247, 0.05);
+                --active-bg: rgba(74, 108, 247, 0.1);
+                --badge-run-bg: rgba(202, 138, 4, 0.1);
+                --badge-done-bg: rgba(22, 163, 74, 0.1);
+                --badge-fail-bg: rgba(220, 38, 38, 0.1);
+                --scrollbar-thumb: #d0d3da;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', 'JetBrains Mono', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* ── Header ── */
+        .header {
+            padding: 9px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--panel-bg);
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+            white-space: nowrap;
+        }
+
+        .header .project {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .header .spacer {
+            flex: 1;
+        }
+
+        .header .status {
+            font-size: 11px;
+            color: var(--text-dim);
+        }
+
+        /* ── Theme toggle ── */
+        .theme-toggle {
+            display: flex;
+            gap: 2px;
+            background: var(--bg);
+            border-radius: 5px;
+            padding: 2px;
+            border: 1px solid var(--border);
+        }
+
+        .theme-btn {
+            font-size: 12px;
+            padding: 2px 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            border-radius: 3px;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .theme-btn.active {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        /* ── Main container ── */
+        .container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* ── Steps panel ── */
+        .steps-panel {
+            width: 280px;
+            min-width: 180px;
+            background: var(--panel-bg);
+            overflow-y: auto;
+            padding: 8px 0;
+            flex-shrink: 0;
+        }
+
+        /* ── Tree ── */
+        .tree-node {
+            display: flex;
+            align-items: flex-start;
+            padding: 5px 12px 5px 0;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.12s;
+        }
+
+        .tree-node:hover {
+            background: var(--hover-bg);
+        }
+
+        .tree-node.active {
+            background: var(--active-bg);
+        }
+
+        .tree-indent {
+            flex-shrink: 0;
+        }
+
+        .tree-toggle {
+            flex-shrink: 0;
+            width: 16px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: var(--text-dim);
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+
+        .tree-toggle.expanded {
+            transform: rotate(90deg);
+        }
+
+        .tree-toggle.hidden {
+            visibility: hidden;
+        }
+
+        .tree-icon {
+            flex-shrink: 0;
+            width: 16px;
+            text-align: center;
+            font-size: 11px;
+            margin-right: 6px;
+        }
+
+        .tree-name {
+            line-height: 1.5;
+            word-break: break-all;
+            user-select: text;
+        }
+
+        .tree-node.pending .tree-icon {
+            color: var(--text-dim);
+        }
+
+        .tree-node.running .tree-icon {
+            color: var(--yellow);
+        }
+
+        .tree-node.done .tree-icon {
+            color: var(--green);
+        }
+
+        .tree-node.failed .tree-icon {
+            color: var(--red);
+        }
+
+        .tree-node.running .tree-name {
+            color: var(--yellow);
+            font-weight: 600;
+        }
+
+        .tree-node.done .tree-name {
+            color: var(--text-dim);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .tree-node.running .tree-icon {
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .tree-children {
+            overflow: hidden;
+            transition: max-height 0.2s ease;
+        }
+
+        .tree-children.collapsed {
+            max-height: 0 !important;
+        }
+
+        /* ── Split handle ── */
+        .split-handle {
+            width: 4px;
+            cursor: col-resize;
+            background: var(--border);
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+
+        .split-handle:hover,
+        .split-handle.dragging {
+            background: var(--accent);
+        }
+
+        /* ── Output panel ── */
+        .output-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 200px;
+        }
+
+        .output-header {
+            padding: 7px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+            color: var(--cyan);
+            font-weight: 600;
+            background: var(--panel-bg);
+            flex-shrink: 0;
+        }
+
+        .output-content {
+            flex: 1;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            user-select: text;
+            background: var(--bg);
+        }
+
+        .output-inner {
+            padding: 8px 16px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .log-sep {
+            display: block;
+            color: var(--accent);
+            border-top: 1px solid var(--border);
+            margin: 6px 0;
+            padding-top: 6px;
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .log-error {
+            color: var(--red);
+            font-weight: 600;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            padding: 5px 16px;
+            border-top: 1px solid var(--border);
+            font-size: 11px;
+            color: var(--text-dim);
+            background: var(--panel-bg);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .badge {
+            padding: 1px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .badge.running {
+            background: var(--badge-run-bg);
+            color: var(--yellow);
+        }
+
+        .badge.done {
+            background: var(--badge-done-bg);
+            color: var(--green);
+        }
+
+        .badge.failed {
+            background: var(--badge-fail-bg);
+            color: var(--red);
+        }
+
+        .footer .path {
+            opacity: 0.7;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>🚀 <span id="projectName">Project</span></h1>
+        <span class="project">/ <span id="taskName">Task</span></span>
+        <span class="spacer"></span>
+        <div class="theme-toggle">
+            <button class="theme-btn" data-theme="system" title="System">🖥</button>
+            <button class="theme-btn" data-theme="light" title="Light">☀</button>
+            <button class="theme-btn" data-theme="dark" title="Dark">🌙</button>
+        </div>
+        <div class="status" id="headerStatus">Connecting...</div>
+    </div>
+    <div class="container">
+        <div class="steps-panel" id="stepsPanel"></div>
+        <div class="split-handle" id="splitHandle"></div>
+        <div class="output-panel">
+            <div class="output-header" id="outputHeader">📺 Output</div>
+            <div class="output-content" id="outputContent">
+                <div class="output-inner" id="outputInner"></div>
+            </div>
+        </div>
+    </div>
+    <div class="footer">
+        <span class="badge running" id="statusBadge">Running</span>
+        <span id="footerInfo"></span>
+        <span style="flex:1"></span>
+        <span class="path" id="projectPath"></span>
+    </div>
+
+    <script>
+        /* ── DOM refs ── */
+        const $ = id => document.getElementById(id);
+        const stepsPanel = $('stepsPanel'), outputInner = $('outputInner'), outputContent = $('outputContent');
+        const outputHeader = $('outputHeader'), headerStatus = $('headerStatus');
+        const statusBadge = $('statusBadge'), footerInfo = $('footerInfo');
+        const taskNameEl = $('taskName'), projectNameEl = $('projectName'), projectPathEl = $('projectPath');
+
+        /* ── Theme ── */
+        const savedTheme = localStorage.getItem('nest-theme') || 'system';
+        setTheme(savedTheme);
+
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+            btn.addEventListener('click', () => setTheme(btn.dataset.theme));
+        });
+
+        function setTheme(t) {
+            document.documentElement.setAttribute('data-theme', t);
+            localStorage.setItem('nest-theme', t);
+            document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === t));
+        }
+
+        /* ── State ── */
+        let steps = [], currentStep = -1, autoScroll = true, logLength = 0;
+        const MAX_DOM = 500000;
+        let stepLogMarkers = {};
+
+        outputContent.addEventListener('scroll', () => {
+            autoScroll = outputContent.scrollTop + outputContent.clientHeight >= outputContent.scrollHeight - 40;
+        });
+
+        /* ── Split ── */
+        let dragging = false;
+        $('splitHandle').addEventListener('mousedown', e => { dragging = true; $('splitHandle').classList.add('dragging'); document.body.style.cursor = 'col-resize'; e.preventDefault(); });
+        document.addEventListener('mousemove', e => { if (!dragging) return; stepsPanel.style.width = Math.max(150, Math.min(500, e.clientX)) + 'px'; });
+        document.addEventListener('mouseup', () => { if (dragging) { dragging = false; $('splitHandle').classList.remove('dragging'); document.body.style.cursor = ''; } });
+
+        /* ── Tree ── */
+        function renderTree() {
+            stepsPanel.innerHTML = '';
+            renderLevel(stepsPanel, 0, steps.length, 0);
+        }
+        function renderLevel(container, start, end, depth) {
+            let i = start;
+            while (i < end) {
+                const s = steps[i];
+                if (s.depth < depth) break;
+                if (s.depth > depth) { i++; continue; }
+                const node = document.createElement('div');
+                node.className = 'tree-node ' + s.status;
+                if (i === currentStep) node.classList.add('active');
+                const indent = document.createElement('span');
+                indent.className = 'tree-indent'; indent.style.width = (depth * 16 + 8) + 'px';
+                const toggle = document.createElement('span');
+                toggle.className = 'tree-toggle' + (s.is_group ? (s.expanded ? ' expanded' : '') : ' hidden');
+                toggle.textContent = '▶';
+                const icons = { pending: '○', running: '▶', done: '✓', failed: '✗' };
+                const icon = document.createElement('span');
+                icon.className = 'tree-icon'; icon.textContent = icons[s.status];
+                const name = document.createElement('span');
+                name.className = 'tree-name'; name.textContent = s.name;
+                node.append(indent, toggle, icon, name);
+                const idx = i;
+                node.addEventListener('click', e => {
+                    if (s.is_group && e.target === toggle) { s.expanded = !s.expanded; renderTree(); }
+                    else { scrollToLog(idx); }
+                });
+                container.appendChild(node);
+                if (s.is_group) {
+                    const ce = groupEnd(i, depth);
+                    const ch = document.createElement('div');
+                    ch.className = 'tree-children' + (s.expanded ? '' : ' collapsed');
+                    ch.style.maxHeight = s.expanded ? '9999px' : '0';
+                    renderLevel(ch, i + 1, ce, depth + 1);
+                    container.appendChild(ch); i = ce;
+                } else { i++; }
+            }
+        }
+        function groupEnd(gi, d) { for (let i = gi + 1; i < steps.length; i++) { if (steps[i].depth <= d) return i; } return steps.length; }
+
+        /* ── Log ── */
+        function appendLog(text) {
+            logLength += text.length;
+            outputInner.appendChild(document.createTextNode(text));
+            if (logLength > MAX_DOM * 1.5) trimDOM();
+            if (autoScroll) outputContent.scrollTop = outputContent.scrollHeight;
+        }
+        function appendSep(idx, name) {
+            const sep = document.createElement('span');
+            sep.className = 'log-sep'; sep.textContent = '─── ' + name + ' ───';
+            sep.id = 'step-marker-' + idx;
+            outputInner.appendChild(sep); outputInner.appendChild(document.createTextNode('\n'));
+            stepLogMarkers[idx] = sep;
+            if (autoScroll) outputContent.scrollTop = outputContent.scrollHeight;
+        }
+        function appendError(text) {
+            const span = document.createElement('span');
+            span.className = 'log-error'; span.textContent = text;
+            outputInner.appendChild(span);
+            if (autoScroll) outputContent.scrollTop = outputContent.scrollHeight;
+        }
+        function trimDOM() {
+            while (logLength > MAX_DOM && outputInner.childNodes.length > 10) {
+                const f = outputInner.childNodes[0]; logLength -= (f.textContent || '').length; outputInner.removeChild(f);
+            }
+        }
+        function scrollToLog(idx) {
+            const m = stepLogMarkers[idx];
+            if (m) { m.scrollIntoView({ behavior: 'smooth', block: 'start' }); autoScroll = false; }
+        }
+
+        /* ── WebSocket ── */
+        const ws = new WebSocket('ws://' + location.host + '/ws');
+        ws.onopen = () => { headerStatus.textContent = 'Connected'; };
+        ws.onmessage = e => {
+            const msg = JSON.parse(e.data);
+            switch (msg.type) {
+                case 'init':
+                    taskNameEl.textContent = msg.task_name;
+                    projectNameEl.textContent = msg.project_name || 'Project';
+                    projectPathEl.textContent = msg.project_path || '';
+                    document.title = (msg.project_name || 'Nest') + ' — ' + msg.task_name;
+                    if (msg.step_details && msg.step_details.length) {
+                        steps = msg.step_details.map(d => ({ ...d, status: 'pending', expanded: true }));
+                    } else {
+                        steps = msg.steps.map(n => ({ name: n, depth: 0, is_group: false, status: 'pending', expanded: true }));
+                    }
+                    renderTree();
+                    break;
+                case 'step_start':
+                    if (currentStep >= 0 && currentStep < steps.length && steps[currentStep].status === 'running') steps[currentStep].status = 'done';
+                    currentStep = msg.index;
+                    if (currentStep >= 0 && currentStep < steps.length) {
+                        steps[currentStep].status = 'running';
+                        outputHeader.textContent = '📺 ' + steps[currentStep].name;
+                        appendSep(currentStep, steps[currentStep].name);
+                    }
+                    renderTree();
+                    break;
+                case 'step_done':
+                    const idx = msg.index >= 0 ? msg.index : currentStep;
+                    if (idx >= 0 && idx < steps.length) {
+                        steps[idx].status = msg.error ? 'failed' : 'done';
+                        if (msg.error) appendError('❌ Error: ' + msg.error + '\n');
+                    }
+                    renderTree();
+                    break;
+                case 'output':
+                    appendLog(msg.content);
+                    break;
+                case 'task_done':
+                    headerStatus.textContent = msg.error ? 'Failed' : 'Completed';
+                    statusBadge.className = 'badge ' + (msg.error ? 'failed' : 'done');
+                    statusBadge.textContent = msg.error ? 'Failed' : 'Done';
+                    footerInfo.textContent = msg.error || 'All steps completed';
+                    if (msg.error) appendError('\n❌ Task Failed: ' + msg.error + '\n');
+                    steps.forEach(s => { if (s.status === 'running') s.status = msg.error ? 'failed' : 'done'; });
+                    renderTree();
+                    break;
+            }
+        };
+        ws.onclose = () => { headerStatus.textContent = 'Disconnected'; };
+    </script>
+</body>
+
+</html>

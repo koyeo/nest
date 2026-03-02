@@ -1,0 +1,8 @@
+version: 1.0
+tasks:
+  test:
+    comment: TUI测试任务
+    steps:
+      - run: echo "Step 1: Hello from nest TUI!" && sleep 1
+      - run: echo "Step 2: Building..." && for i in 1 2 3; do echo "  progress $i/3"; sleep 0.5; done
+      - run: echo "Step 3: Done!" && date

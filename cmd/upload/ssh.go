@@ -2,16 +2,15 @@ package upload
 
 import (
 	"fmt"
-	"github.com/gozelle/_exec"
-
-	//"github.com/koyeo/nest/execer"
-	"github.com/pkg/sftp"
-	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/proxy"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/koyeo/nest/execer"
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/net/proxy"
 )
 
 func NewSSHClient(server *Server) (client *ssh.Client, err error) {
@@ -79,7 +78,7 @@ func NewProxySSHClient(proxyAddress string, server *Server) (client *ssh.Client,
 
 func newSSHPublicKey(path string) (auth ssh.AuthMethod, err error) {
 
-	home, err := _exec.HomeDir()
+	home, err := execer.HomeDir()
 	if err != nil {
 		return
 	}
@@ -87,7 +86,7 @@ func newSSHPublicKey(path string) (auth ssh.AuthMethod, err error) {
 	if strings.HasPrefix(path, "~") {
 		path = filepath.Join(home, strings.TrimPrefix(path, "~"))
 	}
-	key, err := ioutil.ReadFile(path)
+	key, err := os.ReadFile(path)
 	if err != nil {
 		return
 	}

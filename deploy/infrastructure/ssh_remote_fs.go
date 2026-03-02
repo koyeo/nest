@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gozelle/_exec"
 	"github.com/koyeo/nest/deploy/domain"
+	"github.com/koyeo/nest/execer"
 )
 
 // sftpFileInfo wraps os.FileInfo to implement domain.FileInfo.
@@ -19,19 +19,19 @@ type sftpFileInfo struct {
 	isDir   bool
 }
 
-func (f *sftpFileInfo) Name() string      { return f.name }
-func (f *sftpFileInfo) Size() int64       { return f.size }
-func (f *sftpFileInfo) Mode() fs.FileMode { return f.mode }
+func (f *sftpFileInfo) Name() string       { return f.name }
+func (f *sftpFileInfo) Size() int64        { return f.size }
+func (f *sftpFileInfo) Mode() fs.FileMode  { return f.mode }
 func (f *sftpFileInfo) ModTime() time.Time { return f.modTime }
-func (f *sftpFileInfo) IsDir() bool       { return f.isDir }
+func (f *sftpFileInfo) IsDir() bool        { return f.isDir }
 
 // SSHRemoteFS implements domain.RemoteFS using SFTP and SSH.
 type SSHRemoteFS struct {
-	server *_exec.Server
+	server *execer.Server
 }
 
 // NewSSHRemoteFS creates a new SSHRemoteFS with the given exec server.
-func NewSSHRemoteFS(server *_exec.Server) *SSHRemoteFS {
+func NewSSHRemoteFS(server *execer.Server) *SSHRemoteFS {
 	return &SSHRemoteFS{server: server}
 }
 

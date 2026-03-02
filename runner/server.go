@@ -9,11 +9,11 @@ import (
 	"strings"
 
 	"github.com/gozelle/_color"
-	"github.com/gozelle/_exec"
 	"github.com/gozelle/_fs"
 	"github.com/koyeo/nest/config"
 	application "github.com/koyeo/nest/deploy/application"
 	infra "github.com/koyeo/nest/deploy/infrastructure"
+	"github.com/koyeo/nest/execer"
 	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/protocol"
 	"github.com/koyeo/nest/utils/_tar"
@@ -26,7 +26,7 @@ func NewServerRunner(conf *protocol.Config, task *TaskRunner, server *protocol.S
 		task:   task,
 		key:    key,
 		server: server,
-		pool:   _exec.NewServerPool(),
+		pool:   execer.NewServerPool(),
 	}
 }
 
@@ -35,7 +35,7 @@ type ServerRunner struct {
 	conf   *protocol.Config
 	key    string
 	server *protocol.Server
-	pool   *_exec.ServerPool
+	pool   *execer.ServerPool
 }
 
 func (p *ServerRunner) Close() {
@@ -44,7 +44,7 @@ func (p *ServerRunner) Close() {
 	}
 }
 
-func (p *ServerRunner) newExecServer() (*_exec.Server, error) {
+func (p *ServerRunner) newExecServer() (*execer.Server, error) {
 	if p.pool == nil {
 		return nil, fmt.Errorf("pool is nil")
 	}
@@ -54,7 +54,7 @@ func (p *ServerRunner) newExecServer() (*_exec.Server, error) {
 	if p.server.Password == "" && p.server.IdentityFile == "" {
 		p.server.IdentityFile = "~/.ssh/id_rsa"
 	}
-	server := p.pool.New(&_exec.Server{
+	server := p.pool.New(&execer.Server{
 		Key:          p.key,
 		Host:         p.server.Host,
 		Port:         p.server.Port,

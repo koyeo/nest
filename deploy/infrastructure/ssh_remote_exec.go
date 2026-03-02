@@ -1,16 +1,14 @@
 package infrastructure
 
-import (
-	"github.com/gozelle/_exec"
-)
+import "github.com/koyeo/nest/execer"
 
 // SSHRemoteExec implements domain.RemoteExec using SSH.
 type SSHRemoteExec struct {
-	server *_exec.Server
+	server *execer.Server
 }
 
 // NewSSHRemoteExec creates a new SSHRemoteExec.
-func NewSSHRemoteExec(server *_exec.Server) *SSHRemoteExec {
+func NewSSHRemoteExec(server *execer.Server) *SSHRemoteExec {
 	return &SSHRemoteExec{server: server}
 }
 

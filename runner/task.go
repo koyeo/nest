@@ -4,20 +4,29 @@ import (
 	"context"
 	"crypto/sha1"
 	"fmt"
+	"io"
 	"os"
 	"path"
+	"strings"
 	"time"
 
-	"github.com/gozelle/_color"
-	"github.com/gozelle/_exec"
 	"github.com/gozelle/_fs"
 	"github.com/koyeo/nest/config"
+	"github.com/koyeo/nest/execer"
 	"github.com/koyeo/nest/logger"
 	"github.com/koyeo/nest/protocol"
 	"github.com/koyeo/nest/storage"
 	"github.com/koyeo/nest/utils/_tar"
 	"github.com/koyeo/nest/utils/unit"
 )
+
+// StepEventHandler receives task execution events for visualization.
+type StepEventHandler interface {
+	OnStepStart(index int, name string)
+	OnStepDone(index int, err error)
+	OnOutput(content string)
+	OnTaskDone(err error)
+}
 
 func NewTaskRunner(conf *protocol.Config, task *protocol.Task, key string) *TaskRunner {
 	return &TaskRunner{conf: conf, task: task, key: key, uploadedKeys: map[string]string{}}
@@ -29,6 +38,19 @@ type TaskRunner struct {
 	task         *protocol.Task
 	parents      map[string]bool
 	uploadedKeys map[string]string // source basename → object key
+	handler      StepEventHandler  // event handler (nil = legacy output)
+	stepOffset   int               // global step index offset
+}
+
+// SetEventHandler sets the event handler for visualization.
+func (p *TaskRunner) SetEventHandler(h StepEventHandler) {
+	p.handler = h
+}
+
+// outputWriter returns an io.Writer. When handler is set, output goes nowhere
+// (it’s captured at the OS level by the webui). Otherwise, os.Stdout.
+func (p *TaskRunner) outputWriter() io.Writer {
+	return os.Stdout
 }
 
 func (p TaskRunner) prepareEnviron() []string {
@@ -57,30 +79,163 @@ func (p TaskRunner) prepareEnviron() []string {
 	return environ
 }
 
-func (p TaskRunner) Exec() (err error) {
-	for _, step := range p.task.Steps {
+// StepNames returns the display names of all steps in the task, recursively expanding use references.
+func (p TaskRunner) StepNames() []string {
+	return p.collectStepNames(p.task, 0)
+}
+
+// StepDetail holds structured info about a step for the webui.
+type StepDetail struct {
+	Name    string `json:"name"`
+	Depth   int    `json:"depth"`
+	IsGroup bool   `json:"is_group"` // true for "use" headers
+}
+
+// StepDetails returns structured step metadata for the webui tree view.
+func (p TaskRunner) StepDetails() []StepDetail {
+	return p.collectStepDetails(p.task, 0)
+}
+
+func (p TaskRunner) collectStepDetails(task *protocol.Task, depth int) []StepDetail {
+	var details []StepDetail
+	for _, step := range task.Steps {
 		if step.Use != "" {
-			if err = p.use(step.Use); err != nil {
-				return
+			comment := step.Use
+			if t, ok := p.conf.Tasks[step.Use]; ok && t.Comment != "" {
+				comment = t.Comment
+			}
+			details = append(details, StepDetail{Name: comment, Depth: depth, IsGroup: true})
+			if subTask, ok := p.conf.Tasks[step.Use]; ok {
+				details = append(details, p.collectStepDetails(subTask, depth+1)...)
 			}
 		} else if step.Upload != nil {
-			if err = p.upload(step.Upload); err != nil {
-				return
-			}
+			details = append(details, StepDetail{Name: fmt.Sprintf("upload: %s", step.Upload.Source), Depth: depth})
 		} else if step.Deploy != nil {
+			details = append(details, StepDetail{Name: "deploy", Depth: depth})
+		} else if step.Run != "" {
+			details = append(details, StepDetail{Name: step.Run, Depth: depth})
+		}
+	}
+	return details
+}
+
+func (p TaskRunner) collectStepNames(task *protocol.Task, depth int) []string {
+	var names []string
+	prefix := ""
+	if depth > 0 {
+		prefix = strings.Repeat("  ", depth-1) + "└ "
+	}
+	for _, step := range task.Steps {
+		if step.Use != "" {
+			// Add the "use" header
+			names = append(names, prefix+fmt.Sprintf("▶ %s", step.Use))
+			// Recursively expand the referenced task's steps
+			if subTask, ok := p.conf.Tasks[step.Use]; ok {
+				subNames := p.collectStepNames(subTask, depth+1)
+				names = append(names, subNames...)
+			}
+		} else if step.Upload != nil {
+			names = append(names, prefix+fmt.Sprintf("upload: %s", step.Upload.Source))
+		} else if step.Deploy != nil {
+			names = append(names, prefix+"deploy")
+		} else if step.Run != "" {
+			names = append(names, prefix+step.Run)
+		}
+	}
+	return names
+}
+
+func (p TaskRunner) Exec() (err error) {
+	globalIdx := p.stepOffset
+	for _, step := range p.task.Steps {
+		if step.Use != "" {
+			p.sendStepStart(globalIdx)
+			globalIdx++
+			// The child task's steps occupy the next N indices
+			childStepCount := p.countSubSteps(step.Use)
+			if err = p.use(step.Use, globalIdx); err != nil {
+				p.sendStepDone(err)
+				return
+			}
+			p.sendStepDone(nil)
+			globalIdx += childStepCount
+		} else if step.Upload != nil {
+			p.sendStepStart(globalIdx)
+			if err = p.upload(step.Upload); err != nil {
+				p.sendStepDone(err)
+				return
+			}
+			p.sendStepDone(nil)
+			globalIdx++
+		} else if step.Deploy != nil {
+			p.sendStepStart(globalIdx)
 			if err = p.deploy(step.Deploy); err != nil {
+				p.sendStepDone(err)
 				return
 			}
+			p.sendStepDone(nil)
+			globalIdx++
 		} else {
+			p.sendStepStart(globalIdx)
 			if err = p.execute(step); err != nil {
+				p.sendStepDone(err)
 				return
 			}
+			p.sendStepDone(nil)
+			globalIdx++
 		}
 	}
 	return
 }
 
-func (p TaskRunner) use(key string) (err error) {
+// countSubSteps counts the total flattened steps for a use reference (recursive).
+func (p TaskRunner) countSubSteps(key string) int {
+	task, ok := p.conf.Tasks[key]
+	if !ok {
+		return 0
+	}
+	count := 0
+	for _, step := range task.Steps {
+		if step.Use != "" {
+			count++ // The "use" header itself
+			count += p.countSubSteps(step.Use)
+		} else {
+			count++
+		}
+	}
+	return count
+}
+
+func (p TaskRunner) sendStepStart(index int) {
+	if p.handler != nil {
+		name := ""
+		// We don't need to pass name here; the handler already knows step names
+		p.handler.OnStepStart(index, name)
+	}
+}
+
+func (p TaskRunner) sendStepDone(err error) {
+	if p.handler != nil {
+		p.handler.OnStepDone(p.stepOffset, err)
+	}
+}
+
+// tuiLog routes a log message through handler output or falls back to logger.Step.
+func (p TaskRunner) tuiLog(emoji string, args ...string) {
+	if p.handler != nil {
+		msg := emoji
+		for _, a := range args {
+			if a != "" {
+				msg += " " + a
+			}
+		}
+		p.handler.OnOutput(msg + "\n")
+	} else {
+		logger.Step(p.key, p.task.Comment, emoji, args...)
+	}
+}
+
+func (p TaskRunner) use(key string, childOffset int) (err error) {
 
 	defer func() {
 		if err == nil {
@@ -102,6 +257,10 @@ func (p TaskRunner) use(key string) (err error) {
 		return
 	}
 	taskRunner := NewTaskRunner(p.conf, task, key)
+
+	// Propagate handler and step offset to child runner
+	taskRunner.handler = p.handler
+	taskRunner.stepOffset = childOffset
 
 	// store parent task key to avoid circle dependency
 	taskRunner.parents = map[string]bool{
@@ -177,9 +336,9 @@ func (p *TaskRunner) upload(u *protocol.Upload) error {
 	info, _ := bundleFile.Stat()
 	localSize := info.Size()
 
-	logger.Step(p.key, p.task.Comment, "☁️",
-		_color.New(_color.FgCyan).Sprintf("[%s]", u.Storage),
-		_color.New(_color.FgMagenta).Sprintf("%s → %s (%s)", u.Source, objectKey, unit.ByteSize(localSize)),
+	p.tuiLog("☁️",
+		fmt.Sprintf("[%s]", u.Storage),
+		fmt.Sprintf("%s → %s (%s)", u.Source, objectKey, unit.ByteSize(localSize)),
 	)
 
 	ctx := context.Background()
@@ -191,16 +350,12 @@ func (p *TaskRunner) upload(u *protocol.Upload) error {
 	}
 
 	if remoteSize == localSize {
-		logger.Step(p.key, p.task.Comment, "⏭️",
-			_color.New(_color.FgHiYellow).Sprint("skipped (already exists)"),
-		)
+		p.tuiLog("⏭️", "skipped (already exists)")
 	} else {
 		if err = store.Upload(ctx, objectKey, bundleFile, localSize); err != nil {
 			return fmt.Errorf("upload to storage error: %s", err)
 		}
-		logger.Step(p.key, p.task.Comment, "✅",
-			_color.New(_color.FgHiGreen).Sprint("uploaded"),
-		)
+		p.tuiLog("✅", "uploaded")
 	}
 
 	// Track for deploy via
@@ -315,9 +470,9 @@ func (p *TaskRunner) deployViaStorage(deploy *protocol.Deploy, servers map[strin
 				return fmt.Errorf("generate download URL error: %s", err)
 			}
 
-			logger.Step(p.key, p.task.Comment, "⬇️",
-				_color.New(_color.FgCyan).Sprintf("[%s]", server.Name()),
-				_color.New(_color.FgMagenta).Sprintf("downloading %s via %s", sourceName, deploy.Storage),
+			p.tuiLog("⬇️",
+				fmt.Sprintf("[%s]", server.Name()),
+				fmt.Sprintf("downloading %s via %s", sourceName, deploy.Storage),
 			)
 
 			// Prepare target directory and download on remote server
@@ -338,9 +493,7 @@ func (p *TaskRunner) deployViaStorage(deploy *protocol.Deploy, servers map[strin
 				return fmt.Errorf("remote extract error: %s", err)
 			}
 
-			logger.Step(p.key, p.task.Comment, "✅",
-				_color.New(_color.FgHiGreen).Sprintf("deployed %s → %s", sourceName, targetDir),
-			)
+			p.tuiLog("✅", fmt.Sprintf("deployed %s → %s", sourceName, targetDir))
 		}
 	}
 
@@ -366,7 +519,7 @@ func (p TaskRunner) execute(step *protocol.Step) (err error) {
 		return
 	}
 	p.printExec(step.Run)
-	runner := _exec.NewRunner()
+	runner := execer.NewRunner()
 	runner.AddCommand(step.Run)
 	runner.SetEnviron(p.prepareEnviron())
 	if p.task.Workspace != "" {
@@ -381,43 +534,36 @@ func (p TaskRunner) execute(step *protocol.Step) (err error) {
 }
 
 func (p TaskRunner) PrintStart() {
-	logger.Step(p.key, p.task.Comment, "🕘", "start")
+	p.tuiLog("🕘", "start")
 }
 
 func (p TaskRunner) PrintSuccess() {
-	logger.Step(p.key, p.task.Comment, "🎉", _color.New(_color.FgHiGreen).Sprint("success"))
+	p.tuiLog("🎉", "success")
 }
 
 func (p TaskRunner) PrintFailed() {
-	logger.Step(p.key, p.task.Comment, "❌️", _color.New(_color.FgHiRed).Sprint("failed"))
+	p.tuiLog("❌️", "failed")
 }
 
 func (p TaskRunner) printExecUseStart(key, comment string) {
 	if comment != "" {
 		key = comment
 	}
-	logger.Step(p.key, p.task.Comment, "👉", key)
+	p.tuiLog("👉", key)
 }
 
 func (p TaskRunner) printExecUseEnd() {
-	logger.Step(p.key, p.task.Comment, "👈")
+	p.tuiLog("👈")
 }
 
 func (p TaskRunner) printServerExec(server *protocol.Server, command string) {
-	logger.Step(
-		p.key,
-		p.task.Comment,
+	p.tuiLog(
 		"🏃",
-		_color.New(_color.FgCyan).Sprintf("[%s]", server.Name()),
-		_color.New(_color.FgWhite).Sprintf("%s", command),
+		fmt.Sprintf("[%s]", server.Name()),
+		command,
 	)
 }
 
 func (p TaskRunner) printExec(command string) {
-	logger.Step(
-		p.key,
-		p.task.Comment,
-		"🏃",
-		_color.New(_color.FgWhite).Sprintf("%s", command),
-	)
+	p.tuiLog("🏃", command)
 }
