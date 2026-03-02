@@ -149,7 +149,7 @@ func (p *Server) CombinedExec(command string) error {
 	defer func() {
 		_ = session.Close()
 	}()
-	out, err := session.CombinedOutput(command)
+	out, err := session.CombinedOutput(wrapLoginShell(command))
 	if err != nil {
 		err = fmt.Errorf("%s", strings.TrimSpace(string(out)))
 		return err
@@ -222,7 +222,7 @@ func (p *Server) PipeExec(command string) (err error) {
 		wg.Done()
 	}()
 
-	err = session.Run(command)
+	err = session.Run(wrapLoginShell(command))
 
 	// If context was cancelled, report a clean cancellation error
 	if p.ctx != nil && p.ctx.Err() != nil {
@@ -237,4 +237,11 @@ func (p *Server) PipeExec(command string) (err error) {
 	wg.Wait()
 
 	return
+}
+
+// wrapLoginShell wraps a command to run in a login shell,
+// so that /etc/profile, ~/.bash_profile, ~/.bashrc etc. are loaded.
+// This ensures PATH includes tools like nvm, pyenv, etc.
+func wrapLoginShell(command string) string {
+	return fmt.Sprintf(`bash -l -c %q`, command)
 }

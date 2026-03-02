@@ -533,6 +533,19 @@
         const btnStop = $('btnStop'), btnRerun = $('btnRerun');
         const promptOverlay = $('promptOverlay'), promptMsg = $('promptMsg'), promptInput = $('promptInput');
 
+        /* ── Clipboard: Cmd/Ctrl+C copy support for webview ── */
+        document.addEventListener('keydown', e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+                const sel = window.getSelection();
+                if (sel && sel.toString()) {
+                    navigator.clipboard.writeText(sel.toString());
+                }
+            }
+            if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+                // Allow select-all in output panel
+            }
+        });
+
         /* ── Theme ── */
         const savedTheme = localStorage.getItem('nest-theme') || 'system';
         setTheme(savedTheme);

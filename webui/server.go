@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gorilla/websocket"
 )
@@ -292,15 +293,41 @@ func (s *uiServer) broadcast(msg interface{}) {
 
 func (s *uiServer) pumpPipe(r *os.File) {
 	buf := make([]byte, 4096)
+	var carry []byte // leftover incomplete UTF-8 bytes from previous read
 	for {
 		n, err := r.Read(buf)
 		if n > 0 {
-			s.broadcast(map[string]interface{}{
-				"type":    "output",
-				"content": string(buf[:n]),
-			})
+			data := buf[:n]
+			if len(carry) > 0 {
+				data = append(carry, data...)
+				carry = nil
+			}
+			// Find the last complete UTF-8 boundary
+			end := len(data)
+			for end > 0 && !utf8.RuneStart(data[end-1]) {
+				end--
+			}
+			if end > 0 && !utf8.Valid(data[end-1:]) {
+				// Last rune is incomplete — hold trailing bytes for next read
+				carry = make([]byte, len(data)-end+1)
+				copy(carry, data[end-1:])
+				end = end - 1
+			}
+			if end > 0 {
+				s.broadcast(map[string]interface{}{
+					"type":    "output",
+					"content": string(data[:end]),
+				})
+			}
 		}
 		if err != nil {
+			// Flush any remaining carry bytes
+			if len(carry) > 0 {
+				s.broadcast(map[string]interface{}{
+					"type":    "output",
+					"content": string(carry),
+				})
+			}
 			break
 		}
 	}
