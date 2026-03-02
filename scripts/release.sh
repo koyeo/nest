@@ -12,12 +12,34 @@ RELEASE_REPO="koyeo/nest"
 APP_NAME="nest"
 
 # 1. Determine version
+# Query latest version info for reference
+LATEST_RELEASE=$(gh release list --repo "$RELEASE_REPO" --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
+LATEST_TAG=$(git -C "$ROOT_DIR" tag --sort=-v:refname 2>/dev/null | head -1 || echo "")
+
+# Suggest next patch version
+suggest_next_version() {
+    local v="$1"
+    if [[ -z "$v" ]]; then echo ""; return; fi
+    v="${v#v}"
+    local major minor patch
+    IFS='.' read -r major minor patch <<< "$v"
+    patch=$((patch + 1))
+    echo "v${major}.${minor}.${patch}"
+}
+SUGGESTED=$(suggest_next_version "${LATEST_RELEASE:-$LATEST_TAG}")
+
 if [[ "${1:-}" != "" ]]; then
     VERSION="$1"
 else
-    VERSION=$(git -C "$ROOT_DIR" describe --tags --abbrev=0 2>/dev/null || echo "")
+    echo "📋 Version Info:"
+    [[ -n "$LATEST_RELEASE" ]] && echo "   Latest release : $LATEST_RELEASE"
+    [[ -n "$LATEST_TAG" ]]     && echo "   Latest git tag : $LATEST_TAG"
+    [[ -n "$SUGGESTED" ]]      && echo "   Suggested next : $SUGGESTED"
+    echo ""
+    read -rp "🏷️  Enter version [${SUGGESTED:-v0.1.0}]: " VERSION
+    VERSION="${VERSION:-${SUGGESTED:-}}"
     if [[ -z "$VERSION" ]]; then
-        echo "❌ No version specified and no git tag found."
+        echo "❌ No version specified."
         echo "   Usage: $0 <version>   (e.g. $0 v0.1.0)"
         exit 1
     fi
