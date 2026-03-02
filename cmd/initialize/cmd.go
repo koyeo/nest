@@ -63,6 +63,10 @@ servers:
     # 默认使用 ~/.ssh/id_rsa 私钥进行认证
     # identity_file: ~/.ssh/id_rsa
     # password: 123456
+# 声明此文件用到的云存储，key 为本文件中引用的别名，value 为全局配置名称
+# 全局配置通过 nest storage add 命令添加
+storage:
+  oss: oss
 tasks:
   task-1:
     comment: 第一个任务
@@ -82,7 +86,7 @@ tasks:
           servers:
             # 引用服务器
             - use: server-1                    
-          mappers:                             
+          files:                             
             # 本地文件路径
             - source: ./hi.txt                    
             # 服务器存放位置		

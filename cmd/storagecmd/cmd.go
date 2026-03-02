@@ -2,11 +2,14 @@ package storagecmd
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/koyeo/nest/config"
+	"github.com/koyeo/nest/storage"
+	"github.com/koyeo/nest/utils/unit"
 	"github.com/spf13/cobra"
 )
 
@@ -60,6 +63,20 @@ var removeCmd = &cobra.Command{
 	RunE:  runRemove,
 }
 
+var usageCmd = &cobra.Command{
+	Use:   "usage <name>",
+	Short: "Show storage space usage / 查看云存储空间使用量",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runUsage,
+}
+
+var cleanCmd = &cobra.Command{
+	Use:   "clean <name>",
+	Short: "Clean all nest objects from storage / 清空云存储中的 nest 文件",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runClean,
+}
+
 func init() {
 	addCmd.Flags().StringVar(&flagProvider, "provider", "", "Storage provider: oss or s3")
 	addCmd.Flags().StringVar(&flagEndpoint, "endpoint", "", "Service endpoint (required for OSS)")
@@ -67,7 +84,7 @@ func init() {
 	addCmd.Flags().StringVar(&flagBucket, "bucket", "", "Bucket name")
 	addCmd.Flags().StringVar(&flagAccessKeyID, "access-key-id", "", "Access Key ID")
 	addCmd.Flags().StringVar(&flagAccessKeySecret, "access-key-secret", "", "Access Key Secret")
-	Cmd.AddCommand(addCmd, listCmd, removeCmd)
+	Cmd.AddCommand(addCmd, listCmd, removeCmd, usageCmd, cleanCmd)
 }
 
 func prompt(reader *bufio.Reader, label, defaultVal string) string {
@@ -221,6 +238,100 @@ func runRemove(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	fmt.Printf("✅ Storage '%s' removed\n", name)
+	return nil
+}
+
+func newStorageClient(name string) (storage.ObjectStorage, error) {
+	cfg := config.Load()
+	cred, err := cfg.DecryptStorage(name)
+	if err != nil {
+		return nil, fmt.Errorf("storage '%s': %s", name, err)
+	}
+	return storage.NewFromCredential(cred)
+}
+
+func runUsage(cmd *cobra.Command, args []string) error {
+	name := args[0]
+	store, err := newStorageClient(name)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	objects, err := store.ListObjects(ctx, "nest/")
+	if err != nil {
+		return fmt.Errorf("list objects error: %s", err)
+	}
+
+	if len(objects) == 0 {
+		fmt.Printf("📦 Storage '%s': empty (no nest/ objects)\n", name)
+		return nil
+	}
+
+	var totalSize int64
+	for _, obj := range objects {
+		totalSize += obj.Size
+	}
+
+	fmt.Printf("📦 Storage '%s':\n", name)
+	fmt.Printf("   Objects : %d\n", len(objects))
+	fmt.Printf("   Size    : %s\n", unit.ByteSize(totalSize))
+	fmt.Println()
+
+	for _, obj := range objects {
+		fmt.Printf("   %s  %s\n", unit.ByteSize(obj.Size), obj.Key)
+	}
+
+	return nil
+}
+
+func runClean(cmd *cobra.Command, args []string) error {
+	name := args[0]
+	store, err := newStorageClient(name)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	objects, err := store.ListObjects(ctx, "nest/")
+	if err != nil {
+		return fmt.Errorf("list objects error: %s", err)
+	}
+
+	if len(objects) == 0 {
+		fmt.Printf("📦 Storage '%s': already empty\n", name)
+		return nil
+	}
+
+	var totalSize int64
+	for _, obj := range objects {
+		totalSize += obj.Size
+	}
+
+	fmt.Printf("⚠️  About to delete %d objects (%s) from storage '%s'\n", len(objects), unit.ByteSize(totalSize), name)
+	fmt.Println()
+	for _, obj := range objects {
+		fmt.Printf("   🗑  %s  %s\n", unit.ByteSize(obj.Size), obj.Key)
+	}
+	fmt.Println()
+
+	reader := bufio.NewReader(os.Stdin)
+	confirm := prompt(reader, "Type 'yes' to confirm", "")
+	if confirm != "yes" {
+		fmt.Println("Cancelled.")
+		return nil
+	}
+
+	keys := make([]string, len(objects))
+	for i, obj := range objects {
+		keys[i] = obj.Key
+	}
+
+	if err = store.DeleteObjects(ctx, keys); err != nil {
+		return fmt.Errorf("delete objects error: %s", err)
+	}
+
+	fmt.Printf("✅ Deleted %d objects (%s)\n", len(objects), unit.ByteSize(totalSize))
 	return nil
 }
 

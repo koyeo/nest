@@ -7,10 +7,24 @@ const (
 )
 
 type Config struct {
-	Version string             `yaml:"version"`
-	Servers map[string]*Server `yaml:"servers"`
-	Envs    map[string]string  `yaml:"envs"`
-	Tasks   map[string]*Task   `yaml:"tasks"`
+	Version  string             `yaml:"version"`
+	Servers  map[string]*Server `yaml:"servers"`
+	Storages map[string]string  `yaml:"storage"` // alias → global storage config name
+	Envs     map[string]string  `yaml:"envs"`
+	Tasks    map[string]*Task   `yaml:"tasks"`
+}
+
+// ResolveStorage returns the global storage config name for a declared alias.
+// Returns an error if the alias is not declared in the storage section.
+func (c *Config) ResolveStorage(alias string) (string, error) {
+	if len(c.Storages) == 0 {
+		return "", fmt.Errorf("no storage declared in nest.yaml, add a 'storage' section first")
+	}
+	name, ok := c.Storages[alias]
+	if !ok {
+		return "", fmt.Errorf("storage '%s' not declared in nest.yaml", alias)
+	}
+	return name, nil
 }
 
 type Server struct {
@@ -61,13 +75,13 @@ type Execute struct {
 }
 
 type Deploy struct {
-	Via      string     `yaml:"via"` // storage key: download from cloud instead of SFTP
-	Servers  []*Server  `yaml:"servers"`
-	Mappers  []*Mapper  `yaml:"mappers"`
-	Executes []*Execute `yaml:"executes"`
+	Storage  string         `yaml:"storage"` // storage config name: download from cloud instead of SFTP
+	Servers  []*Server      `yaml:"servers"`
+	Files    []*FileMapping `yaml:"files"`
+	Executes []*Execute     `yaml:"executes"`
 }
 
-type Mapper struct {
+type FileMapping struct {
 	Source string `yaml:"source"`
 	Target string `yaml:"target"`
 }

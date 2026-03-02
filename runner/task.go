@@ -117,10 +117,16 @@ func (p TaskRunner) use(key string) (err error) {
 
 // upload compresses the local source and uploads it to cloud storage.
 func (p *TaskRunner) upload(u *protocol.Upload) error {
-	cfg := config.Load()
-	cred, err := cfg.DecryptStorage(u.Storage)
+	// Resolve storage alias to global config name
+	globalName, err := p.conf.ResolveStorage(u.Storage)
 	if err != nil {
-		return fmt.Errorf("storage '%s': %s", u.Storage, err)
+		return err
+	}
+
+	cfg := config.Load()
+	cred, err := cfg.DecryptStorage(globalName)
+	if err != nil {
+		return fmt.Errorf("storage '%s' (config '%s'): %s", u.Storage, globalName, err)
 	}
 
 	store, err := storage.NewFromCredential(cred)
@@ -139,9 +145,8 @@ func (p *TaskRunner) upload(u *protocol.Upload) error {
 
 	// Compress source
 	sourceName := path.Base(u.Source)
-	bundleName := fmt.Sprintf("%s.tar.gz", sourceName)
 	tmpDir := NestTmpDir()
-	bundlePath := fmt.Sprintf("%s/%s", tmpDir, bundleName)
+	bundlePath := fmt.Sprintf("%s/%s.tar.gz", tmpDir, sourceName)
 	defer cleanNestTempDir()
 
 	sourceFile, err := os.Open(u.Source)
@@ -154,19 +159,15 @@ func (p *TaskRunner) upload(u *protocol.Upload) error {
 		return fmt.Errorf("compress error: %s", err)
 	}
 
-	// Compute SHA1 for object key
+	// Compute SHA1 of bundle content for object key
 	bundleData, err := os.ReadFile(bundlePath)
 	if err != nil {
 		return fmt.Errorf("read bundle error: %s", err)
 	}
 	sha := fmt.Sprintf("%x", sha1.Sum(bundleData))
+	objectKey := fmt.Sprintf("nest/%s.tar.gz", sha)
 
-	// Build object key: nest/{sha1(cwd)}/{basename}.tar.gz
-	cwd, _ := os.Getwd()
-	cwdHash := fmt.Sprintf("%x", sha1.Sum([]byte(cwd)))[:8]
-	objectKey := fmt.Sprintf("nest/%s/%s", cwdHash, bundleName)
-
-	// Upload
+	// Get local bundle size
 	bundleFile, err := os.Open(bundlePath)
 	if err != nil {
 		return fmt.Errorf("open bundle error: %s", err)
@@ -174,23 +175,36 @@ func (p *TaskRunner) upload(u *protocol.Upload) error {
 	defer func() { _ = bundleFile.Close() }()
 
 	info, _ := bundleFile.Stat()
+	localSize := info.Size()
+
 	logger.Step(p.key, p.task.Comment, "☁️",
 		_color.New(_color.FgCyan).Sprintf("[%s]", u.Storage),
-		_color.New(_color.FgMagenta).Sprintf("%s → %s (%s)", u.Source, objectKey, unit.ByteSize(info.Size())),
+		_color.New(_color.FgMagenta).Sprintf("%s → %s (%s)", u.Source, objectKey, unit.ByteSize(localSize)),
 	)
 
 	ctx := context.Background()
-	if err = store.Upload(ctx, objectKey, bundleFile, info.Size()); err != nil {
-		return fmt.Errorf("upload to storage error: %s", err)
+
+	// Check if the same object already exists (dedup by content hash + size)
+	remoteSize, err := store.Head(ctx, objectKey)
+	if err != nil {
+		return fmt.Errorf("check remote object error: %s", err)
+	}
+
+	if remoteSize == localSize {
+		logger.Step(p.key, p.task.Comment, "⏭️",
+			_color.New(_color.FgHiYellow).Sprint("skipped (already exists)"),
+		)
+	} else {
+		if err = store.Upload(ctx, objectKey, bundleFile, localSize); err != nil {
+			return fmt.Errorf("upload to storage error: %s", err)
+		}
+		logger.Step(p.key, p.task.Comment, "✅",
+			_color.New(_color.FgHiGreen).Sprint("uploaded"),
+		)
 	}
 
 	// Track for deploy via
 	p.uploadedKeys[sourceName] = objectKey
-	_ = sha // sha available for logging
-
-	logger.Step(p.key, p.task.Comment, "✅",
-		_color.New(_color.FgHiGreen).Sprint("uploaded"),
-	)
 	return nil
 }
 
@@ -216,7 +230,7 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	}
 
 	// Check if deploying via cloud storage
-	if deploy.Via != "" {
+	if deploy.Storage != "" {
 		return p.deployViaStorage(deploy, servers)
 	}
 
@@ -228,8 +242,8 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		}
 		serverRunner := NewServerRunner(p.conf, p, server, key)
 		runners = append(runners, serverRunner)
-		for _, mapper := range deploy.Mappers {
-			err = serverRunner.Upload(mapper.Source, mapper.Target)
+		for _, file := range deploy.Files {
+			err = serverRunner.Upload(file.Source, file.Target)
 			if err != nil {
 				return
 			}
@@ -255,10 +269,16 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 
 // deployViaStorage downloads artifacts from cloud storage on the remote server.
 func (p *TaskRunner) deployViaStorage(deploy *protocol.Deploy, servers map[string]*protocol.Server) error {
-	cfg := config.Load()
-	cred, err := cfg.DecryptStorage(deploy.Via)
+	// Resolve storage alias to global config name
+	globalName, err := p.conf.ResolveStorage(deploy.Storage)
 	if err != nil {
-		return fmt.Errorf("storage '%s': %s", deploy.Via, err)
+		return err
+	}
+
+	cfg := config.Load()
+	cred, err := cfg.DecryptStorage(globalName)
+	if err != nil {
+		return fmt.Errorf("storage '%s' (config '%s'): %s", deploy.Storage, globalName, err)
 	}
 
 	store, err := storage.NewFromCredential(cred)
@@ -282,14 +302,11 @@ func (p *TaskRunner) deployViaStorage(deploy *protocol.Deploy, servers map[strin
 		serverRunner := NewServerRunner(p.conf, p, server, key)
 		runners = append(runners, serverRunner)
 
-		for _, mapper := range deploy.Mappers {
-			sourceName := path.Base(mapper.Source)
+		for _, file := range deploy.Files {
+			sourceName := path.Base(file.Source)
 			objectKey, ok := p.uploadedKeys[sourceName]
 			if !ok {
-				// Fallback: construct key from convention
-				cwd, _ := os.Getwd()
-				cwdHash := fmt.Sprintf("%x", sha1.Sum([]byte(cwd)))[:8]
-				objectKey = fmt.Sprintf("nest/%s/%s.tar.gz", cwdHash, sourceName)
+				return fmt.Errorf("no uploaded object key found for '%s', make sure the upload step runs before deploy", sourceName)
 			}
 
 			// Generate pre-signed URL (1 hour)
@@ -300,11 +317,11 @@ func (p *TaskRunner) deployViaStorage(deploy *protocol.Deploy, servers map[strin
 
 			logger.Step(p.key, p.task.Comment, "⬇️",
 				_color.New(_color.FgCyan).Sprintf("[%s]", server.Name()),
-				_color.New(_color.FgMagenta).Sprintf("downloading %s via %s", sourceName, deploy.Via),
+				_color.New(_color.FgMagenta).Sprintf("downloading %s via %s", sourceName, deploy.Storage),
 			)
 
 			// Prepare target directory and download on remote server
-			targetDir := mapper.Target
+			targetDir := file.Target
 			bundleName := fmt.Sprintf("%s.tar.gz", sourceName)
 			bundleRemotePath := fmt.Sprintf("/tmp/nest-%s", bundleName)
 
