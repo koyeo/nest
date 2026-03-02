@@ -21,7 +21,7 @@ func Step(taskKey, taskComment, emoji string, args ...string) {
 	if taskComment != "" {
 		taskKey = taskComment
 	}
-	fmt.Printf("%s %s %s %s\n",
+	fmt.Printf("[nest] %s %s %s %s\n",
 		_color.WhiteString(timestamp()),
 		_color.New(_color.FgBlack, _color.BgWhite).Sprintf("[%s]", taskKey),
 		emoji,
@@ -32,11 +32,11 @@ func Step(taskKey, taskComment, emoji string, args ...string) {
 }
 
 func Print(msg string) {
-	fmt.Printf("%s %s", _color.RedString(timestamp()), msg)
+	fmt.Printf("[nest] %s %s", _color.RedString(timestamp()), msg)
 }
 
 func Error(err error) {
-	fmt.Printf("%s %s\n",
+	fmt.Printf("[nest] %s %s\n",
 		_color.WhiteString(timestamp()),
 		_color.New(_color.FgRed).Sprintf("%s", err),
 	)

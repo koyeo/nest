@@ -72,7 +72,7 @@ func run(cmd *cobra.Command, args []string) {
 			for i, d := range rd {
 				details[i] = webui.StepDetail{Name: d.Name, Depth: d.Depth, IsGroup: d.IsGroup}
 			}
-			webui.RunWithUI(v, taskRunner.StepNames(), details, projectName, projectPath, func(h webui.EventHandler, ctx context.Context) {
+			webui.RunWithUI(v, taskRunner.StepNames(), details, projectName, projectPath, common.ConfigFile, func(h webui.EventHandler, ctx context.Context) {
 				// The handler implements the same interface as runner.StepEventHandler
 				taskRunner.SetEventHandler(h)
 				taskRunner.SetContext(ctx)

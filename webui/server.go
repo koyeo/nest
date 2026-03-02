@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
@@ -34,13 +35,19 @@ type StepDetail struct {
 // RunWithUI starts the webui server, opens a window/browser, executes the task,
 // and streams events in real-time via WebSocket.
 // On macOS, this function blocks on the webview window (main thread requirement).
-func RunWithUI(taskName string, stepNames []string, stepDetails []StepDetail, projectName, projectPath string, execFn func(h EventHandler, ctx context.Context)) {
+func RunWithUI(taskName string, stepNames []string, stepDetails []StepDetail, projectName, projectPath, configPath string, execFn func(h EventHandler, ctx context.Context)) {
+	if configPath != "" {
+		if abs, err := filepath.Abs(configPath); err == nil {
+			configPath = abs
+		}
+	}
 	srv := &uiServer{
 		taskName:    taskName,
 		stepNames:   stepNames,
 		stepDetails: stepDetails,
 		projectName: projectName,
 		projectPath: projectPath,
+		configPath:  configPath,
 		execFn:      execFn,
 		done:        make(chan struct{}),
 		clientReady: make(chan struct{}),
@@ -55,6 +62,7 @@ type uiServer struct {
 	stepDetails []StepDetail
 	projectName string
 	projectPath string
+	configPath  string
 	execFn      func(h EventHandler, ctx context.Context)
 	done        chan struct{}
 	clientReady chan struct{}
@@ -129,13 +137,24 @@ func (s *uiServer) actionLoop() {
 			s.stopTask()
 			// Small delay to let pipes flush
 			time.Sleep(300 * time.Millisecond)
-			// Broadcast reset to clear UI
 			s.broadcast(map[string]interface{}{
-				"type": "reset",
+				"type":           "reset",
+				"config_content": s.readConfig(),
 			})
 			s.runTask()
 		}
 	}
+}
+
+func (s *uiServer) readConfig() string {
+	if s.configPath == "" {
+		return ""
+	}
+	data, err := os.ReadFile(s.configPath)
+	if err != nil {
+		return ""
+	}
+	return string(data)
 }
 
 func (s *uiServer) runTask() {
@@ -238,17 +257,21 @@ func (s *uiServer) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cfgContent := s.readConfig()
+
 	s.mu.Lock()
 	s.clients = append(s.clients, conn)
 
 	// Send init message UNDER LOCK (before any broadcast can happen)
 	initData, _ := json.Marshal(map[string]interface{}{
-		"type":         "init",
-		"task_name":    s.taskName,
-		"steps":        s.stepNames,
-		"step_details": s.stepDetails,
-		"project_name": s.projectName,
-		"project_path": s.projectPath,
+		"type":           "init",
+		"task_name":      s.taskName,
+		"steps":          s.stepNames,
+		"step_details":   s.stepDetails,
+		"project_name":   s.projectName,
+		"project_path":   s.projectPath,
+		"config_path":    s.configPath,
+		"config_content": cfgContent,
 	})
 	_ = conn.WriteMessage(websocket.TextMessage, initData)
 	s.mu.Unlock()
