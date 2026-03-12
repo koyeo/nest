@@ -114,8 +114,16 @@ for platform in $PLATFORMS; do
     if [[ "$os" == "windows" ]]; then
         output="${output}.exe"
     fi
-    echo "   Building ${os}/${arch} → ${output}"
-    GOOS="$os" GOARCH="$arch" go build -ldflags "$LDFLAGS" -o "$BUILD_DIR/$output" "$ROOT_DIR" || exit 1
+
+    # webview_go requires CGO on darwin; disable CGO for linux/windows
+    if [[ "$os" == "darwin" ]]; then
+        CGO_FLAG="CGO_ENABLED=1"
+    else
+        CGO_FLAG="CGO_ENABLED=0"
+    fi
+
+    echo "   Building ${os}/${arch} → ${output}  ($CGO_FLAG)"
+    env $CGO_FLAG GOOS="$os" GOARCH="$arch" go build -ldflags "$LDFLAGS" -o "$BUILD_DIR/$output" "$ROOT_DIR" || exit 1
 done
 echo "✅ All binaries built!"
 
