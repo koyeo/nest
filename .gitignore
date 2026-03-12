@@ -7,8 +7,3 @@
 nest.yaml
 nest.*.yml
 nest.*.yaml
-
-.agent/*
-!.agent/rules
-!.agent/skills
-!.agent/workflows
