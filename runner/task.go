@@ -417,12 +417,14 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		_ = server // used for logging in deployFileViaStorage
 
 		for _, file := range deploy.Files {
-			if storageAlias, localPath, ok := parseStorageSource(file.Source); ok {
-				if err = p.deployFileViaStorage(serverRunner, server, storageAlias, localPath, file.Target); err != nil {
+			if file.Storage != "" {
+				// Transfer via cloud storage (upload → presigned URL → remote download)
+				if err = p.deployFileViaStorage(serverRunner, server, file.Storage, file.Source, file.Target); err != nil {
 					return
 				}
 			} else {
-				err = serverRunner.Upload(file.Source, file.Target)
+				// Default: direct SFTP upload (tar + extract)
+				err = serverRunner.Upload(file.Source, file.Target, deploy.ConflictStrategy)
 				if err != nil {
 					return
 				}
@@ -435,8 +437,15 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		serverRunner := runners[key]
 		for _, execute := range deploy.Executes {
 			if execute.Run != "" {
+				cmd := execute.Run
+				if deploy.ShellInit != "" {
+					cmd = deploy.ShellInit + " && " + cmd
+				}
+				if deploy.Cwd != "" {
+					cmd = "cd " + deploy.Cwd + " && " + cmd
+				}
 				p.printServerExec(server, execute.Run)
-				if err = serverRunner.PipeExec(execute.Run); err != nil {
+				if err = serverRunner.PipeExec(cmd); err != nil {
 					err = fmt.Errorf("server execute error: %s", err)
 					return
 				}
@@ -445,16 +454,6 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	}
 
 	return
-}
-
-// parseStorageSource checks if source has a "<alias>://" prefix.
-// Returns (alias, localPath, true) if found, ("", "", false) otherwise.
-func parseStorageSource(source string) (string, string, bool) {
-	idx := strings.Index(source, "://")
-	if idx <= 0 {
-		return "", "", false
-	}
-	return source[:idx], source[idx+3:], true
 }
 
 // deployFileViaStorage uploads a local file/dir to cloud storage, then downloads on remote.
@@ -509,7 +508,7 @@ func (p *TaskRunner) deployFileViaStorage(
 	}
 
 	targetDir := target
-	extractCmd := fmt.Sprintf("mkdir -p %s && tar -xzf %s -C %s && rm -f %s",
+	extractCmd := fmt.Sprintf("mkdir -p %s && tar -xzf %s -C %s --strip-components=1 && rm -f %s",
 		targetDir, bundleRemotePath, targetDir, bundleRemotePath)
 	if err = serverRunner.PipeExec(extractCmd); err != nil {
 		return fmt.Errorf("remote extract error: %s", err)

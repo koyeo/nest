@@ -8,6 +8,8 @@ const (
 	ActionBackup ConflictAction = iota
 	// ActionRemove deletes the conflicting file.
 	ActionRemove
+	// ActionOverwrite removes conflicting files without backup (non-interactive).
+	ActionOverwrite
 )
 
 // ConflictResult separates conflicting files into managed (Nest-tracked)

@@ -75,12 +75,16 @@ type Execute struct {
 }
 
 type Deploy struct {
-	Servers  []*Server      `yaml:"servers"`
-	Files    []*FileMapping `yaml:"files"`
-	Executes []*Execute     `yaml:"executes"`
+	Servers          []*Server      `yaml:"servers"`
+	Files            []*FileMapping `yaml:"files"`
+	Executes         []*Execute     `yaml:"executes"`
+	Cwd              string         `yaml:"cwd"`
+	ShellInit        string         `yaml:"shell_init"`
+	ConflictStrategy string         `yaml:"conflict_strategy"` // overwrite | backup | error
 }
 
 type FileMapping struct {
-	Source string `yaml:"source"`
-	Target string `yaml:"target"`
+	Source  string `yaml:"source"`
+	Target  string `yaml:"target"`
+	Storage string `yaml:"storage"` // storage alias name; empty = direct SFTP transfer
 }

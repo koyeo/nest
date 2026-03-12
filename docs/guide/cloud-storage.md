@@ -12,7 +12,7 @@ Local Machine                    Cloud Storage (OSS/S3)              Remote Serv
 └──────────┘                     └──────────────────┘    URL (1h)    └──────────┘
 ```
 
-1. Nest detects the `<storage>://` prefix in a file mapping's `source`
+1. Nest detects the `storage` field on a file mapping entry
 2. Compresses the local path → computes SHA1 hash → uploads to `nest/{hash}.tar.gz`
 3. Generates a pre-signed URL (1-hour expiry)
 4. Remote server downloads via `curl` → extracts to target directory
@@ -58,7 +58,7 @@ nest storage remove oss-prod   # Remove a storage config
 
 ## Usage in `nest.yaml`
 
-Use the **storage alias as a protocol prefix** in `deploy.files` source paths:
+Set the `storage` field on any file mapping to route it through cloud storage:
 
 ```yaml
 storage:
@@ -74,13 +74,15 @@ tasks:
           servers:
             - use: prod
           files:
-            # oss:// prefix → upload to OSS, remote downloads via pre-signed URL
-            - source: oss://apps/web/.next/standalone/
+            # storage: oss → upload to OSS, remote downloads via pre-signed URL
+            - source: ./apps/web/.next/standalone/
               target: /root/app/
-            - source: oss://apps/web/.next/static
+              storage: oss
+            - source: ./apps/web/.next/static
               target: /root/app/.next/static
+              storage: oss
 
-            # No prefix → direct SFTP upload (original behavior)
+            # No storage field → direct SFTP upload
             - source: deploy/prod.toml
               target: /root/app/config.toml
           executes:
@@ -88,7 +90,8 @@ tasks:
 ```
 
 ::: tip Mixed Mode
-You can mix `oss://` prefixed and plain paths in the same deploy step. Storage-prefixed files go through cloud relay, others use direct SFTP.
+You can mix storage-relayed and direct SFTP file mappings in the same deploy step.
+File mappings without a `storage` field use direct SFTP transfer.
 :::
 
 ::: tip Automatic Dedup

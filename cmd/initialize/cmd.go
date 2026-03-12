@@ -10,10 +10,21 @@ import (
 )
 
 var Cmd = &cobra.Command{
-	Use:   "init",
-	Short: "Initialize project / 项目初始化",
-	Long:  `Initialize nest.yaml and inject .gitignore config. / 初始化 nest.yaml 文件，注入 .gitignore 配置。`,
-	RunE:  initialize,
+	Use:   "init [config-file]",
+	Short: "Initialize a nest.yaml config file and update .gitignore",
+	Long: `Create a starter nest.yaml config file in the current directory.
+If the file already exists, the command is a no-op.
+
+Also injects ".nest" into .gitignore (creates the file if needed).
+
+The generated template includes annotated examples of all supported features:
+servers, tasks, multi-line run, use (task composition), upload, deploy
+(with cwd, shell_init, conflict_strategy), and storage references.
+
+Examples:
+  nest init                    # Create nest.yaml
+  nest init nest.prod.yaml     # Create a custom-named config`,
+	RunE: initialize,
 }
 
 func initialize(cmd *cobra.Command, args []string) (err error) {
@@ -50,52 +61,92 @@ func initialize(cmd *cobra.Command, args []string) (err error) {
 }
 
 const tpl = `
-##########################################################
-#                        Nest                            #
-#            用于快速部署本地本地构建部署工具                 #
-##########################################################
+# ─────────────────────────────────────────────
+#  Nest — Task Runner & Deployment Config
+# ─────────────────────────────────────────────
 version: 1.0
+
+# ── Servers ──
+# Named SSH connection profiles used in deploy steps.
+# Auth: defaults to ~/.ssh/id_rsa if neither password nor identity_file is set.
 servers:
-  server-1:
-    comment: 第一个服务器
-    host: 192.168.1.10 
-    user: root         
-    # 默认使用 ~/.ssh/id_rsa 私钥进行认证
+  my-server:
+    host: 192.168.1.10
+    user: root
+    # port: 22
     # identity_file: ~/.ssh/id_rsa
-    # password: 123456
-# 声明此文件用到的云存储，key 为本文件中引用的别名，value 为全局配置名称
-# 全局配置通过 nest storage add 命令添加
-storage:
-  oss: oss
+    # password: secret
+
+# ── Storage ──
+# Cloud object storage references. Key = alias used in this file,
+# value = global config name (added via "nest storage add").
+# storage:
+#   oss: my-oss-config
+
+# ── Environment Variables ──
+# Global env vars available to all tasks. Task-level envs override these.
+# envs:
+#   NODE_ENV: production
+
+# ── Tasks ──
+# Named step sequences executed by "nest run <task-name>".
 tasks:
-  task-1:
-    comment: 第一个任务
+  hello:
+    comment: A simple demo task
     steps:
-      - run: echo "Hi! this is from first task!"
-  # 任务名称 nest run 执行标识
-  task-2:                                      
-    # 任务注释
-    comment: 第二个任务                       
+      - run: echo "Hello from nest!"
+
+  build:
+    comment: Example multi-line local build
     steps:
-      # 引用其它任务的全部 steps
-      - use: task-1
-      # 在本地执行命令
-      - run: echo 'Hi! this is from second task!'            
-      # 部署服务器
+      # Multi-line commands are supported via YAML literal blocks (|).
+      # Each line runs sequentially in the same shell session.
+      - run: |
+          echo "Building project..."
+          mkdir -p dist
+          echo "Build complete"
+
+  deploy:
+    comment: Full deploy example (build + upload + remote setup)
+    steps:
+      # Reuse steps from another task
+      - use: build
+
+      # Upload local artifacts to cloud storage (requires storage config)
+      # - upload:
+      #     storage: oss
+      #     source: ./dist
+
+      # Deploy to remote servers
       - deploy:
           servers:
-            # 引用服务器
-            - use: server-1                    
-          files:                             
-            # 本地文件路径
-            - source: ./hi.txt                    
-            # 服务器存放位置		
-              target: /app/foo/hi         
+            - use: my-server
+
+          # Transfer files to the server.
+          # Default: direct SFTP upload (tar + extract).
+          # Set "storage: <alias>" to transfer via cloud storage instead.
+          files:
+            - source: ./dist
+              target: /data/app
+              # storage: oss   # Use cloud storage alias "oss" for transfer
+
+          # Working directory for all execute commands (optional)
+          # cwd: /data/app
+
+          # Shell init command prepended to each execute (optional)
+          # Useful for loading nvm, pyenv, etc.
+          # shell_init: source /root/.nvm/nvm.sh
+
+          # How to handle file conflicts on the server (optional):
+          #   overwrite — silently replace
+          #   backup    — rename old files with .bak suffix
+          #   error     — abort on conflict
+          # If unset, prompts interactively.
+          # conflict_strategy: overwrite
+
+          # Commands to run on each server after file upload
           executes:
-            # 在服务器执行命令
-            - run: echo 'Hi! this is from server-1'
-      # 在本地执行命令
-      - run: echo 'Hi! this is from local!'
+            - run: echo "Deployed successfully to $(hostname)"
 `
 
 func injectGitIgnore() (err error) {

@@ -17,13 +17,37 @@ import (
 var uiMode bool
 
 var Cmd = &cobra.Command{
-	Use:   "run",
-	Short: "Run tasks / 执行任务",
-	Run:   run,
+	Use:   "run <task> [task2 ...]",
+	Short: "Execute one or more tasks defined in nest.yaml",
+	Long: `Execute one or more named tasks from the config file.
+
+By default, output goes directly to the terminal (raw mode).
+Use --ui to launch a web-based UI with a step tree, live output, and controls.
+
+Execution flow:
+  1. Load nest.yaml (or the file specified by -c).
+  2. Resolve the named task(s) and flatten all "use" references.
+  3. Execute each step sequentially:
+       • run:      Local bash command (supports multi-line YAML blocks).
+       • use:      Inline all steps from another task (recursive).
+       • upload:   Compress source to tar.gz, upload to cloud storage.
+       • deploy:   For each target server:
+                     a) Upload files via SCP (tar+extract) or cloud storage.
+                     b) Run post-deploy commands via SSH.
+
+Remote commands run in a login shell (bash -l) so PATH, nvm, pyenv, etc. are
+available. Multi-line "run:" blocks preserve newlines.
+
+Examples:
+  nest run build                    # Run the "build" task
+  nest run build deploy             # Run "build" then "deploy"
+  nest run deploy --ui              # Run "deploy" with web UI
+  nest run deploy -c nest.prod.yaml # Use a custom config file`,
+	Run: run,
 }
 
 func init() {
-	Cmd.Flags().BoolVar(&uiMode, "ui", false, "Use web UI for real-time visualization")
+	Cmd.Flags().BoolVar(&uiMode, "ui", false, "Launch web UI with step tree and live output (default: raw terminal output)")
 }
 
 func run(cmd *cobra.Command, args []string) {

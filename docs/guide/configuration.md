@@ -61,7 +61,8 @@ storage:
   s3: s3-backup        # "s3" alias → "s3-backup" global config
 ```
 
-The alias is used as a protocol prefix in `deploy.files` source paths (e.g. `oss://path/to/file`).
+The alias is used in `deploy.files` entries via the `storage` field (e.g. `storage: oss`).
+When `storage` is not set on a file mapping, Nest uses direct SFTP transfer.
 
 ## Environment Variables
 

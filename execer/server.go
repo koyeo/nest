@@ -246,6 +246,9 @@ func (p *Server) PipeExec(command string) (err error) {
 // wrapLoginShell wraps a command to run in a login shell,
 // so that /etc/profile, ~/.bash_profile, ~/.bashrc etc. are loaded.
 // This ensures PATH includes tools like nvm, pyenv, etc.
+// Uses single quotes to preserve newlines in multi-line commands.
 func wrapLoginShell(command string) string {
-	return fmt.Sprintf(`bash -l -c %q`, command)
+	// Escape single quotes: ' → '"'"'
+	escaped := strings.ReplaceAll(command, "'", `'"'"'`)
+	return fmt.Sprintf("bash -l -c '%s'", escaped)
 }

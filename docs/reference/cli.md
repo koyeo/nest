@@ -4,7 +4,7 @@
 
 ### `nest init`
 
-Initialize a configuration file and update `.gitignore`.
+Create a starter config file and update `.gitignore`.
 
 ```bash
 nest init              # Creates nest.yaml
@@ -13,7 +13,7 @@ nest init myconfig.yml # Creates custom config file
 
 **What it does:**
 - Creates the specified YAML config file with a starter template
-- Adds `.nest`, `nest.yaml`, `nest.*.yml`, `nest.*.yaml` to `.gitignore`
+- Adds `.nest` to `.gitignore`
 
 ---
 
@@ -30,27 +30,47 @@ nest run <task...>
 nest run deploy              # Run single task
 nest run build deploy        # Run multiple tasks in order
 nest run deploy -c prod.yml  # Use specific config file
-nest run deploy --raw        # Use raw console output (no GUI)
+nest run deploy --ui         # Use web UI with step tree and live output
 ```
 
 **Flags:**
 
 | Flag | Default | Description |
 |:-----|:--------|:------------|
-| `--raw` | `false` | Use raw console output instead of the visual webview |
+| `--ui` | `false` | Launch a web-based UI with step tree and live output |
 
-By default, `nest run` opens a **visual webview window** (macOS) or browser showing task progress, step status, and output in real-time. Use `--raw` for plain console output.
+By default, `nest run` outputs directly to the terminal (raw mode). Use `--ui` to open a visual web interface.
 
 **Step execution order:**
-1. `run` — local shell command
+1. `run` — local shell command (supports multi-line YAML `|` blocks)
 2. `use` — invoke another task (supports circular dependency detection)
-3. `deploy` — upload files via SFTP (or cloud storage relay) and/or execute remote commands
+3. `upload` — compress and upload artifacts to cloud storage
+4. `deploy` — upload files and/or execute remote commands
+
+**Deploy step options:**
+
+| Field | Description |
+|:------|:------------|
+| `servers` | Target servers (by name reference or inline) |
+| `files` | File mappings with `source`, `target`, and optional `storage` |
+| `executes` | Commands to run on each server after upload |
+| `cwd` | Working directory for all execute commands |
+| `shell_init` | Init command prepended to each execute (e.g. `source ~/.nvm/nvm.sh`) |
+| `conflict_strategy` | `overwrite`, `backup`, or `error` (default: interactive prompt) |
+
+**File mapping fields:**
+
+| Field | Required | Description |
+|:------|:---------|:------------|
+| `source` | Yes | Local file or directory path |
+| `target` | Yes | Remote destination path |
+| `storage` | No | Storage alias name for cloud relay; empty = direct SFTP |
 
 ---
 
 ### `nest list`
 
-List all configured resources (servers, tasks, env vars).
+Display all configured tasks, servers, and environment variables.
 
 ```bash
 nest list
@@ -90,11 +110,23 @@ nest storage list
 nest storage remove <name>
 ```
 
+#### `nest storage usage`
+
+```bash
+nest storage usage <name>    # Show object count and total size
+```
+
+#### `nest storage clean`
+
+```bash
+nest storage clean <name>    # Delete all nest objects (with confirmation)
+```
+
 ---
 
 ### `nest version`
 
-Print version information.
+Print version, commit hash, and build time.
 
 ```bash
 nest version
@@ -106,3 +138,4 @@ nest version
 |:-----|:------|:--------|:------------|
 | `--config <file>` | `-c` | `nest.yaml` | Specify config file path |
 | `--help` | `-h` | — | Show help for any command |
+

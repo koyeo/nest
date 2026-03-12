@@ -25,7 +25,24 @@ var (
 // Cmd is the root storage command group.
 var Cmd = &cobra.Command{
 	Use:   "storage",
-	Short: "Manage cloud storage configs / 管理云存储配置",
+	Short: "Manage cloud storage configurations (OSS / S3)",
+	Long: `Manage global cloud storage configurations used for artifact deployment.
+
+Storage configs are encrypted and saved in ~/.nest/config.json (AES-256-GCM).
+In nest.yaml, you reference a storage config by declaring an alias:
+
+  storage:
+    oss: my-oss-config    # alias: global-config-name
+
+Then use "oss://path" as a file source in deploy steps to transfer files
+through the cloud (upload + presigned URL + remote curl download).
+
+Subcommands:
+  add       Add or update a storage config (interactive or flag-based)
+  list      Show all configured storages
+  remove    Delete a storage config
+  usage     Show disk usage of nest objects in the bucket
+  clean     Delete all nest objects from the bucket`,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
@@ -33,46 +50,52 @@ var Cmd = &cobra.Command{
 
 var addCmd = &cobra.Command{
 	Use:   "add [name]",
-	Short: "Add a storage config / 添加云存储配置",
+	Short: "Add a cloud storage configuration",
 	Long: `Add a cloud storage configuration.
 
 Interactive mode (guided):
   nest storage add
 
-Non-interactive mode (for scripts / AI):
+Non-interactive mode (for scripts / CI / AI agents):
   nest storage add my-oss \
     --provider oss \
     --endpoint oss-cn-hangzhou.aliyuncs.com \
     --bucket my-deploy-bucket \
     --access-key-id LTAI5t... \
-    --access-key-secret xxxxxxxx`,
+    --access-key-secret xxxxxxxx
+
+Supported providers:
+  oss   Alibaba Cloud Object Storage Service
+  s3    AWS S3 or any S3-compatible service
+
+Credentials are encrypted with AES-256-GCM before saving.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runAdd,
 }
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List storage configs / 列出云存储配置",
+	Short: "List all configured storages with provider, bucket, and endpoint",
 	RunE:  runList,
 }
 
 var removeCmd = &cobra.Command{
 	Use:   "remove <name>",
-	Short: "Remove a storage config / 删除云存储配置",
+	Short: "Remove a storage configuration by name",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runRemove,
 }
 
 var usageCmd = &cobra.Command{
 	Use:   "usage <name>",
-	Short: "Show storage space usage / 查看云存储空间使用量",
+	Short: "Show total size and object count of nest artifacts in the bucket",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runUsage,
 }
 
 var cleanCmd = &cobra.Command{
 	Use:   "clean <name>",
-	Short: "Clean all nest objects from storage / 清空云存储中的 nest 文件",
+	Short: "Delete all nest-managed objects from the bucket (with confirmation)",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runClean,
 }

@@ -12,11 +12,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Cmd represents the run command
+// Cmd represents the list command
 var Cmd = &cobra.Command{
 	Use:   "list",
-	Short: "List configuration / 显示配置项",
-	Run:   run,
+	Short: "Display tasks, servers, and environment variables from the config",
+	Long: `Parse the nest config file and display a summary of all declared
+tasks (with comments), servers (with hosts), and environment variables.
+
+Useful for discovering available task names before running them.
+
+Example:
+  nest list
+  nest list -c nest.prod.yaml`,
+	Run: run,
 }
 
 func run(cmd *cobra.Command, args []string) {

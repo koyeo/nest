@@ -56,7 +56,7 @@ A trailing `/` on the target means "put the source **inside** this directory". N
 
 ## Cloud Storage Relay
 
-When source paths use a **storage protocol prefix** (e.g. `oss://`), Nest uploads the local file to cloud storage first, then the remote server downloads via a pre-signed URL. This is much faster than SFTP for overseas servers.
+For large files or overseas servers, SFTP can be slow. Add `storage: <alias>` to a file mapping to transfer via cloud storage instead — Nest uploads to the bucket, then the remote server downloads via a pre-signed URL.
 
 ```yaml
 storage:
@@ -69,15 +69,73 @@ tasks:
           servers:
             - use: prod
           files:
-            # Cloud storage relay
-            - source: oss://apps/web/.next/standalone/
+            # Cloud storage relay — upload to OSS, remote downloads via pre-signed URL
+            - source: ./apps/web/.next/standalone/
               target: /root/app/
-            # Direct SFTP upload
+              storage: oss
+
+            # Direct SFTP upload (default when storage is not set)
             - source: deploy/prod.toml
               target: /root/app/config.toml
 ```
 
+::: tip Mixed Mode
+You can mix storage-relayed and direct SFTP file mappings in the same deploy step.
+:::
+
 See [Cloud Storage Relay](./cloud-storage.md) for full setup instructions.
+
+## Deploy Options
+
+### `cwd` — Working Directory
+
+Set a working directory for all `executes` commands:
+
+```yaml
+- deploy:
+    servers:
+      - use: prod
+    cwd: /data/app
+    executes:
+      - run: npm install
+      - run: pm2 restart app
+```
+
+### `shell_init` — Shell Initialization
+
+Prepend an init command to every execute (e.g. loading nvm):
+
+```yaml
+- deploy:
+    servers:
+      - use: prod
+    shell_init: source /root/.nvm/nvm.sh
+    cwd: /data/app
+    executes:
+      - run: node -v
+      - run: npm install
+```
+
+### `conflict_strategy` — File Conflict Handling
+
+Control how Nest handles existing files on the server:
+
+| Value | Behavior |
+|:------|:---------|
+| *(empty)* | Interactive prompt (default) |
+| `overwrite` | Silently replace conflicting files |
+| `backup` | Rename old files with `.bak` suffix |
+| `error` | Abort deployment on conflict |
+
+```yaml
+- deploy:
+    servers:
+      - use: prod
+    conflict_strategy: overwrite
+    files:
+      - source: ./dist
+        target: /data/app
+```
 
 ## Multi-Server Deploy
 

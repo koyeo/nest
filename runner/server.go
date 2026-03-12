@@ -111,7 +111,7 @@ func (p *ServerRunner) checkTargetPath(target string) (err error) {
 	return
 }
 
-func (p *ServerRunner) Upload(source, target string) (err error) {
+func (p *ServerRunner) Upload(source, target, conflictStrategy string) (err error) {
 
 	err = p.checkTargetPath(target)
 	if err != nil {
@@ -245,7 +245,7 @@ func (p *ServerRunner) Upload(source, target string) (err error) {
 	}
 	deploySvc := application.NewDeployService(remoteFS, remoteExec, snapshotRepo, prompter, lang)
 
-	err = deploySvc.Deploy(bundleRemoteTmpPath, targetDir, bundleName, bundleHash)
+	err = deploySvc.Deploy(bundleRemoteTmpPath, targetDir, bundleName, bundleHash, conflictStrategy)
 	if err != nil {
 		return
 	}

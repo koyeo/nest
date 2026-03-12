@@ -3,6 +3,7 @@ package _tar
 import (
 	"archive/tar"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"os"
 )
@@ -29,15 +30,32 @@ func compress(file *os.File, prefix string, tw *tar.Writer) error {
 		return err
 	}
 	if info.IsDir() {
-		prefix = prefix + "/" + info.Name()
+		if prefix == "" {
+			prefix = info.Name()
+		} else {
+			prefix = prefix + "/" + info.Name()
+		}
 		var fileInfos []os.FileInfo
 		fileInfos, err = file.Readdir(-1)
 		if err != nil {
 			return err
 		}
 		for _, fi := range fileInfos {
+			childPath := file.Name() + "/" + fi.Name()
+			// Check for symlinks via Lstat
+			linfo, lErr := os.Lstat(childPath)
+			if lErr != nil {
+				continue // skip unreadable entries
+			}
+			if linfo.Mode()&os.ModeSymlink != 0 {
+				// Try to resolve — skip if broken
+				if _, resolveErr := os.Stat(childPath); resolveErr != nil {
+					fmt.Fprintf(os.Stderr, "⚠ skipping broken symlink: %s\n", childPath)
+					continue
+				}
+			}
 			var f *os.File
-			f, err = os.Open(file.Name() + "/" + fi.Name())
+			f, err = os.Open(childPath)
 			if err != nil {
 				return err
 			}
@@ -49,9 +67,11 @@ func compress(file *os.File, prefix string, tw *tar.Writer) error {
 	} else {
 		var header *tar.Header
 		header, err = tar.FileInfoHeader(info, "")
-		header.Name = prefix + "/" + header.Name
 		if err != nil {
 			return err
+		}
+		if prefix != "" {
+			header.Name = prefix + "/" + header.Name
 		}
 		err = tw.WriteHeader(header)
 		if err != nil {
@@ -65,3 +85,4 @@ func compress(file *os.File, prefix string, tw *tar.Writer) error {
 	}
 	return nil
 }
+
