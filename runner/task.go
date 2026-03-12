@@ -434,6 +434,9 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		}
 	}
 
+	// Clean up cloud storage objects after all servers have downloaded
+	p.cleanUploadedObjects(deploy.Files)
+
 	// Execute post-deploy commands (reuse same runners)
 	for key, server := range servers {
 		serverRunner := runners[key]
@@ -456,6 +459,71 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	}
 
 	return
+}
+
+// cleanUploadedObjects deletes all cloud storage objects that were uploaded during this deploy.
+// Called after all servers have finished downloading to avoid breaking multi-server deploys.
+func (p *TaskRunner) cleanUploadedObjects(files []*protocol.FileMapping) {
+	if len(p.uploadedKeys) == 0 {
+		return
+	}
+
+	// Group object keys by storage alias
+	type storageGroup struct {
+		alias string
+		keys  []string
+	}
+	groups := map[string]*storageGroup{}
+
+	for _, file := range files {
+		if file.Storage == "" {
+			continue
+		}
+		objectKey, ok := p.uploadedKeys[file.Source]
+		if !ok {
+			continue
+		}
+		if g, exists := groups[file.Storage]; exists {
+			// Dedup: only add if not already in list
+			found := false
+			for _, k := range g.keys {
+				if k == objectKey {
+					found = true
+					break
+				}
+			}
+			if !found {
+				g.keys = append(g.keys, objectKey)
+			}
+		} else {
+			groups[file.Storage] = &storageGroup{
+				alias: file.Storage,
+				keys:  []string{objectKey},
+			}
+		}
+	}
+
+	ctx := context.Background()
+	for _, g := range groups {
+		globalName, err := p.conf.ResolveStorage(g.alias)
+		if err != nil {
+			continue
+		}
+		cfg := config.Load()
+		cred, err := cfg.DecryptStorage(globalName)
+		if err != nil {
+			continue
+		}
+		store, err := storage.NewFromCredential(cred)
+		if err != nil {
+			continue
+		}
+		if err = store.DeleteObjects(ctx, g.keys); err != nil {
+			p.tuiLog("⚠️", fmt.Sprintf("failed to clean cloud objects: %s", err))
+		} else {
+			p.tuiLog("🧹", fmt.Sprintf("cleaned %d cloud object(s) from %s", len(g.keys), g.alias))
+		}
+	}
 }
 
 // deployFileViaStorage uploads a local file/dir to cloud storage, then downloads on remote.

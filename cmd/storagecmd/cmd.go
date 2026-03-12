@@ -89,9 +89,9 @@ var removeCmd = &cobra.Command{
 }
 
 var usageCmd = &cobra.Command{
-	Use:   "usage <name>",
+	Use:   "usage [name]",
 	Short: "Show total size and object count of nest artifacts in the bucket",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runUsage,
 }
 
@@ -291,7 +291,29 @@ func newStorageClient(name string) (storage.ObjectStorage, error) {
 }
 
 func runUsage(cmd *cobra.Command, args []string) error {
-	name := args[0]
+	if len(args) > 0 {
+		return printStorageUsage(args[0])
+	}
+
+	// No name specified — show usage for all configured storages
+	cfg := config.Load()
+	if len(cfg.Storages) == 0 {
+		fmt.Println("No storage configs found.")
+		fmt.Println()
+		fmt.Println("Add one with:")
+		fmt.Println("  nest storage add")
+		return nil
+	}
+
+	for name := range cfg.Storages {
+		if err := printStorageUsage(name); err != nil {
+			fmt.Printf("⚠️  Storage '%s': %s\n\n", name, err)
+		}
+	}
+	return nil
+}
+
+func printStorageUsage(name string) error {
 	store, err := newStorageClient(name)
 	if err != nil {
 		return err
@@ -304,7 +326,7 @@ func runUsage(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(objects) == 0 {
-		fmt.Printf("📦 Storage '%s': empty (no nest/ objects)\n", name)
+		fmt.Printf("📦 Storage '%s': empty (no nest/ objects)\n\n", name)
 		return nil
 	}
 
@@ -321,6 +343,7 @@ func runUsage(cmd *cobra.Command, args []string) error {
 	for _, obj := range objects {
 		fmt.Printf("   %s  %s\n", unit.ByteSize(obj.Size), obj.Key)
 	}
+	fmt.Println()
 
 	return nil
 }
