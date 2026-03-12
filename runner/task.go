@@ -3,10 +3,12 @@ package runner
 import (
 	"context"
 	"crypto/sha1"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -419,7 +421,7 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		for _, file := range deploy.Files {
 			if file.Storage != "" {
 				// Transfer via cloud storage (upload → presigned URL → remote download)
-				if err = p.deployFileViaStorage(serverRunner, server, file.Storage, file.Source, file.Target); err != nil {
+				if err = p.deployFileViaStorage(serverRunner, server, file.Storage, file.Source, file.Target, deploy.ConflictStrategy); err != nil {
 					return
 				}
 			} else {
@@ -457,10 +459,11 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 }
 
 // deployFileViaStorage uploads a local file/dir to cloud storage, then downloads on remote.
+// Uses the same DeployService.Deploy() flow as the SFTP path for extraction + conflict resolution.
 func (p *TaskRunner) deployFileViaStorage(
 	serverRunner *ServerRunner,
 	server *protocol.Server,
-	storageAlias, localPath, target string,
+	storageAlias, localPath, target, conflictStrategy string,
 ) error {
 	// Resolve storage alias
 	globalName, err := p.conf.ResolveStorage(storageAlias)
@@ -480,7 +483,7 @@ func (p *TaskRunner) deployFileViaStorage(
 	}
 
 	// Upload local source to storage (compress + dedup)
-	objectKey, err := p.uploadToStorage(store, storageAlias, localPath)
+	objectKey, bundleHash, err := p.uploadToStorage(store, storageAlias, localPath)
 	if err != nil {
 		return err
 	}
@@ -498,7 +501,7 @@ func (p *TaskRunner) deployFileViaStorage(
 		fmt.Sprintf("downloading %s via %s", sourceName, storageAlias),
 	)
 
-	// Download and extract on remote server
+	// Download tar.gz on remote server
 	bundleName := fmt.Sprintf("%s.tar.gz", sourceName)
 	bundleRemotePath := fmt.Sprintf("/tmp/nest-%s", bundleName)
 
@@ -507,62 +510,41 @@ func (p *TaskRunner) deployFileViaStorage(
 		return fmt.Errorf("remote download error: %s", err)
 	}
 
-	// Detect if source is a directory to decide extraction strategy.
-	// Directory tars have entries like "dirname/file", so we strip the top-level dir
-	// and extract directly into targetDir.
-	// Single-file tars have entries like "filename" with no parent directory — we must
-	// extract into the parent of target, then rename if the target basename differs.
-	sourceInfo, err := os.Stat(localPath)
-	if err != nil {
-		return fmt.Errorf("stat source error: %s", err)
+	// Compute targetDir — same logic as SFTP path:
+	// trailing "/" means target is a directory; otherwise parent is the dir.
+	targetDir := target
+	if !strings.HasSuffix(target, "/") {
+		targetDir = filepath.Join(target, "../")
 	}
 
-	var extractCmd string
-	if sourceInfo.IsDir() {
-		targetDir := target
-		extractCmd = fmt.Sprintf("mkdir -p %s && tar -xzf %s -C %s --strip-components=1 && rm -f %s",
-			targetDir, bundleRemotePath, targetDir, bundleRemotePath)
-		if err = serverRunner.PipeExec(extractCmd); err != nil {
-			return fmt.Errorf("remote extract error: %s", err)
-		}
-		p.tuiLog("✅", fmt.Sprintf("deployed %s → %s", sourceName, targetDir))
-	} else {
-		// target is a file path like /data/app/.env
-		targetDir := path.Dir(target)
-		targetBase := path.Base(target)
-		extractCmd = fmt.Sprintf("mkdir -p %s && tar -xzf %s -C %s && rm -f %s",
-			targetDir, bundleRemotePath, targetDir, bundleRemotePath)
-		if err = serverRunner.PipeExec(extractCmd); err != nil {
-			return fmt.Errorf("remote extract error: %s", err)
-		}
-		// Rename if the source filename differs from target filename
-		if sourceName != targetBase {
-			renameCmd := fmt.Sprintf("mv %s/%s %s/%s", targetDir, sourceName, targetDir, targetBase)
-			if err = serverRunner.PipeExec(renameCmd); err != nil {
-				return fmt.Errorf("remote rename error: %s", err)
-			}
-		}
-		p.tuiLog("✅", fmt.Sprintf("deployed %s → %s", sourceName, target))
+	// Deploy using shared service (extract → conflict resolution → move)
+	if err = serverRunner.deployBundle(bundleRemotePath, targetDir, bundleName, bundleHash, conflictStrategy); err != nil {
+		return err
 	}
+
+	// Clean up remote temp bundle
+	_ = serverRunner.CombinedExec(fmt.Sprintf("rm -f %s", bundleRemotePath))
+
+	p.tuiLog("✅", fmt.Sprintf("deployed %s → %s", sourceName, targetDir))
 	return nil
 }
 
 // uploadToStorage compresses and uploads a local path to cloud storage, with dedup.
-func (p *TaskRunner) uploadToStorage(store storage.ObjectStorage, alias, localPath string) (string, error) {
+func (p *TaskRunner) uploadToStorage(store storage.ObjectStorage, alias, localPath string) (string, string, error) {
 	sourceName := path.Base(localPath)
 
 	// Check if already uploaded in this run (dedup across servers)
 	if key, ok := p.uploadedKeys[localPath]; ok {
 		p.tuiLog("⏭️", fmt.Sprintf("[%s] %s already uploaded", alias, sourceName))
-		return key, nil
+		return key, "", nil
 	}
 
 	ok, err := _fs.Exists(localPath)
 	if err != nil {
-		return "", fmt.Errorf("check source error: %s", err)
+		return "", "", fmt.Errorf("check source error: %s", err)
 	}
 	if !ok {
-		return "", fmt.Errorf("source not found: %s", localPath)
+		return "", "", fmt.Errorf("source not found: %s", localPath)
 	}
 
 	// Compress
@@ -572,25 +554,27 @@ func (p *TaskRunner) uploadToStorage(store storage.ObjectStorage, alias, localPa
 
 	sourceFile, err := os.Open(localPath)
 	if err != nil {
-		return "", fmt.Errorf("open source error: %s", err)
+		return "", "", fmt.Errorf("open source error: %s", err)
 	}
 	defer func() { _ = sourceFile.Close() }()
 
 	if err = _tar.Compress([]*os.File{sourceFile}, bundlePath); err != nil {
-		return "", fmt.Errorf("compress error: %s", err)
+		return "", "", fmt.Errorf("compress error: %s", err)
 	}
 
 	// Compute hash for dedup
 	bundleData, err := os.ReadFile(bundlePath)
 	if err != nil {
-		return "", fmt.Errorf("read bundle error: %s", err)
+		return "", "", fmt.Errorf("read bundle error: %s", err)
 	}
 	sha := fmt.Sprintf("%x", sha1.Sum(bundleData))
 	objectKey := fmt.Sprintf("nest/%s.tar.gz", sha)
+	bundleHashSum := sha256.Sum256(bundleData)
+	bundleHash := fmt.Sprintf("%x", bundleHashSum[:])
 
 	bundleFile, err := os.Open(bundlePath)
 	if err != nil {
-		return "", fmt.Errorf("open bundle error: %s", err)
+		return "", "", fmt.Errorf("open bundle error: %s", err)
 	}
 	defer func() { _ = bundleFile.Close() }()
 
@@ -605,21 +589,21 @@ func (p *TaskRunner) uploadToStorage(store storage.ObjectStorage, alias, localPa
 	ctx := context.Background()
 	remoteSize, err := store.Head(ctx, objectKey)
 	if err != nil {
-		return "", fmt.Errorf("check remote object error: %s", err)
+		return "", "", fmt.Errorf("check remote object error: %s", err)
 	}
 
 	if remoteSize == localSize {
 		p.tuiLog("⏭️", "skipped (already exists)")
 	} else {
 		if err = store.Upload(ctx, objectKey, bundleFile, localSize); err != nil {
-			return "", fmt.Errorf("upload to storage error: %s", err)
+			return "", "", fmt.Errorf("upload to storage error: %s", err)
 		}
 		p.tuiLog("✅", "uploaded")
 	}
 
 	// Track for dedup across multiple servers
 	p.uploadedKeys[localPath] = objectKey
-	return objectKey, nil
+	return objectKey, bundleHash, nil
 }
 
 func (p TaskRunner) execute(step *protocol.Step) (err error) {

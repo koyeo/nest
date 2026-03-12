@@ -228,7 +228,19 @@ func (p *ServerRunner) Upload(source, target, conflictStrategy string) (err erro
 	}
 	fmt.Printf("\n")
 
-	// === Deploy via DDD Service ===
+	// === Deploy via shared service ===
+	err = p.deployBundle(bundleRemoteTmpPath, targetDir, bundleName, bundleHash, conflictStrategy)
+	return
+}
+
+// deployBundle creates the deploy service and executes the extract + conflict
+// resolution + move flow. Both SFTP upload and cloud storage paths converge here.
+func (p *ServerRunner) deployBundle(bundleRemotePath, targetDir, bundleName, bundleHash, conflictStrategy string) error {
+	server, err := p.newExecServer()
+	if err != nil {
+		return err
+	}
+
 	cfg := config.Load()
 	lang := cfg.Lang
 
@@ -236,7 +248,6 @@ func (p *ServerRunner) Upload(source, target, conflictStrategy string) (err erro
 	remoteExec := infra.NewSSHRemoteExec(server)
 	snapshotRepo := infra.NewSnapshotRepo(remoteFS)
 
-	// Use WebSocket prompter in webui mode, stdin in raw mode
 	var prompter domain.UserPrompter
 	if p.task.handler != nil {
 		prompter = &HandlerPrompter{Handler: p.task.handler}
@@ -244,13 +255,7 @@ func (p *ServerRunner) Upload(source, target, conflictStrategy string) (err erro
 		prompter = infra.NewStdinPrompter()
 	}
 	deploySvc := application.NewDeployService(remoteFS, remoteExec, snapshotRepo, prompter, lang)
-
-	err = deploySvc.Deploy(bundleRemoteTmpPath, targetDir, bundleName, bundleHash, conflictStrategy)
-	if err != nil {
-		return
-	}
-
-	return
+	return deploySvc.Deploy(bundleRemotePath, targetDir, bundleName, bundleHash, conflictStrategy)
 }
 
 func (p *ServerRunner) printUpload(source, targetDir, targetName string) {
