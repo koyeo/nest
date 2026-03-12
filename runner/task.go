@@ -507,9 +507,24 @@ func (p *TaskRunner) deployFileViaStorage(
 		return fmt.Errorf("remote download error: %s", err)
 	}
 
+	// Detect if source is a directory to decide --strip-components.
+	// Directory tars have entries like "dirname/file", so we strip the top-level dir.
+	// Single-file tars have entries like "filename" with no parent — stripping would
+	// discard the file entirely.
+	sourceInfo, err := os.Stat(localPath)
+	if err != nil {
+		return fmt.Errorf("stat source error: %s", err)
+	}
+
 	targetDir := target
-	extractCmd := fmt.Sprintf("mkdir -p %s && tar -xzf %s -C %s --strip-components=1 && rm -f %s",
-		targetDir, bundleRemotePath, targetDir, bundleRemotePath)
+	var extractCmd string
+	if sourceInfo.IsDir() {
+		extractCmd = fmt.Sprintf("mkdir -p %s && tar -xzf %s -C %s --strip-components=1 && rm -f %s",
+			targetDir, bundleRemotePath, targetDir, bundleRemotePath)
+	} else {
+		extractCmd = fmt.Sprintf("mkdir -p %s && tar -xzf %s -C %s && rm -f %s",
+			targetDir, bundleRemotePath, targetDir, bundleRemotePath)
+	}
 	if err = serverRunner.PipeExec(extractCmd); err != nil {
 		return fmt.Errorf("remote extract error: %s", err)
 	}
