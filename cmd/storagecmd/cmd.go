@@ -7,7 +7,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/koyeo/nest/common"
 	"github.com/koyeo/nest/config"
+	"github.com/koyeo/nest/protocol"
 	"github.com/koyeo/nest/storage"
 	"github.com/koyeo/nest/utils/unit"
 	"github.com/spf13/cobra"
@@ -264,9 +266,24 @@ func runRemove(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// resolveStorageName resolves a name that can be either:
+// 1. A nest.yaml storage alias (e.g. "oss") → resolves to global config name
+// 2. A direct global config name from "nest storage list" (e.g. "my-oss-config")
+func resolveStorageName(name string) string {
+	conf, err := protocol.Load(common.ConfigFile)
+	if err == nil && conf != nil {
+		if resolved, resolveErr := conf.ResolveStorage(name); resolveErr == nil {
+			return resolved
+		}
+	}
+	// Fall back to using name directly as global config name
+	return name
+}
+
 func newStorageClient(name string) (storage.ObjectStorage, error) {
+	resolved := resolveStorageName(name)
 	cfg := config.Load()
-	cred, err := cfg.DecryptStorage(name)
+	cred, err := cfg.DecryptStorage(resolved)
 	if err != nil {
 		return nil, fmt.Errorf("storage '%s': %s", name, err)
 	}
