@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -190,14 +189,6 @@ func (p *Server) PipeExec(command string) (err error) {
 		return
 	}
 
-	out := make(chan string, 1048576)
-	defer func() {
-		for len(out) > 0 {
-			time.Sleep(500 * time.Millisecond)
-			close(out)
-		}
-	}()
-
 	stdoutW := p.getStdout()
 	stderrW := p.getStderr()
 
@@ -224,6 +215,10 @@ func (p *Server) PipeExec(command string) (err error) {
 
 	err = session.Run(wrapLoginShell(command))
 
+	// Always wait for pipe goroutines to finish flushing output,
+	// so that all stderr/stdout is visible before the error is reported.
+	wg.Wait()
+
 	// If context was cancelled, report a clean cancellation error
 	if p.ctx != nil && p.ctx.Err() != nil {
 		err = fmt.Errorf("cancelled")
@@ -234,7 +229,6 @@ func (p *Server) PipeExec(command string) (err error) {
 		err = fmt.Errorf("session run command error: %s", err)
 		return
 	}
-	wg.Wait()
 
 	return
 }
