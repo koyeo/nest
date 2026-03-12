@@ -335,15 +335,7 @@ func printStorageUsage(name string) error {
 		totalSize += obj.Size
 	}
 
-	fmt.Printf("📦 Storage '%s':\n", name)
-	fmt.Printf("   Objects : %d\n", len(objects))
-	fmt.Printf("   Size    : %s\n", unit.ByteSize(totalSize))
-	fmt.Println()
-
-	for _, obj := range objects {
-		fmt.Printf("   %s  %s\n", unit.ByteSize(obj.Size), obj.Key)
-	}
-	fmt.Println()
+	fmt.Printf("📦 Storage '%s': %d objects, %s\n", name, len(objects), unit.ByteSize(totalSize))
 
 	return nil
 }
