@@ -192,6 +192,9 @@ func (p *Server) PipeExec(command string) (err error) {
 	stdoutW := p.getStdout()
 	stderrW := p.getStderr()
 
+	// Capture stderr tail for error reporting
+	stderrTail := newTailBuffer(4096)
+
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -208,7 +211,9 @@ func (p *Server) PipeExec(command string) (err error) {
 		scanner := bufio.NewScanner(stderr)
 		scanner.Split(bufio.ScanBytes)
 		for scanner.Scan() {
-			_, _ = stderrW.Write(scanner.Bytes())
+			b := scanner.Bytes()
+			_, _ = stderrW.Write(b)
+			_, _ = stderrTail.Write(b)
 		}
 		wg.Done()
 	}()
@@ -226,7 +231,12 @@ func (p *Server) PipeExec(command string) (err error) {
 	}
 
 	if err != nil {
-		err = fmt.Errorf("session run command error: %s", err)
+		tail := strings.TrimSpace(stderrTail.String())
+		if tail != "" {
+			err = fmt.Errorf("session run command error: %s\n%s", err, tail)
+		} else {
+			err = fmt.Errorf("session run command error: %s", err)
+		}
 		return
 	}
 

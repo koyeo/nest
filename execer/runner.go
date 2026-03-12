@@ -2,6 +2,7 @@ package execer
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -113,8 +114,17 @@ func (p *Runner) pipeExec(command string) (err error) {
 
 	// Let Go's exec package handle the pipe copying internally (32KB buffer)
 	c.Stdout = p.stdout
-	c.Stderr = p.stderr
+
+	// Capture stderr tail for error reporting
+	stderrTail := newTailBuffer(4096)
+	c.Stderr = io.MultiWriter(p.stderr, stderrTail)
 
 	err = c.Run()
+	if err != nil {
+		tail := strings.TrimSpace(stderrTail.String())
+		if tail != "" {
+			err = fmt.Errorf("%s\n%s", err, tail)
+		}
+	}
 	return
 }
