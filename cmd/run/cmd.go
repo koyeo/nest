@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rawMode bool
+var uiMode bool
 
 var Cmd = &cobra.Command{
 	Use:   "run",
@@ -23,7 +23,7 @@ var Cmd = &cobra.Command{
 }
 
 func init() {
-	Cmd.Flags().BoolVar(&rawMode, "raw", false, "Use raw console output (no GUI)")
+	Cmd.Flags().BoolVar(&uiMode, "ui", false, "Use web UI for real-time visualization")
 }
 
 func run(cmd *cobra.Command, args []string) {
@@ -56,16 +56,7 @@ func run(cmd *cobra.Command, args []string) {
 
 		taskRunner := runner.NewTaskRunner(conf, task, v)
 
-		if rawMode {
-			// Raw mode: original console output
-			taskRunner.PrintStart()
-			err = taskRunner.Exec()
-			if err != nil {
-				taskRunner.PrintFailed()
-				return
-			}
-			taskRunner.PrintSuccess()
-		} else {
+		if uiMode {
 			// WebUI mode: launch webview/browser with real-time visualization
 			rd := taskRunner.StepDetails()
 			details := make([]webui.StepDetail, len(rd))
@@ -82,6 +73,15 @@ func run(cmd *cobra.Command, args []string) {
 					err = taskErr
 				}
 			})
+		} else {
+			// Raw mode (default): original console output
+			taskRunner.PrintStart()
+			err = taskRunner.Exec()
+			if err != nil {
+				taskRunner.PrintFailed()
+				return
+			}
+			taskRunner.PrintSuccess()
 		}
 	}
 }
