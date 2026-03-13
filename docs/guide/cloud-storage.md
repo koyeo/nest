@@ -45,7 +45,7 @@ nest storage add oss-prod \
 Map a storage alias to the global config name:
 
 ```yaml
-storage:
+storages:
   oss: oss-prod          # "oss" is the alias, "oss-prod" is the global config name
 ```
 
@@ -61,13 +61,13 @@ nest storage remove oss-prod   # Remove a storage config
 Set the `storage` field on any file mapping to route it through cloud storage:
 
 ```yaml
-storage:
+storages:
   oss: oss-prod
 
 tasks:
   deploy:
     comment: Build and deploy via cloud storage
-    steps:
+    commands:
       - run: pnpm run build
 
       - deploy:
@@ -85,7 +85,7 @@ tasks:
             # No storage field → direct SFTP upload
             - source: deploy/prod.toml
               target: /root/app/config.toml
-          executes:
+          commands:
             - run: pm2 restart web
 ```
 

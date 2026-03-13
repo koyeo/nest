@@ -29,7 +29,7 @@ Execution flow:
   2. Resolve the named task(s) and flatten all "use" references.
   3. Execute each step sequentially:
        • run:      Local bash command (supports multi-line YAML blocks).
-       • use:      Inline all steps from another task (recursive).
+       • use:      Inline all commands from another task (recursive).
        • upload:   Compress source to tar.gz, upload to cloud storage.
        • deploy:   For each target server:
                      a) Upload files via SCP (tar+extract) or cloud storage.
@@ -82,13 +82,13 @@ func run(cmd *cobra.Command, args []string) {
 
 		if uiMode {
 			// WebUI mode: launch webview/browser with real-time visualization
-			rd := taskRunner.StepDetails()
-			details := make([]webui.StepDetail, len(rd))
+			rd := taskRunner.CommandDetails()
+			details := make([]webui.CommandDetail, len(rd))
 			for i, d := range rd {
-				details[i] = webui.StepDetail{Name: d.Name, Depth: d.Depth, IsGroup: d.IsGroup}
+				details[i] = webui.CommandDetail{Name: d.Name, Depth: d.Depth, IsGroup: d.IsGroup}
 			}
-			webui.RunWithUI(v, taskRunner.StepNames(), details, projectName, projectPath, common.ConfigFile, func(h webui.EventHandler, ctx context.Context) {
-				// The handler implements the same interface as runner.StepEventHandler
+			webui.RunWithUI(v, taskRunner.CommandNames(), details, projectName, projectPath, common.ConfigFile, func(h webui.EventHandler, ctx context.Context) {
+				// The handler implements the same interface as runner.CommandEventHandler
 				taskRunner.SetEventHandler(h)
 				taskRunner.SetContext(ctx)
 				taskErr := taskRunner.Exec()

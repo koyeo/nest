@@ -67,7 +67,7 @@ const tpl = `
 version: 1.0
 
 # ── Servers ──
-# Named SSH connection profiles used in deploy steps.
+# Named SSH connection profiles used in deploy commands.
 # Auth: defaults to ~/.ssh/id_rsa if neither password nor identity_file is set.
 servers:
   my-server:
@@ -80,7 +80,7 @@ servers:
 # ── Storage ──
 # Cloud object storage references. Key = alias used in this file,
 # value = global config name (added via "nest storage add").
-# storage:
+# storages:
 #   oss: my-oss-config
 
 # ── Environment Variables ──
@@ -93,12 +93,12 @@ servers:
 tasks:
   hello:
     comment: A simple demo task
-    steps:
+    commands:
       - run: echo "Hello from nest!"
 
   build:
     comment: Example multi-line local build
-    steps:
+    commands:
       # Multi-line commands are supported via YAML literal blocks (|).
       # Each line runs sequentially in the same shell session.
       - run: |
@@ -108,8 +108,8 @@ tasks:
 
   deploy:
     comment: Full deploy example (build + upload + remote setup)
-    steps:
-      # Reuse steps from another task
+    commands:
+      # Reuse commands from another task
       - use: build
 
       # Upload local artifacts to cloud storage (requires storage config)
@@ -145,7 +145,7 @@ tasks:
           # conflict_strategy: overwrite
 
           # Commands to run on each server after file upload
-          executes:
+          commands:
             - run: echo "Deployed successfully to $(hostname)"
 `
 

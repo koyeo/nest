@@ -9,14 +9,14 @@ A `deploy` step can upload files, run remote commands, or both:
 ```yaml
 tasks:
   deploy:
-    steps:
+    commands:
       - deploy:
           servers:
             - use: prod             # Reference a named server
           files:                     # File mappings (optional)
             - source: ./myapp
               target: /opt/myapp/bin/myapp
-          executes:                  # Remote commands (optional)
+          commands:                  # Remote commands (optional)
             - run: systemctl restart myapp
 ```
 
@@ -25,7 +25,7 @@ tasks:
 You can also define servers inline instead of referencing named ones:
 
 ```yaml
-steps:
+commands:
   - deploy:
       servers:
         - host: 192.168.1.10
@@ -59,12 +59,12 @@ A trailing `/` on the target means "put the source **inside** this directory". N
 For large files or overseas servers, SFTP can be slow. Add `storage: <alias>` to a file mapping to transfer via cloud storage instead — Nest uploads to the bucket, then the remote server downloads via a pre-signed URL.
 
 ```yaml
-storage:
+storages:
   oss: oss-prod
 
 tasks:
   deploy:
-    steps:
+    commands:
       - deploy:
           servers:
             - use: prod
@@ -89,14 +89,14 @@ See [Cloud Storage Relay](./cloud-storage.md) for full setup instructions.
 
 ### `cwd` — Working Directory
 
-Set a working directory for all `executes` commands:
+Set a working directory for all `commands`:
 
 ```yaml
 - deploy:
     servers:
       - use: prod
     cwd: /data/app
-    executes:
+    commands:
       - run: npm install
       - run: pm2 restart app
 ```
@@ -111,7 +111,7 @@ Prepend an init command to every execute (e.g. loading nvm):
       - use: prod
     shell_init: source /root/.nvm/nvm.sh
     cwd: /data/app
-    executes:
+    commands:
       - run: node -v
       - run: npm install
 ```
@@ -144,7 +144,7 @@ Deploy to multiple servers at once:
 ```yaml
 tasks:
   deploy-all:
-    steps:
+    commands:
       - deploy:
           servers:
             - use: prod
@@ -152,7 +152,7 @@ tasks:
           files:
             - source: ./myapp
               target: /opt/myapp/bin/myapp
-          executes:
+          commands:
             - run: systemctl restart myapp
 ```
 
@@ -164,20 +164,20 @@ Skip file uploads and just run commands on remote servers:
 tasks:
   logs:
     comment: Tail production logs
-    steps:
+    commands:
       - deploy:
           servers:
             - use: prod
-          executes:
+          commands:
             - run: journalctl -u myapp -f --lines=100
 
   restart:
     comment: Restart service
-    steps:
+    commands:
       - deploy:
           servers:
             - use: prod
-          executes:
+          commands:
             - run: systemctl restart myapp
             - run: echo "✅ Service restarted"
 ```
@@ -190,7 +190,7 @@ tasks:
 tasks:
   deploy:
     comment: Build backend + frontend, deploy everything
-    steps:
+    commands:
       - run: CGO_ENABLED=0 GOOS=linux go build -o myapp .
       - run: cd frontend && npm ci && npm run build
       - deploy:
@@ -201,7 +201,7 @@ tasks:
               target: /opt/myapp/bin/myapp
             - source: ./frontend/dist/
               target: /var/www/myapp/
-          executes:
+          commands:
             - run: systemctl restart myapp
             - run: nginx -s reload
 ```
@@ -212,11 +212,11 @@ tasks:
 tasks:
   db-backup:
     comment: Backup production database
-    steps:
+    commands:
       - deploy:
           servers:
             - use: prod
-          executes:
+          commands:
             - run: |
                 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
                 pg_dump -U postgres myapp_db > /opt/backups/myapp_${TIMESTAMP}.sql

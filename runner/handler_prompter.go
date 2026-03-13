@@ -8,10 +8,10 @@ import (
 	"github.com/koyeo/nest/i18n"
 )
 
-// HandlerPrompter adapts StepEventHandler.Prompt to domain.UserPrompter.
+// HandlerPrompter adapts CommandEventHandler.Prompt to domain.UserPrompter.
 // Used in webui mode where stdin is not available.
 type HandlerPrompter struct {
-	Handler StepEventHandler
+	Handler CommandEventHandler
 }
 
 func (p *HandlerPrompter) AskConflictAction(files []string, lang string) (domain.ConflictAction, string, error) {

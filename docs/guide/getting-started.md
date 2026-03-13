@@ -68,7 +68,7 @@ envs:
 tasks:
   deploy:
     comment: Build and deploy to production
-    steps:
+    commands:
       - run: echo "🔨 Building..."
       - run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o myapp .
       - deploy:
@@ -77,7 +77,7 @@ tasks:
           mappers:
             - source: ./myapp
               target: /opt/myapp/bin/myapp
-          executes:
+          commands:
             - run: chmod +x /opt/myapp/bin/myapp
             - run: systemctl restart myapp
       - run: rm -f myapp

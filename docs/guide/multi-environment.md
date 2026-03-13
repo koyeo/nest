@@ -50,7 +50,7 @@ servers:
 
 tasks:
   deploy:
-    steps:
+    commands:
       - run: go build -o myapp .
       - deploy:
           servers:
@@ -73,7 +73,7 @@ servers:
 
 tasks:
   deploy:
-    steps:
+    commands:
       - run: CGO_ENABLED=0 GOOS=linux go build -ldflags '-s -w' -o myapp .
       - deploy:
           servers:
@@ -81,7 +81,7 @@ tasks:
           mappers:
             - source: ./myapp
               target: /opt/myapp/bin/myapp
-          executes:
+          commands:
             - run: systemctl restart myapp
 ```
 

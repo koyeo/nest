@@ -10,7 +10,7 @@ version: 1.0
 servers:
   # ... server definitions
 
-storage:
+storages:
   # ... storage alias mappings (optional)
 
 envs:
@@ -56,7 +56,7 @@ Avoid committing password credentials to version control. Use SSH key auth whene
 Map storage aliases to global config names for [cloud storage relay](./cloud-storage.md):
 
 ```yaml
-storage:
+storages:
   oss: oss-prod        # "oss" alias → "oss-prod" global config
   s3: s3-backup        # "s3" alias → "s3-backup" global config
 ```
@@ -66,7 +66,7 @@ When `storage` is not set on a file mapping, Nest uses direct SFTP transfer.
 
 ## Environment Variables
 
-Global environment variables are available to all task steps:
+Global environment variables are available to all task commands:
 
 ```yaml
 envs:
@@ -82,13 +82,13 @@ tasks:
   deploy:
     envs:
       BUILD_FLAGS: "-ldflags '-s -w'"
-    steps:
+    commands:
       - run: go build $BUILD_FLAGS -o $APP_NAME .
 ```
 
 ## Tasks
 
-Tasks are named groups of sequential steps:
+Tasks are named groups of sequential commands:
 
 ```yaml
 tasks:
@@ -97,7 +97,7 @@ tasks:
     workspace: ./frontend              # Optional working directory
     envs:                              # Task-scoped env vars
       NODE_ENV: production
-    steps:
+    commands:
       - run: npm ci
       - run: npm run build
 ```
@@ -120,12 +120,12 @@ Reuse tasks to build pipelines:
 tasks:
   build:
     comment: Build backend
-    steps:
+    commands:
       - run: go build -o myapp .
 
   deploy:
     comment: Deploy to server
-    steps:
+    commands:
       - use: build              # Run "build" task first
       - deploy:
           servers:
@@ -136,13 +136,13 @@ tasks:
 
   release:
     comment: Full release pipeline
-    steps:
+    commands:
       - run: go test ./...      # Test
       - use: deploy             # Build + Deploy
       - deploy:                 # Health check
           servers:
             - use: prod
-          executes:
+          commands:
             - run: curl -sf http://localhost:8080/health
 ```
 

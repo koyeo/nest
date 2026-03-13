@@ -117,9 +117,6 @@ func (s *DeployService) Deploy(bundleRemotePath, targetDir, bundleName, bundleHa
 	isNew := snap == nil
 	if isNew {
 		snap = &domain.Snapshot{}
-		fmt.Println(i18n.Msg(i18n.MsgSnapshotCreated, s.lang))
-	} else {
-		fmt.Println(i18n.Msg(i18n.MsgSnapshotUpdated, s.lang))
 	}
 	snap.AddEntry(entry)
 

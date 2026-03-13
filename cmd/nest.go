@@ -42,10 +42,10 @@ Architecture:
 
 Key Concepts:
   servers     Named SSH connection profiles (host, user, auth).
-  tasks       Named step sequences. Steps can be:
+  tasks       Named command sequences. Commands can be:
                 • run:      Execute a shell command (local or remote).
                             Supports multi-line YAML literal blocks (|).
-                • use:      Include all steps from another task (composition).
+                • use:      Include all commands from another task (composition).
                 • upload:   Compress & upload a local path to cloud storage.
                 • deploy:   Upload files to remote servers and run commands.
   deploy      A deploy step contains:
@@ -54,23 +54,23 @@ Key Concepts:
                                       Default transfer: SFTP (tar + extract).
                                       Set "storage: <alias>" on a file entry to
                                       transfer via cloud storage instead.
-                • executes:           Commands to run on each server after upload.
-                • cwd:                Working directory for all execute commands.
+                • commands:           Commands to run on each server after upload.
+                • cwd:                Working directory for all commands.
                 • shell_init:         Shell init command (e.g. "source ~/.nvm/nvm.sh")
-                                      prepended to each execute command.
+                                      prepended to each command.
                 • conflict_strategy:  How to handle file conflicts on the server:
                                       "overwrite", "backup", or "error".
                                       If unset, prompts interactively.
   storage     Cloud object storage configs (OSS / S3). Credentials are encrypted
               and stored globally in ~/.nest/config.json. Referenced in nest.yaml
-              via aliases declared in the "storage:" section.
+              via aliases declared in the "storages:" section.
 
 Config file (nest.yaml) schema:
   version: 1.0
   servers:   { name: { host, port, user, password, identity_file } }
-  storage:   { alias: global_config_name }
+  storages:  { alias: global_config_name }
   envs:      { KEY: VALUE }
-  tasks:     { name: { comment, workspace, envs, steps: [...] } }
+  tasks:     { name: { comment, workspace, envs, commands: [...] } }
 
 Flags:
   -c, --config   Path to config file (default: nest.yaml)

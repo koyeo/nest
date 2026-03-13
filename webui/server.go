@@ -25,8 +25,8 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-// StepDetail mirrors runner.StepDetail for JSON serialization.
-type StepDetail struct {
+// CommandDetail mirrors runner.CommandDetail for JSON serialization.
+type CommandDetail struct {
 	Name    string `json:"name"`
 	Depth   int    `json:"depth"`
 	IsGroup bool   `json:"is_group"`
@@ -35,17 +35,17 @@ type StepDetail struct {
 // RunWithUI starts the webui server, opens a window/browser, executes the task,
 // and streams events in real-time via WebSocket.
 // On macOS, this function blocks on the webview window (main thread requirement).
-func RunWithUI(taskName string, stepNames []string, stepDetails []StepDetail, projectName, projectPath, configPath string, execFn func(h EventHandler, ctx context.Context)) {
+func RunWithUI(taskName string, commandNames []string, commandDetails []CommandDetail, projectName, projectPath, configPath string, execFn func(h EventHandler, ctx context.Context)) {
 	if configPath != "" {
 		if abs, err := filepath.Abs(configPath); err == nil {
 			configPath = abs
 		}
 	}
 	srv := &uiServer{
-		taskName:    taskName,
-		stepNames:   stepNames,
-		stepDetails: stepDetails,
-		projectName: projectName,
+		taskName:       taskName,
+		commandNames:   commandNames,
+		commandDetails: commandDetails,
+		projectName:    projectName,
 		projectPath: projectPath,
 		configPath:  configPath,
 		execFn:      execFn,
@@ -57,9 +57,9 @@ func RunWithUI(taskName string, stepNames []string, stepDetails []StepDetail, pr
 }
 
 type uiServer struct {
-	taskName    string
-	stepNames   []string
-	stepDetails []StepDetail
+	taskName       string
+	commandNames   []string
+	commandDetails []CommandDetail
 	projectName string
 	projectPath string
 	configPath  string
@@ -264,14 +264,14 @@ func (s *uiServer) handleWS(w http.ResponseWriter, r *http.Request) {
 
 	// Send init message UNDER LOCK (before any broadcast can happen)
 	initData, _ := json.Marshal(map[string]interface{}{
-		"type":           "init",
-		"task_name":      s.taskName,
-		"steps":          s.stepNames,
-		"step_details":   s.stepDetails,
-		"project_name":   s.projectName,
-		"project_path":   s.projectPath,
-		"config_path":    s.configPath,
-		"config_content": cfgContent,
+		"type":              "init",
+		"task_name":         s.taskName,
+		"commands":          s.commandNames,
+		"command_details":   s.commandDetails,
+		"project_name":      s.projectName,
+		"project_path":      s.projectPath,
+		"config_path":       s.configPath,
+		"config_content":    cfgContent,
 	})
 	_ = conn.WriteMessage(websocket.TextMessage, initData)
 	s.mu.Unlock()

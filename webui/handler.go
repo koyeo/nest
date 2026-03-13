@@ -2,11 +2,11 @@ package webui
 
 import "encoding/json"
 
-// EventHandler is the interface alias that runner.StepEventHandler implements.
+// EventHandler is the interface alias that runner.CommandEventHandler implements.
 // We define it here to avoid import cycles.
 type EventHandler interface {
-	OnStepStart(index int, name string)
-	OnStepDone(index int, err error)
+	OnCommandStart(index int, name string)
+	OnCommandDone(index int, err error)
 	OnOutput(content string)
 	OnTaskDone(err error)
 	// Prompt shows a message to the user and returns their text input.
@@ -18,17 +18,17 @@ type wsHandler struct {
 	server *uiServer
 }
 
-func (h *wsHandler) OnStepStart(index int, name string) {
+func (h *wsHandler) OnCommandStart(index int, name string) {
 	h.server.broadcast(map[string]interface{}{
-		"type":  "step_start",
+		"type":  "command_start",
 		"index": index,
 		"name":  name,
 	})
 }
 
-func (h *wsHandler) OnStepDone(index int, err error) {
+func (h *wsHandler) OnCommandDone(index int, err error) {
 	msg := map[string]interface{}{
-		"type":  "step_done",
+		"type":  "command_done",
 		"index": index,
 	}
 	if err != nil {

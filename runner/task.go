@@ -22,10 +22,10 @@ import (
 	"github.com/koyeo/nest/utils/unit"
 )
 
-// StepEventHandler receives task execution events for visualization.
-type StepEventHandler interface {
-	OnStepStart(index int, name string)
-	OnStepDone(index int, err error)
+// CommandEventHandler receives task execution events for visualization.
+type CommandEventHandler interface {
+	OnCommandStart(index int, name string)
+	OnCommandDone(index int, err error)
 	OnOutput(content string)
 	OnTaskDone(err error)
 	// Prompt shows a message to the user and returns their text input.
@@ -41,11 +41,11 @@ type TaskRunner struct {
 	key          string
 	conf         *protocol.Config
 	task         *protocol.Task
-	parents      map[string]bool
-	uploadedKeys map[string]string // source basename → object key
-	handler      StepEventHandler  // event handler (nil = legacy output)
-	stepOffset   int               // global step index offset
-	ctx          context.Context
+	parents       map[string]bool
+	uploadedKeys  map[string]string    // source basename → object key
+	handler       CommandEventHandler  // event handler (nil = legacy output)
+	commandOffset int                  // global command index offset
+	ctx           context.Context
 }
 
 // SetContext sets a context for cancellation support.
@@ -54,7 +54,7 @@ func (p *TaskRunner) SetContext(ctx context.Context) {
 }
 
 // SetEventHandler sets the event handler for visualization.
-func (p *TaskRunner) SetEventHandler(h StepEventHandler) {
+func (p *TaskRunner) SetEventHandler(h CommandEventHandler) {
 	p.handler = h
 }
 
@@ -90,76 +90,76 @@ func (p TaskRunner) prepareEnviron() []string {
 	return environ
 }
 
-// StepNames returns the display names of all steps in the task, recursively expanding use references.
-func (p TaskRunner) StepNames() []string {
-	return p.collectStepNames(p.task, 0)
+// CommandNames returns the display names of all commands in the task, recursively expanding use references.
+func (p TaskRunner) CommandNames() []string {
+	return p.collectCommandNames(p.task, 0)
 }
 
-// StepDetail holds structured info about a step for the webui.
-type StepDetail struct {
+// CommandDetail holds structured info about a command for the webui.
+type CommandDetail struct {
 	Name    string `json:"name"`
 	Depth   int    `json:"depth"`
 	IsGroup bool   `json:"is_group"` // true for "use" headers
 }
 
-// StepDetails returns structured step metadata for the webui tree view.
-func (p TaskRunner) StepDetails() []StepDetail {
-	return p.collectStepDetails(p.task, 0)
+// CommandDetails returns structured command metadata for the webui tree view.
+func (p TaskRunner) CommandDetails() []CommandDetail {
+	return p.collectCommandDetails(p.task, 0)
 }
 
-func (p TaskRunner) collectStepDetails(task *protocol.Task, depth int) []StepDetail {
-	var details []StepDetail
-	for _, step := range task.Steps {
-		if step.Use != "" {
-			comment := step.Use
-			if t, ok := p.conf.Tasks[step.Use]; ok && t.Comment != "" {
+func (p TaskRunner) collectCommandDetails(task *protocol.Task, depth int) []CommandDetail {
+	var details []CommandDetail
+	for _, cmd := range task.Commands {
+		if cmd.Use != "" {
+			comment := cmd.Use
+			if t, ok := p.conf.Tasks[cmd.Use]; ok && t.Comment != "" {
 				comment = t.Comment
 			}
-			details = append(details, StepDetail{Name: comment, Depth: depth, IsGroup: true})
-			if subTask, ok := p.conf.Tasks[step.Use]; ok {
-				details = append(details, p.collectStepDetails(subTask, depth+1)...)
+			details = append(details, CommandDetail{Name: comment, Depth: depth, IsGroup: true})
+			if subTask, ok := p.conf.Tasks[cmd.Use]; ok {
+				details = append(details, p.collectCommandDetails(subTask, depth+1)...)
 			}
-		} else if step.Upload != nil {
-			details = append(details, StepDetail{Name: fmt.Sprintf("upload: %s", step.Upload.Source), Depth: depth})
-		} else if step.Deploy != nil {
-			details = append(details, StepDetail{Name: "deploy", Depth: depth})
-		} else if step.Run != "" {
-			details = append(details, StepDetail{Name: step.Run, Depth: depth})
+		} else if cmd.Upload != nil {
+			details = append(details, CommandDetail{Name: fmt.Sprintf("upload: %s", cmd.Upload.Source), Depth: depth})
+		} else if cmd.Deploy != nil {
+			details = append(details, CommandDetail{Name: "deploy", Depth: depth})
+		} else if cmd.Run != "" {
+			details = append(details, CommandDetail{Name: cmd.Run, Depth: depth})
 		}
 	}
 	return details
 }
 
-func (p TaskRunner) collectStepNames(task *protocol.Task, depth int) []string {
+func (p TaskRunner) collectCommandNames(task *protocol.Task, depth int) []string {
 	var names []string
 	prefix := ""
 	if depth > 0 {
 		prefix = strings.Repeat("  ", depth-1) + "└ "
 	}
-	for _, step := range task.Steps {
-		if step.Use != "" {
+	for _, cmd := range task.Commands {
+		if cmd.Use != "" {
 			// Add the "use" header
-			names = append(names, prefix+fmt.Sprintf("▶ %s", step.Use))
-			// Recursively expand the referenced task's steps
-			if subTask, ok := p.conf.Tasks[step.Use]; ok {
-				subNames := p.collectStepNames(subTask, depth+1)
+			names = append(names, prefix+fmt.Sprintf("▶ %s", cmd.Use))
+			// Recursively expand the referenced task's commands
+			if subTask, ok := p.conf.Tasks[cmd.Use]; ok {
+				subNames := p.collectCommandNames(subTask, depth+1)
 				names = append(names, subNames...)
 			}
-		} else if step.Upload != nil {
-			names = append(names, prefix+fmt.Sprintf("upload: %s", step.Upload.Source))
-		} else if step.Deploy != nil {
+		} else if cmd.Upload != nil {
+			names = append(names, prefix+fmt.Sprintf("upload: %s", cmd.Upload.Source))
+		} else if cmd.Deploy != nil {
 			names = append(names, prefix+"deploy")
-		} else if step.Run != "" {
-			names = append(names, prefix+step.Run)
+		} else if cmd.Run != "" {
+			names = append(names, prefix+cmd.Run)
 		}
 	}
 	return names
 }
 
 func (p TaskRunner) Exec() (err error) {
-	globalIdx := p.stepOffset
-	for _, step := range p.task.Steps {
-		// Check for cancellation before each step
+	globalIdx := p.commandOffset
+	for _, cmd := range p.task.Commands {
+		// Check for cancellation before each command
 		if p.ctx != nil {
 			select {
 			case <-p.ctx.Done():
@@ -167,57 +167,57 @@ func (p TaskRunner) Exec() (err error) {
 			default:
 			}
 		}
-		if step.Use != "" {
-			p.sendStepStart(globalIdx)
+		if cmd.Use != "" {
+			p.sendCommandStart(globalIdx)
 			globalIdx++
-			// The child task's steps occupy the next N indices
-			childStepCount := p.countSubSteps(step.Use)
-			if err = p.use(step.Use, globalIdx); err != nil {
-				p.sendStepDone(err)
+			// The child task's commands occupy the next N indices
+			childCount := p.countSubCommands(cmd.Use)
+			if err = p.use(cmd.Use, globalIdx); err != nil {
+				p.sendCommandDone(err)
 				return
 			}
-			p.sendStepDone(nil)
-			globalIdx += childStepCount
-		} else if step.Upload != nil {
-			p.sendStepStart(globalIdx)
-			if err = p.upload(step.Upload); err != nil {
-				p.sendStepDone(err)
+			p.sendCommandDone(nil)
+			globalIdx += childCount
+		} else if cmd.Upload != nil {
+			p.sendCommandStart(globalIdx)
+			if err = p.upload(cmd.Upload); err != nil {
+				p.sendCommandDone(err)
 				return
 			}
-			p.sendStepDone(nil)
+			p.sendCommandDone(nil)
 			globalIdx++
-		} else if step.Deploy != nil {
-			p.sendStepStart(globalIdx)
-			if err = p.deploy(step.Deploy); err != nil {
-				p.sendStepDone(err)
+		} else if cmd.Deploy != nil {
+			p.sendCommandStart(globalIdx)
+			if err = p.deploy(cmd.Deploy); err != nil {
+				p.sendCommandDone(err)
 				return
 			}
-			p.sendStepDone(nil)
+			p.sendCommandDone(nil)
 			globalIdx++
 		} else {
-			p.sendStepStart(globalIdx)
-			if err = p.execute(step); err != nil {
-				p.sendStepDone(err)
+			p.sendCommandStart(globalIdx)
+			if err = p.execute(cmd); err != nil {
+				p.sendCommandDone(err)
 				return
 			}
-			p.sendStepDone(nil)
+			p.sendCommandDone(nil)
 			globalIdx++
 		}
 	}
 	return
 }
 
-// countSubSteps counts the total flattened steps for a use reference (recursive).
-func (p TaskRunner) countSubSteps(key string) int {
+// countSubCommands counts the total flattened commands for a use reference (recursive).
+func (p TaskRunner) countSubCommands(key string) int {
 	task, ok := p.conf.Tasks[key]
 	if !ok {
 		return 0
 	}
 	count := 0
-	for _, step := range task.Steps {
-		if step.Use != "" {
+	for _, cmd := range task.Commands {
+		if cmd.Use != "" {
 			count++ // The "use" header itself
-			count += p.countSubSteps(step.Use)
+			count += p.countSubCommands(cmd.Use)
 		} else {
 			count++
 		}
@@ -225,21 +225,21 @@ func (p TaskRunner) countSubSteps(key string) int {
 	return count
 }
 
-func (p TaskRunner) sendStepStart(index int) {
+func (p TaskRunner) sendCommandStart(index int) {
 	if p.handler != nil {
 		name := ""
-		// We don't need to pass name here; the handler already knows step names
-		p.handler.OnStepStart(index, name)
+		// We don't need to pass name here; the handler already knows command names
+		p.handler.OnCommandStart(index, name)
 	}
 }
 
-func (p TaskRunner) sendStepDone(err error) {
+func (p TaskRunner) sendCommandDone(err error) {
 	if p.handler != nil {
-		p.handler.OnStepDone(p.stepOffset, err)
+		p.handler.OnCommandDone(p.commandOffset, err)
 	}
 }
 
-// tuiLog routes a log message through handler output or falls back to logger.Step.
+// tuiLog routes a log message through handler output or falls back to logger.Command.
 func (p TaskRunner) tuiLog(emoji string, args ...string) {
 	if p.handler != nil {
 		msg := emoji
@@ -277,10 +277,10 @@ func (p TaskRunner) use(key string, childOffset int) (err error) {
 	}
 	taskRunner := NewTaskRunner(p.conf, task, key)
 
-	// Propagate handler, context, and step offset to child runner
+	// Propagate handler, context, and command offset to child runner
 	taskRunner.handler = p.handler
 	taskRunner.ctx = p.ctx
-	taskRunner.stepOffset = childOffset
+	taskRunner.commandOffset = childOffset
 
 	// store parent task key to avoid circle dependency
 	taskRunner.parents = map[string]bool{
@@ -385,7 +385,7 @@ func (p *TaskRunner) upload(u *protocol.Upload) error {
 
 func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	servers := map[string]*protocol.Server{}
-	runners := map[string]*ServerRunner{} // key → runner, reused for files + executes
+	runners := map[string]*ServerRunner{} // key → runner, reused for files + commands
 	defer func() {
 		for _, v := range runners {
 			v.Close()
@@ -404,7 +404,7 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		}
 	}
 
-	// Create one ServerRunner per server (reused for files + executes)
+	// Create one ServerRunner per server (reused for files + commands)
 	for key, server := range servers {
 		if server.Host == "" {
 			err = fmt.Errorf("deploy server host is empty")
@@ -440,16 +440,16 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	// Execute post-deploy commands (reuse same runners)
 	for key, server := range servers {
 		serverRunner := runners[key]
-		for _, execute := range deploy.Executes {
-			if execute.Run != "" {
-				cmd := execute.Run
+		for _, command := range deploy.Commands {
+			if command.Run != "" {
+				cmd := command.Run
 				if deploy.ShellInit != "" {
 					cmd = deploy.ShellInit + " && " + cmd
 				}
 				if deploy.Cwd != "" {
 					cmd = "cd " + deploy.Cwd + " && " + cmd
 				}
-				p.printServerExec(server, execute.Run)
+				p.printServerExec(server, command.Run)
 				if err = serverRunner.PipeExec(cmd); err != nil {
 					err = fmt.Errorf("server execute error: %s", err)
 					return
@@ -674,16 +674,16 @@ func (p *TaskRunner) uploadToStorage(store storage.ObjectStorage, alias, localPa
 	return objectKey, bundleHash, nil
 }
 
-func (p TaskRunner) execute(step *protocol.Step) (err error) {
-	if step.Run == "" {
+func (p TaskRunner) execute(command *protocol.Command) (err error) {
+	if command.Run == "" {
 		return
 	}
-	p.printExec(step.Run)
+	p.printExec(command.Run)
 	runner := execer.NewRunner()
 	if p.ctx != nil {
 		runner.SetContext(p.ctx)
 	}
-	runner.AddCommand(step.Run)
+	runner.AddCommand(command.Run)
 	runner.SetEnviron(p.prepareEnviron())
 	if p.task.Workspace != "" {
 		runner.SetDir(p.task.Workspace)

@@ -9,7 +9,7 @@ const (
 type Config struct {
 	Version  string             `yaml:"version"`
 	Servers  map[string]*Server `yaml:"servers"`
-	Storages map[string]string  `yaml:"storage"` // alias → global storage config name
+	Storages map[string]string  `yaml:"storages"` // alias → global storage config name
 	Envs     map[string]string  `yaml:"envs"`
 	Tasks    map[string]*Task   `yaml:"tasks"`
 }
@@ -51,10 +51,10 @@ type Task struct {
 	Workspace string            `yaml:"workspace"`
 	Branches  []string          `yaml:"branches"`
 	Envs      map[string]string `yaml:"envs"`
-	Steps     []*Step           `yaml:"steps"`
+	Commands  []*Command        `yaml:"commands"`
 }
 
-type Step struct {
+type Command struct {
 	Comment string  `yaml:"comment"`
 	Use     string  `yaml:"use"`
 	Run     string  `yaml:"run"`
@@ -62,22 +62,16 @@ type Step struct {
 	Upload  *Upload `yaml:"upload"`
 }
 
-// Upload defines a step that compresses and uploads artifacts to cloud storage.
+// Upload defines a command that compresses and uploads artifacts to cloud storage.
 type Upload struct {
 	Storage string `yaml:"storage"` // reference key to global storage config
 	Source  string `yaml:"source"`  // local file or directory to upload
 }
 
-type Execute struct {
-	Comment string `yaml:"comment"`
-	Use     string `yaml:"use"`
-	Run     string `yaml:"run"`
-}
-
 type Deploy struct {
 	Servers          []*Server      `yaml:"servers"`
 	Files            []*FileMapping `yaml:"files"`
-	Executes         []*Execute     `yaml:"executes"`
+	Commands         []*Command     `yaml:"commands"`
 	Cwd              string         `yaml:"cwd"`
 	ShellInit        string         `yaml:"shell_init"`
 	ConflictStrategy string         `yaml:"conflict_strategy"` // overwrite | backup | error

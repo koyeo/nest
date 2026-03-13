@@ -37,11 +37,11 @@ nest run deploy --ui         # Use web UI with step tree and live output
 
 | Flag | Default | Description |
 |:-----|:--------|:------------|
-| `--ui` | `false` | Launch a web-based UI with step tree and live output |
+| `--ui` | `false` | Launch a web-based UI with command tree and live output |
 
 By default, `nest run` outputs directly to the terminal (raw mode). Use `--ui` to open a visual web interface.
 
-**Step execution order:**
+**Command execution order:**
 1. `run` — local shell command (supports multi-line YAML `|` blocks)
 2. `use` — invoke another task (supports circular dependency detection)
 3. `upload` — compress and upload artifacts to cloud storage
@@ -53,9 +53,9 @@ By default, `nest run` outputs directly to the terminal (raw mode). Use `--ui` t
 |:------|:------------|
 | `servers` | Target servers (by name reference or inline) |
 | `files` | File mappings with `source`, `target`, and optional `storage` |
-| `executes` | Commands to run on each server after upload |
-| `cwd` | Working directory for all execute commands |
-| `shell_init` | Init command prepended to each execute (e.g. `source ~/.nvm/nvm.sh`) |
+| `commands` | Commands to run on each server after upload |
+| `cwd` | Working directory for all commands |
+| `shell_init` | Init command prepended to each command (e.g. `source ~/.nvm/nvm.sh`) |
 | `conflict_strategy` | `overwrite`, `backup`, or `error` (default: interactive prompt) |
 
 **File mapping fields:**

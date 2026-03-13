@@ -86,7 +86,7 @@ tasks:
   # ── 构建 & 部署 ──────────────────────────────────────
   deploy:
     comment: 构建并部署到生产环境
-    steps:
+    commands:
       - run: echo "🔨 正在构建..."
       - run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o myapp .
       - deploy:
@@ -97,7 +97,7 @@ tasks:
               target: /opt/myapp/bin/myapp
             - source: ./configs/prod.yaml
               target: /opt/myapp/configs/app.yaml
-          executes:
+          commands:
             - run: chmod +x /opt/myapp/bin/myapp
             - run: systemctl restart myapp
       - run: rm -f myapp
@@ -106,7 +106,7 @@ tasks:
   # ── 前端部署 ──────────────────────────────────────────
   deploy-web:
     comment: 构建前端并部署静态文件
-    steps:
+    commands:
       - run: cd frontend && npm ci && npm run build
       - deploy:
           servers:
@@ -114,47 +114,47 @@ tasks:
           mappers:
             - source: ./frontend/dist/
               target: /var/www/myapp/
-          executes:
+          commands:
             - run: nginx -s reload
 
   # ── 服务器运维 ────────────────────────────────────────
   logs:
     comment: 查看生产环境日志
-    steps:
+    commands:
       - deploy:
           servers:
             - use: prod
-          executes:
+          commands:
             - run: journalctl -u myapp -f --lines=100
 
   status:
     comment: 检查所有服务器状态
-    steps:
+    commands:
       - deploy:
           servers:
             - use: prod
             - use: staging
-          executes:
+          commands:
             - run: systemctl status myapp && df -h && free -m
 
   restart:
     comment: 重启服务
-    steps:
+    commands:
       - deploy:
           servers:
             - use: prod
-          executes:
+          commands:
             - run: systemctl restart myapp
             - run: echo "✅ 服务已重启"
 
   # ── 数据库 ────────────────────────────────────────────
   db-backup:
     comment: 备份生产数据库
-    steps:
+    commands:
       - deploy:
           servers:
             - use: prod
-          executes:
+          commands:
             - run: |
                 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
                 pg_dump -U postgres myapp_db > /opt/backups/myapp_${TIMESTAMP}.sql
@@ -162,36 +162,36 @@ tasks:
 
   db-migrate:
     comment: 执行数据库迁移
-    steps:
+    commands:
       - deploy:
           servers:
             - use: prod
           mappers:
             - source: ./migrations/
               target: /opt/myapp/migrations/
-          executes:
+          commands:
             - run: cd /opt/myapp && ./bin/myapp migrate up
 
   # ── SSL 证书 ──────────────────────────────────────────
   cert-renew:
     comment: 续期 SSL 证书
-    steps:
+    commands:
       - deploy:
           servers:
             - use: prod
-          executes:
+          commands:
             - run: certbot renew --quiet && nginx -s reload
 
   # ── 完整发布流水线 ────────────────────────────────────
   release:
     comment: 完整发布流程 — 测试、构建、部署、验证
-    steps:
+    commands:
       - run: go test ./...
       - use: deploy
       - deploy:
           servers:
             - use: prod
-          executes:
+          commands:
             - run: curl -sf http://localhost:8080/health || exit 1
             - run: echo "✅ 健康检查通过"
 ```
@@ -264,7 +264,7 @@ nest storage remove oss-prod   # 删除云存储配置
 tasks:
   deploy-overseas:
     comment: 构建、上传到 OSS、通过云存储部署
-    steps:
+    commands:
       # 本地构建
       - run: CGO_ENABLED=0 GOOS=linux go build -o myapp .
 
@@ -281,7 +281,7 @@ tasks:
           mappers:
             - source: ./myapp
               target: /opt/myapp/bin/myapp
-          executes:
+          commands:
             - run: systemctl restart myapp
 ```
 

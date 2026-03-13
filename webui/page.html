@@ -190,8 +190,8 @@
             overflow: hidden;
         }
 
-        /* ── Steps panel ── */
-        .steps-panel {
+        /* ── Commands panel ── */
+        .commands-panel {
             width: 280px;
             min-width: 180px;
             background: var(--panel-bg);
@@ -638,7 +638,7 @@
         </div>
     </div>
     <div class="container">
-        <div class="steps-panel" id="stepsPanel"></div>
+        <div class="commands-panel" id="commandsPanel"></div>
         <div class="split-handle" id="splitHandle"></div>
         <div class="output-panel">
             <div class="output-header" id="outputHeader">📺 Output</div>
@@ -673,7 +673,7 @@
     <script>
         /* ── DOM refs ── */
         const $ = id => document.getElementById(id);
-        const stepsPanel = $('stepsPanel'), outputInner = $('outputInner'), outputContent = $('outputContent');
+        const commandsPanel = $('commandsPanel'), outputInner = $('outputInner'), outputContent = $('outputContent');
         const outputHeader = $('outputHeader');
         const statusBadge = $('statusBadge'), footerInfo = $('footerInfo');
         const taskNameEl = $('taskName'), projectNameEl = $('projectName'), projectPathEl = $('projectPath');
@@ -812,16 +812,16 @@
         });
 
         /* ── State ── */
-        let steps = [], currentStep = -1, autoScroll = true, logLength = 0;
+        let commands = [], currentCommand = -1, autoScroll = true, logLength = 0;
         const MAX_DOM = 500000;
-        let stepLogMarkers = {};
+        let commandLogMarkers = {};
 
         function resetUI() {
-            steps.forEach(s => { s.status = 'pending'; });
-            currentStep = -1;
+            commands.forEach(s => { s.status = 'pending'; });
+            currentCommand = -1;
             outputInner.innerHTML = '';
             logLength = 0;
-            stepLogMarkers = {};
+            commandLogMarkers = {};
             outputHeader.textContent = '📺 Output';
             footerInfo.textContent = '';
             statusBadge.className = 'badge running';
@@ -838,23 +838,23 @@
         /* ── Split ── */
         let dragging = false;
         $('splitHandle').addEventListener('mousedown', e => { dragging = true; $('splitHandle').classList.add('dragging'); document.body.style.cursor = 'col-resize'; e.preventDefault(); });
-        document.addEventListener('mousemove', e => { if (!dragging) return; stepsPanel.style.width = Math.max(150, Math.min(500, e.clientX)) + 'px'; });
+        document.addEventListener('mousemove', e => { if (!dragging) return; commandsPanel.style.width = Math.max(150, Math.min(500, e.clientX)) + 'px'; });
         document.addEventListener('mouseup', () => { if (dragging) { dragging = false; $('splitHandle').classList.remove('dragging'); document.body.style.cursor = ''; } });
 
         /* ── Tree ── */
         function renderTree() {
-            stepsPanel.innerHTML = '';
-            renderLevel(stepsPanel, 0, steps.length, 0);
+            commandsPanel.innerHTML = '';
+            renderLevel(commandsPanel, 0, commands.length, 0);
         }
         function renderLevel(container, start, end, depth) {
             let i = start;
             while (i < end) {
-                const s = steps[i];
+                const s = commands[i];
                 if (s.depth < depth) break;
                 if (s.depth > depth) { i++; continue; }
                 const node = document.createElement('div');
                 node.className = 'tree-node ' + s.status;
-                if (i === currentStep) node.classList.add('active');
+                if (i === currentCommand) node.classList.add('active');
                 const indent = document.createElement('span');
                 indent.className = 'tree-indent'; indent.style.width = (depth * 16 + 8) + 'px';
                 const toggle = document.createElement('span');
@@ -886,7 +886,7 @@
                 } else { i++; }
             }
         }
-        function groupEnd(gi, d) { for (let i = gi + 1; i < steps.length; i++) { if (steps[i].depth <= d) return i; } return steps.length; }
+        function groupEnd(gi, d) { for (let i = gi + 1; i < commands.length; i++) { if (commands[i].depth <= d) return i; } return commands.length; }
 
         /* ── Log ── */
         function appendLog(text) {
@@ -898,9 +898,9 @@
         function appendSep(idx, name) {
             const sep = document.createElement('span');
             sep.className = 'log-sep'; sep.textContent = '─── ' + name + ' ───';
-            sep.id = 'step-marker-' + idx;
+            sep.id = 'command-marker-' + idx;
             outputInner.appendChild(sep); outputInner.appendChild(document.createTextNode('\n'));
-            stepLogMarkers[idx] = sep;
+            commandLogMarkers[idx] = sep;
             if (autoScroll) outputContent.scrollTop = outputContent.scrollHeight;
         }
         function appendError(text) {
@@ -915,7 +915,7 @@
             }
         }
         function scrollToLog(idx) {
-            const m = stepLogMarkers[idx];
+            const m = commandLogMarkers[idx];
             if (m) { m.scrollIntoView({ behavior: 'smooth', block: 'start' }); autoScroll = false; }
         }
 
@@ -933,27 +933,27 @@
                     projectNameEl.textContent = msg.project_name || 'Project';
                     projectPathEl.textContent = msg.project_path || '';
                     document.title = (msg.project_name || 'Nest') + ' — ' + msg.task_name;
-                    if (msg.step_details && msg.step_details.length) {
-                        steps = msg.step_details.map(d => ({ ...d, status: 'pending', expanded: true }));
+                    if (msg.command_details && msg.command_details.length) {
+                        commands = msg.command_details.map(d => ({ ...d, status: 'pending', expanded: true }));
                     } else {
-                        steps = msg.steps.map(n => ({ name: n, depth: 0, is_group: false, status: 'pending', expanded: true }));
+                        commands = msg.commands.map(n => ({ name: n, depth: 0, is_group: false, status: 'pending', expanded: true }));
                     }
                     renderTree();
                     break;
-                case 'step_start':
-                    if (currentStep >= 0 && currentStep < steps.length && steps[currentStep].status === 'running') steps[currentStep].status = 'done';
-                    currentStep = msg.index;
-                    if (currentStep >= 0 && currentStep < steps.length) {
-                        steps[currentStep].status = 'running';
-                        outputHeader.textContent = '📺 ' + steps[currentStep].name;
-                        appendSep(currentStep, steps[currentStep].name);
+                case 'command_start':
+                    if (currentCommand >= 0 && currentCommand < commands.length && commands[currentCommand].status === 'running') commands[currentCommand].status = 'done';
+                    currentCommand = msg.index;
+                    if (currentCommand >= 0 && currentCommand < commands.length) {
+                        commands[currentCommand].status = 'running';
+                        outputHeader.textContent = '📺 ' + commands[currentCommand].name;
+                        appendSep(currentCommand, commands[currentCommand].name);
                     }
                     renderTree();
                     break;
-                case 'step_done':
-                    const idx = msg.index >= 0 ? msg.index : currentStep;
-                    if (idx >= 0 && idx < steps.length) {
-                        steps[idx].status = msg.error ? 'failed' : 'done';
+                case 'command_done':
+                    const idx = msg.index >= 0 ? msg.index : currentCommand;
+                    if (idx >= 0 && idx < commands.length) {
+                        commands[idx].status = msg.error ? 'failed' : 'done';
                     }
                     renderTree();
                     break;
@@ -963,17 +963,17 @@
                 case 'task_done':
                     statusBadge.className = 'badge ' + (msg.error ? 'failed' : 'done');
                     statusBadge.textContent = msg.error ? 'Failed' : 'Done';
-                    footerInfo.textContent = msg.error || 'All steps completed';
+                    footerInfo.textContent = msg.error || 'All commands completed';
                     if (msg.error) {
                         appendError('\n❌ Task Failed: ' + msg.error + '\n');
                     } else {
                         const s = document.createElement('span');
                         s.style.color = 'var(--green)';
                         s.style.fontWeight = '600';
-                        s.textContent = '\n✅ All steps completed successfully\n';
+                        s.textContent = '\n✅ All commands completed successfully\n';
                         outputInner.appendChild(s);
                     }
-                    steps.forEach(s => { if (s.status === 'running') s.status = msg.error ? 'failed' : 'done'; });
+                    commands.forEach(s => { if (s.status === 'running') s.status = msg.error ? 'failed' : 'done'; });
                     updateButtons(false);
                     renderTree();
                     break;

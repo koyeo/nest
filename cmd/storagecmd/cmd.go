@@ -33,10 +33,10 @@ var Cmd = &cobra.Command{
 Storage configs are encrypted and saved in ~/.nest/config.json (AES-256-GCM).
 In nest.yaml, you reference a storage config by declaring an alias:
 
-  storage:
+  storages:
     oss: my-oss-config    # alias: global-config-name
 
-Then use "oss://path" as a file source in deploy steps to transfer files
+Then use "oss://path" as a file source in deploy commands to transfer files
 through the cloud (upload + presigned URL + remote curl download).
 
 Subcommands:
