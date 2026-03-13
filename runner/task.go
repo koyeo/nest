@@ -33,19 +33,26 @@ type CommandEventHandler interface {
 	Prompt(message string) string
 }
 
+// uploadedObject tracks a cloud storage object uploaded during this task run.
+type uploadedObject struct {
+	objectKey    string
+	storageAlias string
+}
+
 func NewTaskRunner(conf *protocol.Config, task *protocol.Task, key string) *TaskRunner {
-	return &TaskRunner{conf: conf, task: task, key: key, uploadedKeys: map[string]string{}}
+	return &TaskRunner{conf: conf, task: task, key: key, dedupKeys: map[string]string{}}
 }
 
 type TaskRunner struct {
-	key          string
-	conf         *protocol.Config
-	task         *protocol.Task
-	parents       map[string]bool
-	uploadedKeys  map[string]string    // source basename → object key
-	handler       CommandEventHandler  // event handler (nil = legacy output)
-	commandOffset int                  // global command index offset
-	ctx           context.Context
+	key             string
+	conf            *protocol.Config
+	task            *protocol.Task
+	parents         map[string]bool
+	dedupKeys       map[string]string    // localPath → objectKey (for upload dedup)
+	uploadedObjects []uploadedObject     // objects to clean up after task
+	handler         CommandEventHandler  // event handler (nil = legacy output)
+	commandOffset   int                  // global command index offset
+	ctx             context.Context
 }
 
 // SetContext sets a context for cancellation support.
@@ -378,8 +385,9 @@ func (p *TaskRunner) upload(u *protocol.Upload) error {
 		p.tuiLog("✅", "uploaded")
 	}
 
-	// Track for deploy via
-	p.uploadedKeys[sourceName] = objectKey
+	// Track for dedup and cleanup
+	p.dedupKeys[sourceName] = objectKey
+	p.uploadedObjects = append(p.uploadedObjects, uploadedObject{objectKey: objectKey, storageAlias: u.Storage})
 	return nil
 }
 
@@ -421,12 +429,12 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 		for _, file := range deploy.Files {
 			if file.Storage != "" {
 				// Transfer via cloud storage (upload → presigned URL → remote download)
-				if err = p.deployFileViaStorage(serverRunner, server, file.Storage, file.Source, file.Target, deploy.ConflictStrategy); err != nil {
+				if err = p.deployFileViaStorage(serverRunner, server, file.Storage, file.Source, file.Target); err != nil {
 					return
 				}
 			} else {
 				// Default: direct SFTP upload (tar + extract)
-				err = serverRunner.Upload(file.Source, file.Target, deploy.ConflictStrategy)
+				err = serverRunner.Upload(file.Source, file.Target)
 				if err != nil {
 					return
 				}
@@ -435,7 +443,7 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	}
 
 	// Clean up cloud storage objects after all servers have downloaded
-	p.cleanUploadedObjects(deploy.Files)
+	p.cleanUploadedObjects()
 
 	// Execute post-deploy commands (reuse same runners)
 	for key, server := range servers {
@@ -461,69 +469,51 @@ func (p *TaskRunner) deploy(deploy *protocol.Deploy) (err error) {
 	return
 }
 
-// cleanUploadedObjects deletes all cloud storage objects that were uploaded during this deploy.
+// cleanUploadedObjects deletes all cloud storage objects that were uploaded during this task.
 // Called after all servers have finished downloading to avoid breaking multi-server deploys.
-func (p *TaskRunner) cleanUploadedObjects(files []*protocol.FileMapping) {
-	if len(p.uploadedKeys) == 0 {
+func (p *TaskRunner) cleanUploadedObjects() {
+	if len(p.uploadedObjects) == 0 {
 		return
 	}
 
 	// Group object keys by storage alias
-	type storageGroup struct {
-		alias string
-		keys  []string
-	}
-	groups := map[string]*storageGroup{}
-
-	for _, file := range files {
-		if file.Storage == "" {
+	groups := map[string][]string{}
+	seen := map[string]bool{}
+	for _, obj := range p.uploadedObjects {
+		if seen[obj.objectKey] {
 			continue
 		}
-		objectKey, ok := p.uploadedKeys[file.Source]
-		if !ok {
-			continue
-		}
-		if g, exists := groups[file.Storage]; exists {
-			// Dedup: only add if not already in list
-			found := false
-			for _, k := range g.keys {
-				if k == objectKey {
-					found = true
-					break
-				}
-			}
-			if !found {
-				g.keys = append(g.keys, objectKey)
-			}
-		} else {
-			groups[file.Storage] = &storageGroup{
-				alias: file.Storage,
-				keys:  []string{objectKey},
-			}
-		}
+		seen[obj.objectKey] = true
+		groups[obj.storageAlias] = append(groups[obj.storageAlias], obj.objectKey)
 	}
 
 	ctx := context.Background()
-	for _, g := range groups {
-		globalName, err := p.conf.ResolveStorage(g.alias)
+	for alias, keys := range groups {
+		globalName, err := p.conf.ResolveStorage(alias)
 		if err != nil {
+			p.tuiLog("⚠️", fmt.Sprintf("clean: resolve storage '%s' error: %s", alias, err))
 			continue
 		}
 		cfg := config.Load()
 		cred, err := cfg.DecryptStorage(globalName)
 		if err != nil {
+			p.tuiLog("⚠️", fmt.Sprintf("clean: decrypt storage '%s' error: %s", alias, err))
 			continue
 		}
 		store, err := storage.NewFromCredential(cred)
 		if err != nil {
+			p.tuiLog("⚠️", fmt.Sprintf("clean: create storage client '%s' error: %s", alias, err))
 			continue
 		}
-		if err = store.DeleteObjects(ctx, g.keys); err != nil {
-			p.tuiLog("⚠️", fmt.Sprintf("failed to clean cloud objects: %s", err))
+		if err = store.DeleteObjects(ctx, keys); err != nil {
+			p.tuiLog("⚠️", fmt.Sprintf("clean: delete objects from '%s' error: %s", alias, err))
 		} else {
-			p.tuiLog("🧹", fmt.Sprintf("cleaned %d cloud object(s) from %s", len(g.keys), g.alias))
+			p.tuiLog("🧹", fmt.Sprintf("cleaned %d cloud object(s) from %s", len(keys), alias))
 		}
 	}
+
+	// Clear the list
+	p.uploadedObjects = nil
 }
 
 // deployFileViaStorage uploads a local file/dir to cloud storage, then downloads on remote.
@@ -531,7 +521,7 @@ func (p *TaskRunner) cleanUploadedObjects(files []*protocol.FileMapping) {
 func (p *TaskRunner) deployFileViaStorage(
 	serverRunner *ServerRunner,
 	server *protocol.Server,
-	storageAlias, localPath, target, conflictStrategy string,
+	storageAlias, localPath, target string,
 ) error {
 	// Resolve storage alias
 	globalName, err := p.conf.ResolveStorage(storageAlias)
@@ -586,7 +576,7 @@ func (p *TaskRunner) deployFileViaStorage(
 	}
 
 	// Deploy using shared service (extract → conflict resolution → move)
-	if err = serverRunner.deployBundle(bundleRemotePath, targetDir, bundleName, bundleHash, conflictStrategy); err != nil {
+	if err = serverRunner.deployBundle(bundleRemotePath, targetDir, bundleName, bundleHash); err != nil {
 		return err
 	}
 
@@ -602,7 +592,7 @@ func (p *TaskRunner) uploadToStorage(store storage.ObjectStorage, alias, localPa
 	sourceName := path.Base(localPath)
 
 	// Check if already uploaded in this run (dedup across servers)
-	if key, ok := p.uploadedKeys[localPath]; ok {
+	if key, ok := p.dedupKeys[localPath]; ok {
 		p.tuiLog("⏭️", fmt.Sprintf("[%s] %s already uploaded", alias, sourceName))
 		return key, "", nil
 	}
@@ -669,8 +659,9 @@ func (p *TaskRunner) uploadToStorage(store storage.ObjectStorage, alias, localPa
 		p.tuiLog("✅", "uploaded")
 	}
 
-	// Track for dedup across multiple servers
-	p.uploadedKeys[localPath] = objectKey
+	// Track for dedup and cleanup
+	p.dedupKeys[localPath] = objectKey
+	p.uploadedObjects = append(p.uploadedObjects, uploadedObject{objectKey: objectKey, storageAlias: alias})
 	return objectKey, bundleHash, nil
 }
 

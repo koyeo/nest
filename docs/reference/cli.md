@@ -56,7 +56,6 @@ By default, `nest run` outputs directly to the terminal (raw mode). Use `--ui` t
 | `commands` | Commands to run on each server after upload |
 | `cwd` | Working directory for all commands |
 | `shell_init` | Init command prepended to each command (e.g. `source ~/.nvm/nvm.sh`) |
-| `conflict_strategy` | `overwrite`, `backup`, or `error` (default: interactive prompt) |
 
 **File mapping fields:**
 

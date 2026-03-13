@@ -58,9 +58,6 @@ Key Concepts:
                 • cwd:                Working directory for all commands.
                 • shell_init:         Shell init command (e.g. "source ~/.nvm/nvm.sh")
                                       prepended to each command.
-                • conflict_strategy:  How to handle file conflicts on the server:
-                                      "overwrite", "backup", or "error".
-                                      If unset, prompts interactively.
   storage     Cloud object storage configs (OSS / S3). Credentials are encrypted
               and stored globally in ~/.nest/config.json. Referenced in nest.yaml
               via aliases declared in the "storages:" section.

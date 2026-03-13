@@ -182,7 +182,7 @@ func TestDeploy_EmptyDir(t *testing.T) {
 	mockFS.files["/target/.nest/tmp/app.js"] = []byte("content")
 
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
-	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123", "")
+	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -215,7 +215,7 @@ func TestDeploy_HasSnapshotManagedFiles(t *testing.T) {
 	mockFS.files["/target/.nest/tmp/app.js"] = []byte("new")
 
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
-	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123", "")
+	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -244,7 +244,7 @@ func TestDeploy_HasSnapshotUnmanagedFiles(t *testing.T) {
 	mockFS.files["/target/.nest/tmp/config.yml"] = []byte("new config")
 
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
-	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123", "")
+	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -266,7 +266,7 @@ func TestDeploy_NoSnapshotWithConflict(t *testing.T) {
 	mockFS.files["/target/.nest/tmp/app.js"] = []byte("new")
 
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
-	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123", "")
+	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -288,7 +288,7 @@ func TestDeploy_UserChoosesRemove(t *testing.T) {
 	mockFS.files["/target/.nest/tmp/old.txt"] = []byte("new data")
 
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
-	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123", "")
+	err := svc.Deploy("/target/bundle.tar.gz", "/target", "app.tar.gz", "hash123")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -308,7 +308,7 @@ func TestDeploy_SnapshotWrittenAfterDeploy(t *testing.T) {
 	mockFS.files["/target/.nest/tmp/index.html"] = []byte("<html>")
 
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
-	err := svc.Deploy("/target/bundle.tar.gz", "/target", "bundle.tar.gz", "hash999", "")
+	err := svc.Deploy("/target/bundle.tar.gz", "/target", "bundle.tar.gz", "hash999")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -334,11 +334,11 @@ func TestDeploy_SnapshotPreservesHistory(t *testing.T) {
 	// First deploy
 	mockFS.files["/target/.nest/tmp/v1.js"] = []byte("v1")
 	svc := setupService(mockFS, mockExec, mockRepo, prompter)
-	_ = svc.Deploy("/target/bundle.tar.gz", "/target", "v1.tar.gz", "hash1", "")
+	_ = svc.Deploy("/target/bundle.tar.gz", "/target", "v1.tar.gz", "hash1")
 
 	// Second deploy — existing file is now managed
 	mockFS.files["/target/.nest/tmp/v2.js"] = []byte("v2")
-	_ = svc.Deploy("/target/bundle2.tar.gz", "/target", "v2.tar.gz", "hash2", "")
+	_ = svc.Deploy("/target/bundle2.tar.gz", "/target", "v2.tar.gz", "hash2")
 
 	snap := mockRepo.snapshots["/target"]
 	if snap == nil {

@@ -72,9 +72,8 @@ type Deploy struct {
 	Servers          []*Server      `yaml:"servers"`
 	Files            []*FileMapping `yaml:"files"`
 	Commands         []*Command     `yaml:"commands"`
-	Cwd              string         `yaml:"cwd"`
-	ShellInit        string         `yaml:"shell_init"`
-	ConflictStrategy string         `yaml:"conflict_strategy"` // overwrite | backup | error
+	Cwd       string `yaml:"cwd"`
+	ShellInit string `yaml:"shell_init"`
 }
 
 type FileMapping struct {

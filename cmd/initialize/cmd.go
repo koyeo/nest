@@ -137,12 +137,6 @@ tasks:
           # Useful for loading nvm, pyenv, etc.
           # shell_init: source /root/.nvm/nvm.sh
 
-          # How to handle file conflicts on the server (optional):
-          #   overwrite — silently replace
-          #   backup    — rename old files with .bak suffix
-          #   error     — abort on conflict
-          # If unset, prompts interactively.
-          # conflict_strategy: overwrite
 
           # Commands to run on each server after file upload
           commands:

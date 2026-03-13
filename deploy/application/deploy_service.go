@@ -41,7 +41,7 @@ func NewDeployService(
 //   - targetDir: the target directory where files should be deployed
 //   - bundleName: name of the bundle (e.g., "app.tar.gz")
 //   - bundleHash: SHA256 hash of the bundle
-func (s *DeployService) Deploy(bundleRemotePath, targetDir, bundleName, bundleHash, conflictStrategy string) error {
+func (s *DeployService) Deploy(bundleRemotePath, targetDir, bundleName, bundleHash string) error {
 	nestDir := fmt.Sprintf("%s/.nest", targetDir)
 	tmpDir := fmt.Sprintf("%s/.nest/tmp", targetDir)
 
@@ -81,7 +81,7 @@ func (s *DeployService) Deploy(bundleRemotePath, targetDir, bundleName, bundleHa
 
 	// Resolve conflicts
 	if len(conflictFiles) > 0 {
-		if err = s.resolveConflicts(targetDir, conflictFiles, snap, conflictStrategy); err != nil {
+		if err = s.resolveConflicts(targetDir, conflictFiles, snap); err != nil {
 			return err
 		}
 	}
@@ -129,7 +129,7 @@ func (s *DeployService) Deploy(bundleRemotePath, targetDir, bundleName, bundleHa
 }
 
 // resolveConflicts handles managed and unmanaged file conflicts.
-func (s *DeployService) resolveConflicts(targetDir string, conflictFiles []string, snap *domain.Snapshot, conflictStrategy string) error {
+func (s *DeployService) resolveConflicts(targetDir string, conflictFiles []string, snap *domain.Snapshot) error {
 	result := domain.ClassifyConflicts(conflictFiles, snap)
 
 	// Remove Nest-managed files silently
@@ -139,26 +139,11 @@ func (s *DeployService) resolveConflicts(targetDir string, conflictFiles []strin
 		}
 	}
 
-	// Handle unmanaged files
+	// Handle unmanaged files — always prompt the user
 	if len(result.UnmanagedFiles) > 0 {
-		var action domain.ConflictAction
-		var suffix string
-		var err error
-
-		switch conflictStrategy {
-		case "overwrite":
-			action = domain.ActionOverwrite
-		case "backup":
-			action = domain.ActionBackup
-			suffix = ".bak"
-		case "error":
-			return fmt.Errorf("unmanaged file conflicts: %v", result.UnmanagedFiles)
-		default:
-			// Interactive mode
-			action, suffix, err = s.prompter.AskConflictAction(result.UnmanagedFiles, s.lang)
-			if err != nil {
-				return err
-			}
+		action, suffix, err := s.prompter.AskConflictAction(result.UnmanagedFiles, s.lang)
+		if err != nil {
+			return err
 		}
 
 		for _, f := range result.UnmanagedFiles {

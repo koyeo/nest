@@ -116,27 +116,6 @@ Prepend an init command to every execute (e.g. loading nvm):
       - run: npm install
 ```
 
-### `conflict_strategy` — File Conflict Handling
-
-Control how Nest handles existing files on the server:
-
-| Value | Behavior |
-|:------|:---------|
-| *(empty)* | Interactive prompt (default) |
-| `overwrite` | Silently replace conflicting files |
-| `backup` | Rename old files with `.bak` suffix |
-| `error` | Abort deployment on conflict |
-
-```yaml
-- deploy:
-    servers:
-      - use: prod
-    conflict_strategy: overwrite
-    files:
-      - source: ./dist
-        target: /data/app
-```
-
 ## Multi-Server Deploy
 
 Deploy to multiple servers at once:
