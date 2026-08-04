@@ -345,23 +345,20 @@ func (p *TaskRunner) upload(u *protocol.Upload) error {
 		return fmt.Errorf("compress error: %s", err)
 	}
 
-	// Compute SHA1 of bundle content for object key
-	bundleData, err := os.ReadFile(bundlePath)
-	if err != nil {
-		return fmt.Errorf("read bundle error: %s", err)
-	}
-	sha := fmt.Sprintf("%x", sha1.Sum(bundleData))
-	objectKey := fmt.Sprintf("nest/%s.tar.gz", sha)
-
-	// Get local bundle size
+	// Compute SHA1 of bundle content for object key, streaming so a large bundle
+	// is never held in memory in full.
 	bundleFile, err := os.Open(bundlePath)
 	if err != nil {
 		return fmt.Errorf("open bundle error: %s", err)
 	}
-	defer func() { _ = bundleFile.Close() }()
-
-	info, _ := bundleFile.Stat()
-	localSize := info.Size()
+	hasher := sha1.New()
+	localSize, err := io.Copy(hasher, bundleFile)
+	_ = bundleFile.Close()
+	if err != nil {
+		return fmt.Errorf("read bundle error: %s", err)
+	}
+	sha := fmt.Sprintf("%x", hasher.Sum(nil))
+	objectKey := fmt.Sprintf("nest/%s.tar.gz", sha)
 
 	p.tuiLog("☁️",
 		fmt.Sprintf("[%s]", u.Storage),
@@ -379,7 +376,7 @@ func (p *TaskRunner) upload(u *protocol.Upload) error {
 	if remoteSize == localSize {
 		p.tuiLog("⏭️", "skipped (already exists)")
 	} else {
-		if err = store.Upload(ctx, objectKey, bundleFile, localSize); err != nil {
+		if err = store.Upload(ctx, objectKey, bundlePath); err != nil {
 			return fmt.Errorf("upload to storage error: %s", err)
 		}
 		p.tuiLog("✅", "uploaded")
@@ -620,24 +617,21 @@ func (p *TaskRunner) uploadToStorage(store storage.ObjectStorage, alias, localPa
 		return "", "", fmt.Errorf("compress error: %s", err)
 	}
 
-	// Compute hash for dedup
-	bundleData, err := os.ReadFile(bundlePath)
-	if err != nil {
-		return "", "", fmt.Errorf("read bundle error: %s", err)
-	}
-	sha := fmt.Sprintf("%x", sha1.Sum(bundleData))
-	objectKey := fmt.Sprintf("nest/%s.tar.gz", sha)
-	bundleHashSum := sha256.Sum256(bundleData)
-	bundleHash := fmt.Sprintf("%x", bundleHashSum[:])
-
+	// Compute hashes for dedup in a single streaming pass over the bundle.
 	bundleFile, err := os.Open(bundlePath)
 	if err != nil {
 		return "", "", fmt.Errorf("open bundle error: %s", err)
 	}
-	defer func() { _ = bundleFile.Close() }()
-
-	info, _ := bundleFile.Stat()
-	localSize := info.Size()
+	keyHasher := sha1.New()
+	contentHasher := sha256.New()
+	localSize, err := io.Copy(io.MultiWriter(keyHasher, contentHasher), bundleFile)
+	_ = bundleFile.Close()
+	if err != nil {
+		return "", "", fmt.Errorf("read bundle error: %s", err)
+	}
+	sha := fmt.Sprintf("%x", keyHasher.Sum(nil))
+	objectKey := fmt.Sprintf("nest/%s.tar.gz", sha)
+	bundleHash := fmt.Sprintf("%x", contentHasher.Sum(nil))
 
 	p.tuiLog("☁️",
 		fmt.Sprintf("[%s]", alias),
@@ -653,7 +647,7 @@ func (p *TaskRunner) uploadToStorage(store storage.ObjectStorage, alias, localPa
 	if remoteSize == localSize {
 		p.tuiLog("⏭️", "skipped (already exists)")
 	} else {
-		if err = store.Upload(ctx, objectKey, bundleFile, localSize); err != nil {
+		if err = store.Upload(ctx, objectKey, bundlePath); err != nil {
 			return "", "", fmt.Errorf("upload to storage error: %s", err)
 		}
 		p.tuiLog("✅", "uploaded")

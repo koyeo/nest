@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"io"
 	"time"
 )
 
@@ -14,8 +13,10 @@ type ObjectInfo struct {
 
 // ObjectStorage defines the interface for cloud storage operations.
 type ObjectStorage interface {
-	// Upload sends data to the given object key.
-	Upload(ctx context.Context, key string, reader io.Reader, size int64) error
+	// Upload sends the contents of the local file at filePath to the given object key.
+	// It takes a path rather than a reader so implementations can split large files
+	// into parts and upload them concurrently.
+	Upload(ctx context.Context, key string, filePath string) error
 
 	// Head returns the size of the object in bytes.
 	// If the object does not exist, it returns -1 and nil error.

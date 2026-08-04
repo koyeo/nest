@@ -2,12 +2,31 @@ package storage
 
 import (
 	"context"
-	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
+)
+
+const (
+	// multipartThreshold is the size above which an upload is split into parts.
+	// Below it, the extra Initiate/Complete round trips cost more than a single
+	// stream saves.
+	multipartThreshold = 32 << 20
+
+	// basePartSize is the part size used unless the file is big enough to exceed
+	// maxParts, in which case it is doubled until the part count fits.
+	basePartSize = 4 << 20
+
+	// maxParts is the number of parts a single OSS multipart upload may have.
+	maxParts = 10000
+
+	// uploadRoutines is how many parts upload concurrently. Each routine gets its
+	// own connection, which is where the speedup on high-latency links comes from:
+	// a single TCP stream is capped by RTT and packet loss, N streams are not.
+	uploadRoutines = 5
 )
 
 // OSSStorage implements ObjectStorage for Alibaba Cloud OSS.
@@ -28,8 +47,36 @@ func NewOSSStorage(endpoint, accessKeyID, accessKeySecret, bucketName string) (*
 	return &OSSStorage{bucket: bucket}, nil
 }
 
-func (s *OSSStorage) Upload(ctx context.Context, key string, reader io.Reader, size int64) error {
-	return s.bucket.PutObject(key, reader)
+func (s *OSSStorage) Upload(ctx context.Context, key string, filePath string) error {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return err
+	}
+
+	if info.Size() < multipartThreshold {
+		file, err := os.Open(filePath)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = file.Close() }()
+		return s.bucket.PutObject(key, file, oss.WithContext(ctx))
+	}
+
+	// UploadFile aborts the multipart upload itself if any part fails, so a failed
+	// run leaves no orphan parts behind.
+	return s.bucket.UploadFile(key, filePath, ossPartSize(info.Size()),
+		oss.Routines(uploadRoutines),
+		oss.WithContext(ctx),
+	)
+}
+
+// ossPartSize picks a part size that keeps the part count within maxParts.
+func ossPartSize(size int64) int64 {
+	part := int64(basePartSize)
+	for size/part > maxParts {
+		part *= 2
+	}
+	return part
 }
 
 func (s *OSSStorage) Head(ctx context.Context, key string) (int64, error) {

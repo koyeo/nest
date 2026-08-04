@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
-	"io"
+	"os"
 	"time"
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -47,11 +47,22 @@ func NewS3Storage(region, accessKeyID, accessKeySecret, bucketName, endpoint str
 	}, nil
 }
 
-func (s *S3Storage) Upload(ctx context.Context, key string, reader io.Reader, size int64) error {
-	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+func (s *S3Storage) Upload(ctx context.Context, key string, filePath string) error {
+	info, err := os.Stat(filePath)
+	if err != nil {
+		return err
+	}
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = file.Close() }()
+
+	size := info.Size()
+	_, err = s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        &s.bucketName,
 		Key:           &key,
-		Body:          reader,
+		Body:          file,
 		ContentLength: &size,
 	})
 	return err
