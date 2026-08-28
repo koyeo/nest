@@ -5,6 +5,11 @@ import { DEFAULT_CONFIG_FILE, TMP_WORKSPACE } from "../common/const.js";
 const TEMPLATE = `# ─────────────────────────────────────────────
 #  Ship — Task Runner & Deployment Config
 # ─────────────────────────────────────────────
+# This file is read by the \`ship\` CLI (npm package @kozilla/ship).
+#   Install : npm install -g @kozilla/ship
+#   Run     : ship run <task>   |   ship list   |   ship --help
+#   Docs    : https://github.com/koyeo/ship
+#   Package : https://www.npmjs.com/package/@kozilla/ship
 version: 1.0
 
 # ── Servers ──

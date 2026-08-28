@@ -7,6 +7,7 @@ pnpm monorepo.
 | `nest` | `apps/nest` | Go CLI (local-first CI/CD). See `apps/nest/readme.md`. |
 | `@kozilla/ship` | `apps/ship` | TypeScript port of nest's deploy features (`ship.yaml`, no UI mode). |
 | `nest-docs` | `docs` | VitePress documentation site. |
+| `use-kozilla-ship` | `skills/use-kozilla-ship` | Claude Code skill for authoring `ship.yaml` and running deploys. Copy into `.claude/skills/`. |
 
 ```bash
 pnpm install
