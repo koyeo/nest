@@ -10,6 +10,7 @@
     "docs:build": "pnpm --filter nest-docs docs:build",
     "ship:build": "pnpm --filter @kozilla/ship build",
     "ship:test": "pnpm --filter @kozilla/ship test",
-    "ship:dev": "pnpm --filter @kozilla/ship dev"
+    "ship:dev": "pnpm --filter @kozilla/ship dev",
+    "ship:publish": "./scripts/publish.sh"
   }
 }

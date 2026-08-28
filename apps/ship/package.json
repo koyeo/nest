@@ -2,8 +2,22 @@
   "name": "@kozilla/ship",
   "version": "0.1.0",
   "description": "YAML-driven task runner & deployment CLI: local builds, SSH remote execution, SFTP / cloud-storage file deploys",
+  "keywords": [
+    "deploy",
+    "ssh",
+    "sftp",
+    "oss",
+    "s3",
+    "cli",
+    "ci-cd"
+  ],
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koyeo/ship.git",
+    "directory": "apps/ship"
+  },
   "bin": {
     "ship": "dist/main.js"
   },
@@ -12,6 +26,9 @@
   ],
   "engines": {
     "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsup",

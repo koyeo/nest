@@ -15,4 +15,5 @@ pnpm nest:test
 pnpm ship:build   # -> apps/ship/dist/main.js
 pnpm ship:test
 pnpm docs:dev
+./scripts/publish.sh [version]   # release @kozilla/ship to npm (patch bump by default)
 ```
