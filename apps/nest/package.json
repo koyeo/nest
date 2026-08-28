@@ -1,0 +1,12 @@
+{
+  "name": "nest",
+  "private": true,
+  "scripts": {
+    "build": "make build",
+    "test": "make test",
+    "dev": "make dev",
+    "lint": "make lint",
+    "tidy": "make tidy",
+    "release": "bash scripts/release.sh"
+  }
+}

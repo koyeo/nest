@@ -1,9 +1,3 @@
 .DS_Store
 .idea
-/tmp
-/build
-/nest
-.nest
-nest.yaml
-nest.*.yml
-nest.*.yaml
+node_modules

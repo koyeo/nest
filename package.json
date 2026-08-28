@@ -1,0 +1,12 @@
+{
+  "name": "ship",
+  "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "scripts": {
+    "nest:build": "pnpm --filter nest build",
+    "nest:test": "pnpm --filter nest test",
+    "nest:dev": "pnpm --filter nest dev",
+    "docs:dev": "pnpm --filter nest-docs docs:dev",
+    "docs:build": "pnpm --filter nest-docs docs:build"
+  }
+}
