@@ -74,5 +74,5 @@
 
 | 编号 | 标题 | 路径 | 依赖 | 状态 |
 |---|---|---|---|---|
-| 001 | Ship 包骨架、协议与存储命令 | `plans/001-ship-scaffold-protocol-storage.md` | - | 未开始 |
-| 002 | Ship 执行器、部署域与 run 命令 | `plans/002-ship-executor-deploy-run.md` | 001 | 未开始 |
+| 001 | Ship 包骨架、协议与存储命令 | `plans/001-ship-scaffold-protocol-storage.done.md` | - | 已完成 |
+| 002 | Ship 执行器、部署域与 run 命令 | `plans/002-ship-executor-deploy-run.done.md` | 001 | 已完成 |

@@ -7,6 +7,9 @@
     "nest:test": "pnpm --filter nest test",
     "nest:dev": "pnpm --filter nest dev",
     "docs:dev": "pnpm --filter nest-docs docs:dev",
-    "docs:build": "pnpm --filter nest-docs docs:build"
+    "docs:build": "pnpm --filter nest-docs docs:build",
+    "ship:build": "pnpm --filter @kozilla/ship build",
+    "ship:test": "pnpm --filter @kozilla/ship test",
+    "ship:dev": "pnpm --filter @kozilla/ship dev"
   }
 }

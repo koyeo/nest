@@ -1,0 +1,10 @@
+export const APP_NAME = "ship";
+export const DEFAULT_CONFIG_FILE = "ship.yaml";
+export const TMP_WORKSPACE = ".ship";
+export const LOCAL_TMP_DIR = "./.ship/tmp";
+export const USER_CONFIG_DIR = ".ship";
+export const USER_CONFIG_FILE = "config.json";
+export const OBJECT_PREFIX = "ship/";
+export const REMOTE_META_DIR = ".ship";
+export const REMOTE_SNAPSHOT_FILE = ".ship/snapshot.json";
+export const REMOTE_TMP_BUNDLE_PREFIX = "/tmp/ship-";

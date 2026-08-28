@@ -42,3 +42,33 @@
 - `bash -l -c` 单引号转义 `' → '"'"'` 必须逐字复刻，多行 `run: |` 依赖它。
 - 进度行 `\rTotal: X Uploaded: Y` 用 `process.stdout.write`，不能走 logger（会换行）。
 - 未决 3（冲突询问默认值）与未决 4（是否读旧 `.nest/`）决定 `stdin-prompter.ts` 与 `snapshot-repo.ts` 的分支，开工前必须已拍板。
+
+---
+
+## 实施日志
+
+- **执行时间**：2026-08-28 16:25
+- **整体状态**：已完成
+
+### 做了什么
+- `src/execer/{local-runner,ssh-server,server-pool}.ts`：`bash -c` 本地执行（env 三层合并、stdin 继承、stderr 尾 4096B）；ssh2 封装 `connect / sftp / combinedExec / pipeExec`，`bash -l -c '<转义>'` 包裹，password + identity_file（无认证时 `~/.ssh/id_rsa`）。
+- `src/utils/{tar,hash,tail-buffer,prompt}.ts`：node-tar 压缩（follow 软链、跳过损坏软链）、单次流式 sha1+sha256+size、共享 readline 行队列。
+- `src/deploy/domain/*`、`application/deploy-service.ts`、`infrastructure/{ssh-remote-fs,ssh-remote-exec,snapshot-repo,stdin-prompter}.ts`。
+- `src/runner/{cloud,server-runner,task-runner,tmp-dir}.ts`：云上传去重 + 收尾删除；SFTP 直传（进度行、`bundle-<name>.tar.gz~`）；云中继（presigned 1h → `curl` → `/tmp/ship-<name>.tar.gz`）；`use` 递归 + 环检测；deploy 命令拼接 `cd <cwd> && <shell_init> && <cmd>`。
+- `src/cmd/run.ts` 注册到 main。
+- 单测：domain 16、deploy-service 8、snapshot-repo 5、target path 2、wrapLoginShell 1（累计 40）。
+
+### 验收核对
+- [x] `nest-test.yaml` 内容（`run` 值加单引号后）作为 `ship.yaml`，`ship run test` 3 步执行、exit 0；`ship run nope` exit 1；本地命令失败 exit 1。
+- [x] `a use b, b use a` 报 `task: b depend task: a circlely`。
+- [x] 对 docker alpine sshd（`t:pass@127.0.0.1:2222`）部署 `./dist → /data/app/`：#1 生成 `/data/app/.ship/snapshot.json`（bundle_hash、files[dist]、mod_time 正确）；#2 同名目录静默覆盖（远端 app.js 变为 v2）；未管理文件 `notes.txt` 触发 `[1] Backup / [2] Remove` 询问，选 1 → `notes.txt.bak`，再冲突 → `notes.txt.bak.2`；选 2 → 删除；stdin 关闭 → `read input error: stdin closed`、exit 1。远端 `/tmp` 与 `.ship/tmp` 无残留。
+- [ ] `files[].storage: <alias>` 云中继路径 —— 未验证：无 OSS/S3 凭据。代码路径与 nest 逐行对应，`CloudUploader` 去重/清理逻辑已实现。
+- [x] `cwd` + `shell_init` 远端输出 `cwd=/data/app FOO=bar`。
+- [x] 40 单测全绿；typecheck 通过；`any/unknown/as` 仅命中注释与字符串字面量。
+
+### 偏差与遗留
+- node-tar `portable: true` 会丢弃 mtime（远端文件 mtime=1970），已移除该选项。
+- `DeployService` 对目录条目不计算 hash（记 `""`），与 nest `hash, _ := FileHash` 忽略错误的实际行为一致；对文件条目 hash 失败仍抛错。
+- `use` 环检测改为携带完整祖先链（nest 只记直接父级，A→B→C→A 会死循环）。
+- 每个 `ask()` 独立创建 readline 会吞掉管道 stdin 中缓冲的后续行，改为进程级共享 readline + 行队列。
+- 云存储中继路径未做实机验证（见验收）。

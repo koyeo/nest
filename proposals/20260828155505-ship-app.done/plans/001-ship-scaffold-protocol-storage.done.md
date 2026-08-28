@@ -41,3 +41,33 @@
 - zod schema 里 `Command` 必须建模为互斥 union（`run | use | upload | deploy`），nest 用四个可空字段 + if/else 判断，直接照搬会引入大量可选字段。
 - 未决 1/2 的答案决定 `Server` schema 是否带 `.default()` 与 `loadUserConfig` 的错误分支，开工前必须已拍板。
 - ali-oss 的 `multipartUpload` 与 aws-sdk v3 的类型定义都较宽，接口返回值要在 `oss.ts / s3.ts` 内收窄成 `ObjectStorage` 声明的精确类型，不能把 SDK 类型泄漏到上层。
+
+---
+
+## 实施日志
+
+- **执行时间**：2026-08-28 16:15
+- **整体状态**：已完成
+
+### 做了什么
+- `apps/ship/`：package.json（`@kozilla/ship`，bin `ship`，ESM，node ≥20）、tsconfig（strict + noUncheckedIndexedAccess + exactOptionalPropertyTypes）、tsup、vitest、.gitignore。
+- `src/common/const.ts`、`src/logger.ts`、`src/utils/byte-size.ts`、`src/utils/prompt.ts`。
+- `src/protocol/schema.ts`（zod；`Command` 为 4 选 1 `.strict()` union）+ `load.ts`。
+- `src/config/crypto.ts`（AES-256-GCM，nonce‖ct‖tag，base64）+ `user-config.ts`（`~/.ship/config.json`；文件不存在→默认，存在但非法→报错）。
+- `src/storage/{storage,oss,s3,factory}.ts`（OSS 分片 32MiB/4MiB/10000/5；删除按 1000 切片）。
+- `src/cmd/{init,list,version,storage}.ts` + `src/main.ts`；根 package.json 增加 `ship:build/test/dev`。
+- 单测：byte-size、schema、crypto（8 个用例）。
+
+### 验收核对
+- [x] `build` 后 `--help` 列出 init / list / storage / version（+ commander 自带 help）；storage 下 add/list/remove/usage/clean。
+- [x] `ship init` 生成 `ship.yaml` + 含 `.ship` 的 `.gitignore`；二次执行输出 `already exists`。
+- [x] `ship list` 打印 version/tasks/servers。
+- [x] `storage add x --provider oss ...` 后 config.json 中 access_key_id 为 base64 密文；`storage list` 显示 `fAvI****rZ4B`。
+- [x] 用 nest 的 `config.Encrypt`（Go）生成密文，ship `decrypt` 还原 `hello-from-go`。
+- [x] typecheck / 8 tests 通过；`grep -E "\bany\b|\bunknown\b| as [A-Z]" src` 无命中。
+
+### 偏差与遗留
+- `version: 1.0` 经 `yaml` 解析为数字 1，`list` 显示 `version: 1`（nest 显示 `1.0`）。仅展示差异。
+- `nest-test.yaml` 中 `run: echo "Step 1: ..."` 是 YAML 规范不允许的 plain scalar（含 `: `），Go yaml.v3 宽容接受，`yaml` 与 `js-yaml` 均拒绝。ship 不做兼容；plan 002 验收用单引号包裹后的副本。已记 feedback.md。
+- vitest 4 依赖 vite ≥6，而 workspace 内 docs 的 vitepress 提升了 vite 5，导致启动失败；在 apps/ship 显式加 `vite` devDependency 解决。
+- `storage list/usage` 输出加了 `ship` 文案，`lang` 字段照 nest 读写但不再影响输出（i18n zh/en 文案本就相同）。

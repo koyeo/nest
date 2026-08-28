@@ -1,0 +1,5 @@
+dist
+.ship
+ship.yaml
+ship.*.yml
+ship.*.yaml
