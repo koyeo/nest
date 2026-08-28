@@ -1,4 +1,4 @@
-import type { StorageCredential } from "../config/user-config.js";
+import type { StorageCredential } from "./provider.js";
 import { OssStorage } from "./oss.js";
 import { S3Storage } from "./s3.js";
 import type { ObjectStorage } from "./storage.js";

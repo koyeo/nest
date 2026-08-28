@@ -21,14 +21,34 @@ export interface UploadResult {
   bundleHash: string;
 }
 
-/** Resolves a ship.yaml alias → global config → decrypted credential → client. */
-export function storageForAlias(config: Config, alias: string): ObjectStorage {
-  const globalName = resolveStorage(config, alias);
-  try {
-    return newStorage(decryptStorage(loadUserConfig(), globalName));
-  } catch (e) {
-    throw new Error(`storage '${alias}' (config '${globalName}'): ${e instanceof Error ? e.message : String(e)}`);
+export interface AliasStorage {
+  store: ObjectStorage;
+  /** true when credentials are embedded in ship.yaml (anyone holding the file can access the bucket). */
+  inline: boolean;
+}
+
+/** Resolves a ship.yaml alias → (global config | inline credentials) → client. */
+export function storageForAlias(config: Config, alias: string): AliasStorage {
+  const resolved = resolveStorage(config, alias);
+  if (resolved.kind === "inline") {
+    try {
+      return { store: newStorage(resolved.credential), inline: true };
+    } catch (e) {
+      throw new Error(`storage '${alias}' (inline): ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
+  try {
+    return { store: newStorage(decryptStorage(loadUserConfig(), resolved.name)), inline: false };
+  } catch (e) {
+    throw new Error(`storage '${alias}' (config '${resolved.name}'): ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
+export function inlineStorageWarning(alias: string): string[] {
+  return [
+    `storage '${alias}' credentials are embedded in ship.yaml — anyone holding this file can read/write the bucket, treat it as PUBLIC.`,
+    `Do not keep secrets there and clean it regularly: ship storage clean ${alias}`,
+  ];
 }
 
 /**
@@ -90,7 +110,7 @@ export class CloudUploader {
     }
     for (const [alias, keys] of groups) {
       try {
-        await storageForAlias(config, alias).deleteObjects(keys);
+        await storageForAlias(config, alias).store.deleteObjects(keys);
         this.log("🧹", [`cleaned ${keys.length} cloud object(s) from ${alias}`]);
       } catch (e) {
         this.log("⚠️", [`clean: delete objects from '${alias}' error: ${e instanceof Error ? e.message : String(e)}`]);

@@ -3,11 +3,12 @@ import { localExec, mergeEnv } from "../execer/local-runner.js";
 import { ServerPool } from "../execer/server-pool.js";
 import * as logger from "../logger.js";
 import { type Config, type Deploy, type Server, type Task, type Upload, serverName } from "../protocol/schema.js";
-import { CloudUploader, storageForAlias } from "./cloud.js";
-import { ServerRunner } from "./server-runner.js";
+import { CloudUploader, inlineStorageWarning, storageForAlias } from "./cloud.js";
+import { ServerRunner, StorageUnavailableError } from "./server-runner.js";
 
 export class TaskRunner {
   private readonly uploader: CloudUploader;
+  private readonly warnedAliases = new Set<string>();
 
   constructor(
     private readonly conf: Config,
@@ -74,8 +75,20 @@ export class TaskRunner {
     }
   }
 
+  /** Resolve an alias and, for ship.yaml-embedded credentials, warn once per run that the bucket is effectively public. */
+  private storage(alias: string): ReturnType<typeof storageForAlias> {
+    const resolved = storageForAlias(this.conf, alias);
+    if (resolved.inline && !this.warnedAliases.has(alias)) {
+      this.warnedAliases.add(alias);
+      for (const line of inlineStorageWarning(alias)) {
+        this.log("⚠️", [line]);
+      }
+    }
+    return resolved;
+  }
+
   private async upload(u: Upload): Promise<void> {
-    const store = storageForAlias(this.conf, u.storage);
+    const { store } = this.storage(u.storage);
     if (!existsSync(u.source)) {
       throw new Error(`upload source not found: ${u.source}`);
     }
@@ -103,6 +116,32 @@ export class TaskRunner {
     return servers;
   }
 
+  /** Cloud relay first; if the storage cannot be resolved or the fetch phase fails, log and fall back to direct SFTP. */
+  private async deployFileViaStorage(runner: ServerRunner, alias: string, source: string, target: string): Promise<void> {
+    let resolved: ReturnType<typeof storageForAlias>;
+    try {
+      resolved = this.storage(alias);
+    } catch (e) {
+      this.fallbackLog(alias, e instanceof Error ? e.message : String(e));
+      await runner.upload(source, target);
+      return;
+    }
+    try {
+      await runner.deployViaStorage(this.uploader, resolved.store, alias, source, target);
+    } catch (e) {
+      if (!(e instanceof StorageUnavailableError)) {
+        throw e;
+      }
+      this.fallbackLog(alias, e.message);
+      await runner.upload(source, target);
+    }
+  }
+
+  private fallbackLog(alias: string, reason: string): void {
+    this.log("⚠️", [reason]);
+    this.log("↩️", [`storage '${alias}' skipped, falling back to direct SFTP upload`]);
+  }
+
   private async deploy(deploy: Deploy): Promise<void> {
     const servers = this.resolveServers(deploy);
     const pool = new ServerPool();
@@ -119,8 +158,7 @@ export class TaskRunner {
         }
         for (const file of deploy.files) {
           if (file.storage !== "") {
-            const store = storageForAlias(this.conf, file.storage);
-            await runner.deployViaStorage(this.uploader, store, file.storage, file.source, file.target);
+            await this.deployFileViaStorage(runner, file.storage, file.source, file.target);
           } else {
             await runner.upload(file.source, file.target);
           }

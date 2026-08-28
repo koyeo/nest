@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { decryptInline, isInlineCiphertext } from "../config/inline-crypto.js";
+import { type StorageCredential, storageProviderSchema } from "../storage/provider.js";
 
 export const serverSchema = z.object({
   alias: z.string().default(""),
@@ -59,10 +61,28 @@ export const taskSchema = z.object({
 });
 export type Task = z.infer<typeof taskSchema>;
 
+const encValue = z.string().refine(isInlineCiphertext, { message: "must be an 'enc:' value from 'ship storage encrypt'" });
+
+/** Credentials embedded in ship.yaml; access keys are `enc:` ciphertext under the tool's built-in key. */
+export const inlineStorageSchema = z
+  .object({
+    provider: storageProviderSchema,
+    endpoint: z.string().default(""),
+    region: z.string().default(""),
+    bucket: z.string(),
+    access_key_id: encValue,
+    access_key_secret: encValue,
+  })
+  .strict();
+export type InlineStorage = z.infer<typeof inlineStorageSchema>;
+
+export const storageRefSchema = z.union([z.string(), inlineStorageSchema]);
+export type StorageRef = z.infer<typeof storageRefSchema>;
+
 export const configSchema = z.object({
   version: z.union([z.string(), z.number()]).transform((v) => String(v)),
   servers: z.record(z.string(), serverSchema).default({}),
-  storages: z.record(z.string(), z.string()).default({}),
+  storages: z.record(z.string(), storageRefSchema).default({}),
   envs: z.record(z.string(), z.string()).default({}),
   tasks: z.record(z.string(), taskSchema).default({}),
 });
@@ -73,15 +93,32 @@ export function serverName(server: Server): string {
   return server.comment !== "" ? `${server.comment}:${server.host}` : server.host;
 }
 
-/** Resolve a ship.yaml storage alias to the global storage config name. */
-export function resolveStorage(config: Config, alias: string): string {
+export type ResolvedStorage =
+  | { kind: "global"; name: string }
+  | { kind: "inline"; credential: StorageCredential };
+
+/** Resolve a ship.yaml storage alias: either a global config name or inline (decrypted) credentials. */
+export function resolveStorage(config: Config, alias: string): ResolvedStorage {
   const entries = Object.keys(config.storages);
   if (entries.length === 0) {
     throw new Error("no storage declared in ship.yaml, add a 'storages' section first");
   }
-  const name = config.storages[alias];
-  if (name === undefined) {
+  const ref = config.storages[alias];
+  if (ref === undefined) {
     throw new Error(`storage '${alias}' not declared in ship.yaml`);
   }
-  return name;
+  if (typeof ref === "string") {
+    return { kind: "global", name: ref };
+  }
+  return {
+    kind: "inline",
+    credential: {
+      provider: ref.provider,
+      endpoint: ref.endpoint,
+      region: ref.region,
+      bucket: ref.bucket,
+      access_key_id: decryptInline(ref.access_key_id),
+      access_key_secret: decryptInline(ref.access_key_secret),
+    },
+  };
 }

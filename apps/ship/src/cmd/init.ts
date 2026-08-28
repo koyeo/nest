@@ -19,10 +19,20 @@ servers:
     # password: secret
 
 # ── Storage ──
-# Cloud object storage references. Key = alias used in this file,
-# value = global config name (added via "ship storage add").
+# Cloud object storage references. Key = alias used in this file.
+# Value is either a global config name (added via "ship storage add", stays on this machine):
 # storages:
 #   oss: my-oss-config
+# ...or inline credentials so the file can be shared (generate with "ship storage encrypt").
+# The encryption key is built into ship: anyone holding this file can access the bucket,
+# so treat the bucket as public and clean it regularly ("ship storage clean <alias>").
+# storages:
+#   oss:
+#     provider: oss
+#     endpoint: oss-cn-hangzhou.aliyuncs.com
+#     bucket: my-bucket
+#     access_key_id: enc:...
+#     access_key_secret: enc:...
 
 # ── Environment Variables ──
 # Global env vars available to all tasks. Task-level envs override these.
@@ -65,7 +75,8 @@ tasks:
 
           # Transfer files to the server.
           # Default: direct SFTP upload (tar + extract).
-          # Set "storage: <alias>" to transfer via cloud storage instead.
+          # Set "storage: <alias>" to transfer via cloud storage instead
+          # (falls back to SFTP automatically if the storage is unavailable).
           files:
             - source: ./dist
               target: /data/app

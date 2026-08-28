@@ -1,6 +1,8 @@
 import { Command } from "commander";
 import { OBJECT_PREFIX } from "../common/const.js";
+import { encryptInline } from "../config/inline-crypto.js";
 import {
+  type StorageInput,
   type StorageProvider,
   addStorage,
   decryptStorage,
@@ -10,7 +12,7 @@ import {
   storageProviderSchema,
 } from "../config/user-config.js";
 import { loadConfig } from "../protocol/load.js";
-import { resolveStorage } from "../protocol/schema.js";
+import { type ResolvedStorage, resolveStorage } from "../protocol/schema.js";
 import { newStorage } from "../storage/factory.js";
 import type { ObjectStorage } from "../storage/storage.js";
 import { byteSize } from "../utils/byte-size.js";
@@ -44,6 +46,20 @@ export function storageCommand(getConfigFile: () => string): Command {
     .option("--access-key-secret <secret>", "Access Key Secret", "")
     .action(async (nameArg: string, flags: AddFlags) => {
       await runAdd(nameArg, flags);
+    });
+
+  cmd
+    .command("encrypt")
+    .description("Encrypt credentials with the tool's built-in key and print a ship.yaml 'storages:' block to paste (anyone with the file can decrypt it)")
+    .argument("[alias]", "alias to use in ship.yaml", "oss")
+    .option("--provider <provider>", "Storage provider: oss or s3", "")
+    .option("--endpoint <endpoint>", "Service endpoint (required for OSS)", "")
+    .option("--region <region>", "Region (required for S3)", "")
+    .option("--bucket <bucket>", "Bucket name", "")
+    .option("--access-key-id <id>", "Access Key ID", "")
+    .option("--access-key-secret <secret>", "Access Key Secret", "")
+    .action(async (alias: string, flags: AddFlags) => {
+      await runEncrypt(alias, flags);
     });
 
   cmd
@@ -95,7 +111,35 @@ async function runAdd(nameArg: string, flags: AddFlags): Promise<void> {
       throw new Error("config name is required");
     }
   }
+  const input = await collectStorageInput(name, flags);
+  const cfg = addStorage(loadUserConfig(), input);
+  saveUserConfig(cfg);
+  out("");
+  out(`✅ Storage '${name}' saved (credentials encrypted in ~/.ship/config.json)`);
+}
 
+async function runEncrypt(alias: string, flags: AddFlags): Promise<void> {
+  const input = await collectStorageInput(alias, flags);
+  const lines = [
+    "storages:",
+    `  ${alias}:`,
+    `    provider: ${input.provider}`,
+    ...(input.endpoint !== "" ? [`    endpoint: ${input.endpoint}`] : []),
+    ...(input.region !== "" ? [`    region: ${input.region}`] : []),
+    `    bucket: ${input.bucket}`,
+    `    access_key_id: ${encryptInline(input.accessKeyId)}`,
+    `    access_key_secret: ${encryptInline(input.accessKeySecret)}`,
+  ];
+  out("");
+  out("# Paste into ship.yaml:");
+  out(lines.join("\n"));
+  out("");
+  out("⚠️  The key is built into the ship binary: anyone holding this ship.yaml can access the bucket.");
+  out(`    Treat the bucket as public, never keep secrets in it, and clean it regularly: ship storage clean ${alias}`);
+}
+
+/** Fill missing fields interactively; validates provider and required fields. */
+async function collectStorageInput(name: string, flags: AddFlags): Promise<StorageInput> {
   let providerInput = flags.provider;
   if (providerInput === "") {
     out("");
@@ -164,10 +208,7 @@ async function runAdd(nameArg: string, flags: AddFlags): Promise<void> {
     }
   }
 
-  const cfg = addStorage(loadUserConfig(), { name, provider, endpoint, region, bucket, accessKeyId, accessKeySecret });
-  saveUserConfig(cfg);
-  out("");
-  out(`✅ Storage '${name}' saved (credentials encrypted in ~/.ship/config.json)`);
+  return { name, provider, endpoint, region, bucket, accessKeyId, accessKeySecret };
 }
 
 function runList(): void {
@@ -197,18 +238,18 @@ function runList(): void {
   }
 }
 
-/** Accepts either a ship.yaml alias or a global config name. */
-function resolveStorageName(configFile: string, name: string): string {
-  try {
-    return resolveStorage(loadConfig(configFile), name);
-  } catch {
-    return name;
-  }
-}
-
+/** Accepts a ship.yaml alias (global or inline) or a global config name. */
 function newStorageClient(configFile: string, name: string): ObjectStorage {
-  const resolved = resolveStorageName(configFile, name);
-  return newStorage(decryptStorage(loadUserConfig(), resolved));
+  let resolved: ResolvedStorage = { kind: "global", name };
+  try {
+    resolved = resolveStorage(loadConfig(configFile), name);
+  } catch {
+    // not a ship.yaml alias (or no ship.yaml): treat name as a global config name
+  }
+  if (resolved.kind === "inline") {
+    return newStorage(resolved.credential);
+  }
+  return newStorage(decryptStorage(loadUserConfig(), resolved.name));
 }
 
 async function runUsage(configFile: string, name: string): Promise<void> {

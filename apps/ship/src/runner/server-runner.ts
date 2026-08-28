@@ -18,6 +18,15 @@ import type { CloudUploader } from "./cloud.js";
 import { cleanShipTmpDir, shipTmpDir } from "./tmp-dir.js";
 
 const PRESIGN_EXPIRES_SECONDS = 3600;
+
+/** Raised when the cloud relay fails BEFORE anything was extracted on the remote — safe to fall back to SFTP. */
+export class StorageUnavailableError extends Error {
+  constructor(alias: string, cause: Error) {
+    // SDK errors (ali-oss especially) append multi-line agent/socket dumps; keep the first line.
+    super(`storage '${alias}' unavailable: ${cause.message.split("\n")[0] ?? cause.message}`);
+    this.name = "StorageUnavailableError";
+  }
+}
 const PROGRESS_CHUNK = 1024 * 1024;
 
 /** "~" targets and absolute paths shallower than 2 segments are rejected (e.g. "/data"). */
@@ -114,14 +123,22 @@ export class ServerRunner {
   /** Cloud relay path: upload once → presigned URL → remote curl → deployBundle → rm. */
   async deployViaStorage(uploader: CloudUploader, store: ObjectStorage, alias: string, source: string, target: string): Promise<void> {
     checkTargetPath(target);
-    const { objectKey, bundleHash } = await uploader.upload(store, alias, source);
-    const url = await store.presignedUrl(objectKey, PRESIGN_EXPIRES_SECONDS);
-
     const sourceName = basename(source);
     const bundleName = `${sourceName}.tar.gz`;
     const bundleRemotePath = `${REMOTE_TMP_BUNDLE_PREFIX}${bundleName}`;
-    this.log("⬇️", [`[${serverName(this.server)}]`, `downloading ${sourceName} via ${alias}`]);
-    await this.ssh.pipeExec(`curl -fsSL '${url}' -o ${bundleRemotePath}`);
+
+    // Fetch phase: upload → presign → remote curl. Any failure here leaves the target untouched.
+    let bundleHash: string;
+    try {
+      const uploaded = await uploader.upload(store, alias, source);
+      bundleHash = uploaded.bundleHash;
+      const url = await store.presignedUrl(uploaded.objectKey, PRESIGN_EXPIRES_SECONDS);
+      this.log("⬇️", [`[${serverName(this.server)}]`, `downloading ${sourceName} via ${alias}`]);
+      await this.ssh.pipeExec(`curl -fsSL '${url}' -o ${bundleRemotePath}`);
+    } catch (e) {
+      await this.ssh.combinedExec(`rm -f ${bundleRemotePath}`);
+      throw new StorageUnavailableError(alias, e instanceof Error ? e : new Error(String(e)));
+    }
 
     const targetDir = targetDirOf(target);
     try {

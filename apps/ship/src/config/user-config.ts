@@ -5,8 +5,9 @@ import { z } from "zod";
 import { USER_CONFIG_DIR, USER_CONFIG_FILE } from "../common/const.js";
 import { decrypt, encrypt, generateEncryptKey } from "./crypto.js";
 
-export const storageProviderSchema = z.enum(["oss", "s3"]);
-export type StorageProvider = z.infer<typeof storageProviderSchema>;
+import { type StorageCredential, type StorageProvider, storageProviderSchema } from "../storage/provider.js";
+
+export { storageProviderSchema, type StorageProvider, type StorageCredential };
 
 const storageCredentialSchema = z.object({
   provider: storageProviderSchema,
@@ -16,8 +17,6 @@ const storageCredentialSchema = z.object({
   access_key_id: z.string(),
   access_key_secret: z.string(),
 });
-/** Stored form: access keys are AES-GCM ciphertext. */
-export type StorageCredential = z.infer<typeof storageCredentialSchema>;
 
 const userConfigSchema = z.object({
   lang: z.enum(["zh", "en"]).default("zh"),
