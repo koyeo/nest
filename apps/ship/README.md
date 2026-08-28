@@ -2,6 +2,8 @@
 
 YAML-driven, local-first deploy CLI. One `ship.yaml` + one command: local build → SSH remote commands → file deploys over SFTP (with snapshot-based conflict handling) or via an OSS/S3 relay for slow links.
 
+> **Using Claude Code?** This repo ships a [`use-kozilla-ship` skill](skills/use-kozilla-ship/SKILL.md) that teaches Claude Code how to author `ship.yaml`, wire cloud-storage relay, and run deploys. Copy it into your `.claude/skills/` and ask Claude to set up `ship`.
+
 ```bash
 npm install -g @kozilla/ship
 ship init          # scaffold ship.yaml
