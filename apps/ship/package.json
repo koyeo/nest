@@ -1,6 +1,6 @@
 {
   "name": "@kozilla/ship",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "YAML-driven task runner & deployment CLI: local builds, SSH remote execution, SFTP / cloud-storage file deploys",
   "keywords": [
     "deploy",
